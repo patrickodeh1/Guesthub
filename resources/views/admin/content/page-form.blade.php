@@ -147,6 +147,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.3/tinymce.min.js"></script>
     <script>
     tinymce.init({
+        relative_urls: false,
+        remove_script_host: false,
         selector: '#page-content-editor',
         plugins: 'lists link code table',
         toolbar: 'undo redo | bold italic underline forecolor backcolor | alignleft aligncenter alignright | bullist numlist | customlineheight | link insertimage table | removeformat code | fontfamily fontsize',

@@ -187,7 +187,7 @@
                                     <div class="text-xs text-slate-500">{{ $guest->booking_id }}</div>
                                 </td>
                                 <td class="text-sm">{{ $guest->property->name }}</td>
-                                <td class="text-sm text-slate-600">{{ $guest->check_in_date->format('M j') }} – {{ $guest->check_out_date->format('M j') }}</td>
+                                <td class="text-sm text-slate-600">{{ $guest->stayRangeLabel() }}</td>
                                 <td><span class="badge badge-{{ $guest->status }}">{{ $guest->statusLabel() }}</span></td>
                             </tr>
                         @empty

@@ -3,7 +3,7 @@
         <div>
             <p class="eyebrow">Booking {{ $booking->booking_id }}</p>
             <h1 class="page-title">{{ $booking->guest_name }}</h1>
-            <p class="page-subtitle">{{ $booking->property->name }} · {{ $booking->check_in_date->format('M j') }} to {{ $booking->check_out_date->format('M j, Y') }}</p>
+            <p class="page-subtitle">{{ $booking->property->name }} · {{ $booking->stayRangeLabel() }}</p>
         </div>
         <div class="flex flex-wrap gap-2"><a href="{{ route('admin.bookings.edit', $booking) }}" class="btn-secondary">Edit Booking</a><a href="{{ route('admin.bookings.index') }}" class="btn-ghost">Back</a></div>
     </div>
@@ -270,6 +270,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.3/tinymce.min.js"></script>
     <script>
     tinymce.init({
+        relative_urls: false,
+        remove_script_host: false,
         selector: '#welcome-message-editor',
         plugins: 'lists link code table',
         toolbar: 'undo redo | bold italic underline forecolor backcolor | alignleft aligncenter alignright | bullist numlist | customlineheight | link insertimage table | removeformat code | fontfamily fontsize',

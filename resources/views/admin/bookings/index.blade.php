@@ -25,7 +25,7 @@
                         <tr>
                             <td><a class="font-semibold text-slate-950 hover:text-teal-800" href="{{ route('admin.bookings.show', $booking) }}">{{ $booking->guest_name }}</a><div class="text-slate-500">{{ $booking->booking_id }}</div></td>
                             <td>{{ $booking->property->name }}</td>
-                            <td>{{ $booking->check_in_date->format('M j, Y') }} - {{ $booking->check_out_date->format('M j, Y') }}</td>
+                            <td>{{ $booking->stayRangeLabel() }}</td>
                             <td><span class="badge badge-{{ $booking->status }}">{{ $booking->statusLabel() }}</span></td>
                             <td><div class="flex flex-wrap gap-2"><a class="btn-secondary gap-2" href="{{ route('admin.bookings.show', $booking) }}"><x-icon name="search" class="h-4 w-4" />View</a><a class="btn-ghost gap-2" href="{{ route('admin.bookings.edit', $booking) }}"><x-icon name="edit" class="h-4 w-4" />Edit</a></div></td>
                         </tr>

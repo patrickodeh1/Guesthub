@@ -350,6 +350,8 @@
         });
     });
     tinymce.init({
+        relative_urls: false,
+        remove_script_host: false,
         selector: '#content-editor',
         plugins: 'lists link code table',
         toolbar: 'undo redo | bold italic underline forecolor backcolor | alignleft aligncenter alignright | bullist numlist | customlineheight | link insertimage table | removeformat code | fontfamily fontsize',

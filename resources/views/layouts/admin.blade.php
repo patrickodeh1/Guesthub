@@ -19,7 +19,7 @@
 {{-- ══════════════════════════════════════════════════════════════════════════
      SIDEBAR
 ══════════════════════════════════════════════════════════════════════════ --}}
-<aside id="admin-sidebar" class="fixed inset-y-0 left-0 z-30 hidden w-64 overflow-y-auto bg-[#082b49] text-white shadow-xl lg:block lg:w-48 lg:shadow-none">
+<aside id="admin-sidebar" class="fixed inset-y-0 left-0 z-30 hidden w-64 overflow-x-hidden overflow-y-auto bg-[#082b49] text-white shadow-xl lg:block lg:w-48 lg:shadow-none">
     {{-- Brand --}}
     <div class="flex items-center justify-between px-3 py-3">
         <a href="{{ route('admin.dashboard') }}" class="flex min-w-0 flex-col items-start gap-1 px-3 font-semibold tracking-tight" data-tour="sidebar-brand">
@@ -39,17 +39,6 @@
     <nav class="grid gap-1 px-3 pb-4 text-sm" data-tour="sidebar-nav">
         @php
             $navSections = [
-                'Guest Admin' => [
-                    ['dashboard',  'Dashboard',       'admin.dashboard',          'admin.dashboard'],
-                    ['calendar',   'Bookings',         'admin.bookings.index',     'admin.bookings.*'],
-                    ['properties', 'Properties',       'admin.properties.index',   'admin.properties.*'],
-                ],
-                'Guest Experience' => [
-                    ['list',       'Instruction Steps', 'admin.instructions.index', 'admin.instructions.*'],
-                    ['guide',      'Categories',        'admin.guest-guide.index',  'admin.guest-guide.*'],
-                    // ['categories', 'Guide Categories', 'admin.categories.index',   'admin.categories.*|admin.content.*'],
-                    // ['list',       'Instructions',     'admin.instructions.index', 'admin.instructions.*'],
-                ],
                 'Settings' => [
                     ['settings',   'Settings',          'admin.settings.edit',      'admin.settings.*'],
                     ['categories', 'Manage Categories', 'admin.categories.index',   'admin.categories.*'],
@@ -61,6 +50,52 @@
                 ],
             ];
         @endphp
+        @php
+            $navProperties = \App\Models\Property::orderBy('name')->get();
+            $propertiesActive = request()->routeIs('admin.properties.*') || request()->routeIs('admin.instructions.*') || request()->routeIs('admin.guest-guide.*');
+        @endphp
+
+        <p class="mt-4 mb-1 px-3 text-xs font-bold uppercase tracking-widest text-slate-400">Guest Admin</p>
+        <a href="{{ route('admin.dashboard') }}" data-tour="nav-dashboard" class="flex items-center gap-2.5 rounded-sm px-3 py-2.5 transition focus:outline-none focus:ring-2 focus:ring-white/30 {{ request()->routeIs('admin.dashboard') ? 'bg-white/10 text-white' : 'text-slate-200 hover:bg-white/10 hover:text-white' }}">
+            <span class="grid h-5 w-5 shrink-0 place-items-center"><x-icon name="dashboard" class="h-4 w-4" /></span>
+            <span class="font-medium">Dashboard</span>
+        </a>
+        <a href="{{ route('admin.bookings.index') }}" data-tour="nav-calendar" class="flex items-center gap-2.5 rounded-sm px-3 py-2.5 transition focus:outline-none focus:ring-2 focus:ring-white/30 {{ request()->routeIs('admin.bookings.*') ? 'bg-white/10 text-white' : 'text-slate-200 hover:bg-white/10 hover:text-white' }}">
+            <span class="grid h-5 w-5 shrink-0 place-items-center"><x-icon name="calendar" class="h-4 w-4" /></span>
+            <span class="font-medium">Bookings</span>
+        </a>
+
+        {{-- Properties: expandable --}}
+        <div>
+            <div class="flex items-center rounded-sm {{ $propertiesActive ? 'bg-white/10 text-white' : 'text-slate-200' }}">
+                <a href="{{ route('admin.properties.index') }}" data-tour="nav-properties" class="flex flex-1 items-center gap-2.5 px-3 py-2.5 transition hover:text-white">
+                    <span class="grid h-5 w-5 shrink-0 place-items-center"><x-icon name="properties" class="h-4 w-4" /></span>
+                    <span class="font-medium">Properties</span>
+                </a>
+                <button type="button" onclick="document.getElementById('nav-properties-submenu').classList.toggle('hidden'); this.classList.toggle('rotate-90')" class="px-2 py-2.5 transition hover:text-white {{ $propertiesActive ? 'rotate-90' : '' }}">
+                    <x-icon name="chevron-right" class="h-3.5 w-3.5" />
+                </button>
+            </div>
+            <div id="nav-properties-submenu" class="ml-2 grid min-w-0 gap-1 border-l border-white/10 pl-2 {{ $propertiesActive ? '' : 'hidden' }}">
+                @foreach($navProperties as $navProperty)
+                    @php
+                        $thisPropertyActive = request()->routeIs('admin.instructions.*') || request()->routeIs('admin.guest-guide.*');
+                        $thisPropertyActive = $thisPropertyActive && (request()->route('property')?->id === $navProperty->id);
+                    @endphp
+                    <div>
+                        <button type="button" onclick="this.nextElementSibling.classList.toggle('hidden'); this.querySelector('.property-chevron').classList.toggle('rotate-90')" class="flex w-full items-start gap-1 rounded-sm px-2 py-2 text-left text-xs font-semibold transition hover:bg-white/10 {{ $thisPropertyActive ? 'bg-white/10 text-white' : 'text-slate-300 hover:text-white' }}">
+                            <span class="min-w-0 flex-1 break-words leading-snug">{{ $navProperty->name }}</span>
+                            <x-icon name="chevron-right" class="property-chevron mt-0.5 h-3 w-3 shrink-0 transition-transform {{ $thisPropertyActive ? 'rotate-90' : '' }}" />
+                        </button>
+                        <div class="ml-1 grid min-w-0 gap-1 {{ $thisPropertyActive ? '' : 'hidden' }}">
+                            <a href="{{ route('admin.instructions.show', $navProperty) }}" class="block rounded-sm px-2 py-1.5 text-xs leading-snug transition {{ request()->routeIs('admin.instructions.*') && request()->route('property')?->id === $navProperty->id ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white' }}">Check In/Out Details</a>
+                            <a href="{{ route('admin.guest-guide.show', $navProperty) }}" class="block rounded-sm px-2 py-1.5 text-xs leading-snug transition {{ request()->routeIs('admin.guest-guide.*') && request()->route('property')?->id === $navProperty->id ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white' }}">Guest Guide</a>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+        </div>
+
         @foreach($navSections as $sectionLabel => $navItems)
             <p class="mt-4 mb-1 px-3 text-xs font-bold uppercase tracking-widest text-slate-400">{{ $sectionLabel }}</p>
             @foreach($navItems as [$icon, $label, $route, $pattern])

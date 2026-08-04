@@ -60,6 +60,22 @@ class Booking extends Model
         return filled($this->photo_id_path) && ! $this->isApproved();
     }
 
+    public function stayRangeLabel(): string
+    {
+        $in = $this->check_in_date;
+        $out = $this->check_out_date;
+
+        if ($in->format('Y-m') === $out->format('Y-m')) {
+            return $in->format('M j').' through the '.$out->format('jS');
+        }
+
+        if ($in->format('Y') === $out->format('Y')) {
+            return $in->format('M j').' through '.$out->format('M j');
+        }
+
+        return $in->format('M j, Y').' through '.$out->format('M j, Y');
+    }
+
     public function instructionsCompleted(): bool
     {
         return $this->manually_checked_in || $this->status === 'checked_in';

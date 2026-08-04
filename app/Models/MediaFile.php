@@ -21,6 +21,6 @@ class MediaFile extends Model
 
     public function url(): string
     {
-        return \Illuminate\Support\Facades\Storage::disk('public')->url($this->path);
+        return url('/img/' . $this->path);
     }
 }
