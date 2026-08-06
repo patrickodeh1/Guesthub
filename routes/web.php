@@ -128,6 +128,7 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     Route::get('settings', [SettingsController::class, 'edit'])->name('settings.edit');
     Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');
 
+
     // ─── Users / Team ─────────────────────────────────────────────────────────
     Route::middleware('role:owner')->group(function () {
         Route::resource('users', UserController::class);

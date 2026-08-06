@@ -1,61 +1,129 @@
-# CLAUDE.md — Agent Operating Instructions for GuestHub
+# CLAUDE.md — Working Agreement for This Project
 
-You are working through `task-list.md`, logging everything in `tracker.md`. Read both fully before starting anything. This file governs how you work, not what to build — task intent is in `task-list.md`.
+This file is the standing prompt/context for AI-assisted work on GuestHub.
+Read it at the start of every conversation before touching code.
 
-## THE CORE RULE — read this twice
+---
 
-**You may not move to a new task until the current task is verified working AND the person you're working with has explicitly told you to move on.**
+## 0. Fundamental constraint: no filesystem access
 
-This means:
-- Finishing writing code is not "done." Done means it has been tested against real behavior and confirmed working.
-- You do not get to decide a fix is "probably fine" and move forward. If you cannot personally verify it (e.g. you don't have server/browser access), you must hand back clear verification steps and **wait for the human to run them and report back** before touching the next task.
-- If a fix doesn't work on the first attempt, that is not a signal to try something else immediately — investigate why it didn't work, explain what you found, and only proceed with a new attempt once you understand the actual cause. Guessing repeatedly wastes the person's time re-running things that don't fix the real problem (see: the APP_URL/symlink investigation in `tracker.md` — an unnecessary detour happened because a symlink theory was acted on without confirming it against actual evidence first).
-- If you get stuck (multiple attempts haven't resolved something), say so explicitly, log exactly what's been tried and ruled out in `tracker.md`, and ask for direction rather than continuing to guess indefinitely.
+The AI has no direct access to this repo, this server, or this terminal.
+It cannot `cat`, `grep`, `ls`, or edit files on its own — every command it
+"runs" against this codebase is actually a command it asks the human to run
+and paste back the output of. Never assume a prior view of a file is still
+accurate; files change between messages. Re-view/re-grep before editing
+anything you haven't seen in the current message.
 
-## Before touching any task
+**Practical result:** every fix is a two-step loop:
+1. AI asks for `grep`/`cat` output to see current real state.
+2. Human pastes it. AI gives exact commands (sed/python/cat heredocs) to run.
+3. Human runs them, pastes confirmation output (another grep/diff/wc -l).
+4. AI verifies the output actually matches intent before calling it done.
 
-1. Read the task's full description in `task-list.md` — don't work from a one-line paraphrase in your own memory.
-2. Check `tracker.md` for whether this task (or something adjacent to it) has partial history — don't repeat investigation that's already been done and logged.
-3. Explore the actual codebase yourself. Do not assume standard framework behavior — this codebase has existing helper methods, existing status enums, and existing patterns (see below). Reusing what exists is mandatory, not optional.
-4. If a task depends on another unresolved task or an unanswered open question (both are flagged explicitly in `task-list.md`), do not build around it with a guess. Flag the dependency and either wait or ask.
+Never skip step 3/4. "I wrote the code" is not "it shipped correctly."
 
-## While working
+---
 
-- Prefer small, verifiable, defensive changes over large speculative ones. When editing a file, confirm your exact target string exists uniquely in the file before writing (guard against silent wrong edits) — check, don't assume formatting matches what you remember from earlier in the session.
-- After every change, verify by re-reading the file/output, not by assuming the edit worked because no error was thrown.
-- One task's changes should be traceable as their own unit in `tracker.md` — do not silently bundle unrelated changes into another task's entry.
+## 1. How to deliver code changes
 
-## MANDATORY: tracker.md logging
+- **Prefer inline paste-able commands over downloadable files.** This
+  project's workflow is copy/paste into a live terminal, not downloading
+  artifacts. Use `sed`, `python3 - << 'EOF' ... EOF`, or
+  `cat > path << 'EOF' ... EOF` heredocs directly in the response.
+- **Use `python3` for anything regex-fragile or multi-line** (e.g. deleting
+  a 3-line if-block across 4 files, restructuring a markdown file). `sed`
+  is fine for single-line, unambiguous replacements only — Blade files with
+  nested quotes/braces routinely break naive sed patterns; don't fight it,
+  switch to python3 with an explicit line-based or careful regex approach.
+- **Always follow a write/edit command with a verification command**
+  (`grep -c`, `grep -n`, `wc -l`, `git diff`) in the same reply, and ask for
+  its output before declaring the change complete.
+- **When asked to remove/clean something, actually delete it — don't
+  comment it out** — unless explicitly told otherwise. Commented-out dead
+  code left in "just in case" is not what "clean it out" means here.
+- **Don't mark a task DONE based on code existing.** Confirm via grep/cat
+  that the code matches the actual spec, and where possible get the human
+  to functionally test it (click through the UI) before updating
+  task-list.md / tracker.md.
 
-Every task must be logged with:
-- Status (`Not Started` / `In Progress` / `Blocked` / `Done`)
-- Every file changed, with what changed in it
-- What was tested, and how — be specific, not "tested and works"
-- Any assumption made in place of missing information, clearly labeled as an assumption
-- Anything the person needs to manually do (migrations, config, manual testing steps)
+---
 
-If a task turns out to be more complex than expected mid-build (e.g. what looked like one bug is actually two, or a fix requires touching a system you didn't expect), **stop, log what you found, and confirm scope before continuing** — don't silently expand the task without checking in.
+## 2. Diagnosing "not working" reports
 
-If an investigation goes down a wrong path (like a theory that turns out to be incorrect), log that explicitly in `tracker.md` too, including what was reverted and why — this prevents the same wrong path being retried later, by you or anyone else picking this up.
+When something is reported broken, don't guess — narrow it down in this
+order before proposing a fix:
+1. Confirm the file/config actually changed as intended (`grep`/`cat`).
+2. Confirm the change is reaching the client (curl status codes, correct
+   script load order, cache-busting / hard refresh — browser cache is a
+   very common false "still broken" signal; test in incognito to rule it
+   out before assuming leftover code).
+3. Get browser DevTools console + Network tab output for client-side
+   issues — don't speculate about CSP, load order, or JS errors without
+   seeing them.
+4. Only then propose a code fix, and explain *why* that's the cause based
+   on what was actually observed, not a hunch.
 
-## Hard constraints — do not violate
+If a fix doesn't work on the first try, don't just reapply variations —
+isolate what specifically is still failing (which of several sub-symptoms
+persists) before writing the next patch.
 
-- Do not implement direct August/Bluetooth lock integration outside Seam. Already decided — Seam-only for now.
-- Do not guess the answer to anything marked `[OPEN QUESTION]`. Log as blocked, move to something else only with explicit sign-off, or wait.
-- Do not touch the full guest-detail page layout redesign — explicitly deprioritized.
-- Do not remove the booking_id/token from guest URLs without a working, tested alternative already in place.
-- `.env` and secrets are never included in anything shared outside the local/production environment.
-- If you add a database migration, say so explicitly and loudly in `tracker.md` — migrations are run manually via cPanel terminal on production, they will not be discovered automatically.
-- Do not build the new full booking-status flow (Task 68) as a system parallel to the existing approve/decline system built today — they must be reconciled into one model first.
+---
 
-## When something is ambiguous
+## 3. Scoping and task hygiene
 
-Stop, log it as blocked/open in `tracker.md` with a clear explanation of the ambiguity, and wait for direction rather than guessing at user-facing behavior (copy, colors, layout, state transitions) not explicitly specified in `task-list.md`.
+- **The task list / tracker.md can drift from what the client actually
+  asked for** — summarized/paraphrased task entries lose precision over
+  time. When a task is vague, go back to the original client message
+  (chat exports, text files) and quote their exact words before building
+  anything. Paraphrase-of-a-paraphrase is how scope gets built wrong.
+- **A single client message often bundles multiple distinct asks** (e.g.
+  "send a URL to guests" also implied session persistence AND access
+  revocation — three different systems). Split these explicitly and name
+  the split, rather than building one blended, ambiguous feature.
+- **Flag architectural dependencies before building.** Auth/session
+  systems, status-flow state machines, and routing structure are the kind
+  of work that, if built piecemeal per-feature, gets rebuilt when the
+  "real" version lands later. When a task touches one of these, say so and
+  propose sequencing (design/self-contained work first, foundational
+  systems next, entangled/auth work last) rather than just starting.
+- **Don't assume a task is done because chat shows the dev said "I'll do
+  that."** Look for the client's later confirmation (or lack of one) in
+  the same conversation before crediting it as shipped. Verify against
+  actual code when in doubt (see Section 0).
+- **Distinguish "blocked, needs client answer" from "blocked, needs
+  internal work" from "actually already answered somewhere in the chat
+  history but not reflected in the tracker."** Re-read chat exports fully
+  before declaring something an open question.
+- **Some reported issues are out of scope / won't-fix** (e.g. third-party
+  platform's own activity log labeling) — confirm this plainly with the
+  client and close the task with a reason, don't leave it in limbo marked
+  "blocked."
 
-## Definition of "verified" (do not skip this)
+---
 
-A task is only Done when at least one of these is true, and it's stated in `tracker.md` which one:
-- It was tested live against real data/a real scenario and the actual observed behavior matches what was expected, described in the tracker in specific terms (not "it works")
-- The person explicitly confirmed it themselves and told you to mark it done
+## 4. Task list conventions
 
-Code that compiles, a patch that applies cleanly, or a script that runs without error is **not** verification. Only observed correct behavior is.
+- Tasks are grouped in **phases by dependency risk**, not by feature area
+  alone: (1) self-contained design/layout, (2) self-contained backend/data,
+  (3) bugs, (4) foundational systems multiple things depend on (status
+  flow), (5) dashboard/content work that depends on phase 4, (6) misc
+  content, (7) auth rework — built last, highest architectural risk.
+- Every task entry should be traceable to either an original client quote
+  or an explicit "(new, found in chat log)" / "(new, found in code)" tag —
+  no task should exist that can't be sourced.
+- Closed tasks (shipped or won't-fix) move to a CLOSED section rather than
+  being deleted, so there's a record of what happened and why.
+
+---
+
+## 5. Communication style expected in this project
+
+- Be direct about trade-offs and uncertainty. Don't oversell a fix as
+  definitely working before it's actually been tested.
+- When multiple valid approaches exist (e.g. free vs paid spellcheck
+  options), research and present the real landscape with sources, not just
+  the first idea — this client explicitly cares about being able to show
+  they've done real research, not just picked something quickly.
+- When a request reveals a performance or UX problem in a previous fix
+  (e.g. "it freezes now"), diagnose root cause before patching again —
+  don't just add a workaround on top of a flawed approach.

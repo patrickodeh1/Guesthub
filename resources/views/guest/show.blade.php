@@ -5,6 +5,13 @@
     $checkoutSteps = isset($checkoutSteps) ? $checkoutSteps : [];
     $parkingSteps = isset($parkingSteps) ? $parkingSteps : [];
     $heroImg = $property->heroImageUrl();
+    $welcomeBannerImg = null;
+    $welcomeMessageClean = $welcomeMessage ?? '';
+    if (!empty($welcomeMessageClean) && preg_match('/<img[^>]+src=["\']([^"\']+)["\']/i', $welcomeMessageClean, $m)) {
+        $welcomeBannerImg = $m[1];
+        $welcomeMessageClean = preg_replace('/<img[^>]*>/i', '', $welcomeMessageClean, 1);
+    }
+    $displayHeroImg = $welcomeBannerImg ?: $heroImg;
     $categoryColor = ['#eef2ff', '#3b65ce'];
     $guideCats = $categories;
 @endphp
@@ -34,26 +41,22 @@
                         Not checked in
                     </span>
                 </div>
-                {{-- Step counter / dots (persistent across all steps) --}}
-                <div class="px-6 pt-5 flex items-center justify-between">
-                    <span id="wizard-step-counter" class="guest-status-kicker">Step 1 of 3</span>
-                    <div class="flex items-center gap-2">
-                        <span class="idw-dot h-2 w-2 rounded-full bg-slate-900" data-dot="1" id="idw-dot-1"></span>
-                        <span class="idw-dot h-2 w-2 rounded-full bg-slate-200" data-dot="2" id="idw-dot-2"></span>
-                        <span class="idw-dot h-2 w-2 rounded-full bg-slate-200" data-dot="3" id="idw-dot-3"></span>
-                    </div>
+                {{-- Step indicator: big circled current step, dash-separated others (persistent across all steps, top of card) --}}
+                <div class="px-6 pt-5 step-indicator">
+                    <span class="step-num is-current" data-num="1" id="step-num-1">1</span>
+                    <span class="step-dash">&mdash;</span>
+                    <span class="step-num" data-num="2" id="step-num-2">2</span>
+                    <span class="step-dash">&mdash;</span>
+                    <span class="step-num" data-num="3" id="step-num-3">3</span>
                 </div>
+                {{-- Hero image: persistent/static across all check-in steps --}}
+                <img src="{{ $displayHeroImg }}" alt="{{ $property->name }}" class="w-full block rounded-xl mt-4">
 
                 <form id="guest-booking-form" method="post" data-skip-loading enctype="multipart/form-data" action="{{ route('guest.identity', [$booking->booking_id, $booking->token]) }}" class="guest-booking-card">
                     @csrf
 
                     {{-- ══════════════════ STEP 1 — Welcome + Booking details (read-only) ══════════════════ --}}
                     <div class="idw-step" data-step="1">
-                        <div class="px-0 pt-0 pb-2">
-                            <h2 class="text-xl font-extrabold text-slate-950">Welcome, {{ $booking->guest_first_name ?? $booking->guest_name }}!</h2>
-                            <div class="mt-2 text-sm leading-6 text-slate-600">{!! $welcomeMessage !!}</div>
-                        </div>
-                        <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="w-full block rounded-xl" style="height:auto">
                         <div class="guest-stay-grid mt-5">
                             <div class="guest-stay-tile">
                                 <div class="guest-stay-tile-icon">
@@ -72,27 +75,46 @@
                                 <p class="guest-stay-tile-time">11:00 AM</p>
                             </div>
                         </div>
-                        <div class="guest-detail-grid">
-                            <div class="guest-detail-item">
-                                <p class="guest-detail-item-label">Name</p>
-                                <p class="guest-detail-item-value">{{ $booking->guest_name }}</p>
-                            </div>
-                            <div class="guest-detail-item">
-                                <p class="guest-detail-item-label">Property</p>
-                                <p class="guest-detail-item-value">{{ $property->name }}</p>
-                            </div>
-                            @if($booking->phone)
-                            <div class="guest-detail-item">
-                                <p class="guest-detail-item-label">Phone</p>
-                                <p class="guest-detail-item-value">{{ $booking->phone }}</p>
-                            </div>
-                            @endif
+                        <div class="px-0 pt-5 pb-2">
+                            <h2 class="text-xl font-extrabold text-slate-950">Welcome, {{ $booking->guest_first_name ?? $booking->guest_name }}!</h2>
+                            <div class="mt-2 text-sm leading-6 text-slate-600">{!! $welcomeMessageClean !!}</div>
                         </div>
-                        <button type="button" class="guest-primary-btn mt-6 w-full" data-next="2">Continue</button>
+                        @php
+                            $isRegistrationComplete = filled($booking->guest_name)
+                                && filled($booking->email)
+                                && filled($booking->phone)
+                                && ! is_null($booking->parking_needed)
+                                && $booking->photo_id_received;
+                        @endphp
+                        @if($isRegistrationComplete)
+                            <button type="button" class="guest-primary-btn guest-primary-btn-lg is-go mt-6 w-full" data-next="2">
+                                Begin Check In
+                                <x-icon name="arrow-right" class="h-5 w-5 ml-1 inline-block align-middle" />
+                            </button>
+                        @else
+                            <button type="button" class="guest-primary-btn guest-primary-btn-lg mt-6 w-full" data-next="2">
+                                Begin Registration
+                                <x-icon name="arrow-right" class="h-5 w-5 ml-1 inline-block align-middle" />
+                            </button>
+                        @endif
                     </div>
 
                     {{-- ══════════════════ STEP 2 — Phone, Email, Parking, Check-in time ══════════════════ --}}
                     <div class="idw-step hidden" data-step="2">
+                        {{-- Name --}}
+                        <div class="mt-5" id="name-display-block">
+                            <p class="text-sm font-bold">Name</p>
+                            <div class="mt-2 flex items-center justify-between guest-input" style="cursor:default">
+                                <span>{{ $booking->guest_name }}</span>
+                                <button type="button" id="name-edit-pencil" class="text-slate-400 hover:text-slate-600" title="Edit name">
+                                    <x-icon name="edit" class="h-4 w-4" />
+                                </button>
+                            </div>
+                        </div>
+                        <label class="mt-5 hidden block text-sm font-bold" id="name-input-block">
+                            Name
+                            <input name="guest_name" type="text" value="{{ old('guest_name', $booking->guest_name) }}" placeholder="Full name" autocomplete="name" required class="guest-input mt-2">
+                        </label>
                         {{-- Phone --}}
                         @if($booking->phone)
                         <div class="mt-5" id="phone-display-block">
@@ -201,8 +223,9 @@
                             <div id="camera-container" class="relative w-full rounded-xl overflow-hidden bg-black hidden" style="aspect-ratio:16/9">
                                 <video id="camera-stream" class="w-full h-full object-cover" autoplay playsinline muted></video>
                                 <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
-                                    <div class="w-[85%] h-[70%] rounded-lg border-2 border-white/80" style="box-shadow:0 0 0 9999px rgba(0,0,0,0.35)"></div>
+                                    <div class="w-[88%] rounded-lg border-4 border-white" style="aspect-ratio:1.586/1;box-shadow:0 0 0 9999px rgba(0,0,0,0.45)"></div>
                                 </div>
+                                <p id="camera-instruction-label" class="pointer-events-none absolute top-2 left-0 right-0 text-center text-white text-sm font-bold" style="text-shadow:0 1px 3px rgba(0,0,0,0.8)"></p>
                             </div>
                             <div id="capture-btn-wrapper" class="hidden mt-3 flex flex-col items-center gap-2">
                                 <button type="button" id="capture-btn" class="bg-slate-900 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-xl border-4 border-white mx-auto">
@@ -214,7 +237,7 @@
                                 <p class="text-xs font-semibold text-slate-500 mb-1">Front of ID</p>
                                 <img id="front-preview" class="w-full rounded-xl object-cover" style="max-height:180px">
                                 <p id="front-blur-warning" class="mt-1 hidden text-xs font-semibold text-red-500">Image is blurry. Please retake.</p>
-                                <button type="button" id="retake-front-btn" class="mt-2 text-xs font-semibold text-blue-600 underline">Retake front</button>
+                                <button type="button" id="retake-front-btn" class="mt-2 text-xs font-semibold text-blue-600 underline">{{ $booking->id_type === 'passport' ? 'Retake' : 'Retake front' }}</button>
                             </div>
                             <div id="back-preview-block" class="hidden mt-3">
                                 <p class="text-xs font-semibold text-slate-500 mb-1">Back of ID</p>
@@ -222,11 +245,22 @@
                                 <p id="back-blur-warning" class="mt-1 hidden text-xs font-semibold text-red-500">Image is blurry. Please retake.</p>
                                 <button type="button" id="retake-back-btn" class="mt-2 text-xs font-semibold text-blue-600 underline">Retake back</button>
                             </div>
-                            <div id="upload-zone-trigger" class="guest-upload mt-3 cursor-pointer" onclick="startCamera('front')">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-14 w-14 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><rect x="2" y="5" width="20" height="14" rx="2" stroke-width="1.5"/><circle cx="8" cy="11" r="2" stroke-width="1.5"/><path stroke-linecap="round" stroke-width="1.5" d="M2 19l4-4 3 3 4-5 5 6"/></svg>
-                                <span class="mt-2 font-bold">Tap to take photo of ID</span>
-                                <span class="mt-1 text-xs font-medium text-slate-500">Front and back required</span>
+                            <div id="upload-zone-trigger" class="guest-upload guest-upload-id mt-3 cursor-pointer" onclick="startCamera('front')">
+                                @if($booking->id_type === 'passport')
+                                <img src="{{ asset('id_icons/passportID.png') }}" alt="Passport example">
+                                @else
+                                <img src="{{ asset('id_icons/frontID.jpg') }}" alt="Front of ID example">
+                                @endif
                             </div>
+                            @if($booking->id_type === 'passport')
+                            <p id="upload-zone-trigger-front-label" class="mt-2 text-center font-bold">Tap to take photo of passport data page</p>
+                            @else
+                            <p id="upload-zone-trigger-front-label" class="mt-2 text-center font-bold">Tap to take photo of front of ID</p>
+                            @endif
+                            <div id="upload-zone-trigger-back" class="guest-upload guest-upload-id mt-3 cursor-pointer hidden" onclick="startCamera('back')">
+                                <img src="{{ asset('id_icons/backID.jpg') }}" alt="Back of ID example">
+                            </div>
+                            <p id="upload-zone-trigger-back-label" class="mt-2 text-center font-bold hidden">Tap to take photo of back of ID</p>
                             <input type="hidden" name="photo_id" id="photo-id-data">
                             <input type="hidden" name="photo_id_back" id="photo-id-back-data">
                         </div>
@@ -236,7 +270,7 @@
                             <button type="button" class="guest-outline-btn w-full" data-prev="2">Back</button>
                             @if($booking->photo_id_received)
                                 @if($booking->isApproved())
-                                    <a href="{{ route('guest.show', [$booking->booking_id, $booking->token]) }}" class="guest-primary-btn w-full text-center">Continue</a>
+                                    <button type="submit" class="guest-primary-btn w-full">Continue</button>
                                 @else
                                     <button type="button" class="guest-primary-btn w-full" disabled style="opacity:.5;cursor:not-allowed">Continue</button>
                                 @endif
@@ -252,18 +286,15 @@
                 <script>
                 (function() {
                     var steps = document.querySelectorAll(".idw-step");
-                    var dots = document.querySelectorAll(".idw-dot");
-                    var counter = document.getElementById("wizard-step-counter");
+                    var stepNums = document.querySelectorAll(".step-num");
 
                     function goToStep(n) {
                         steps.forEach(function(s) {
                             s.classList.toggle("hidden", s.getAttribute("data-step") !== String(n));
                         });
-                        dots.forEach(function(d) {
-                            var active = d.getAttribute("data-dot") === String(n);
-                            d.className = "idw-dot h-2 w-2 rounded-full " + (active ? "bg-slate-900" : "bg-slate-200");
+                        stepNums.forEach(function(el) {
+                            el.classList.toggle("is-current", el.getAttribute("data-num") === String(n));
                         });
-                        if (counter) counter.textContent = "Step " + n + " of 3";
                     }
 
                     @if($booking->needsIdApproval())
@@ -291,6 +322,13 @@
                         });
                     });
 
+                    var namePencil = document.getElementById("name-edit-pencil");
+                    if (namePencil) {
+                        namePencil.addEventListener("click", function() {
+                            document.getElementById("name-display-block").classList.add("hidden");
+                            document.getElementById("name-input-block").classList.remove("hidden");
+                        });
+                    }
                     var phonePencil = document.getElementById("phone-edit-pencil");
                     if (phonePencil) {
                         phonePencil.addEventListener("click", function() {
@@ -311,35 +349,142 @@
                 var currentSide = "front";
                 var stream = null;
                 var photoIdRequired = {{ $booking->photo_id_received ? 'false' : 'true' }};
+                var isPassport = {{ $booking->id_type === 'passport' ? 'true' : 'false' }};
+
+                // Downsamples the captured image, computes a Laplacian-based sharpness
+                // score (real focus/blur detection, not just brightness contrast), and a
+                // grid edge-density heuristic as a lightweight (non-OCR) "is there
+                // text-like structure here" signal.
+                var IDW_DEBUG_LOG_SCORES = false; // tuning logs disabled
+
+                function __idwGetGrayscaleSample(imgEl, targetWidth) {
+                    var scale = targetWidth / imgEl.naturalWidth;
+                    var w = targetWidth;
+                    var h = Math.max(1, Math.round(imgEl.naturalHeight * scale));
+                    var canvas = document.createElement("canvas");
+                    canvas.width = w;
+                    canvas.height = h;
+                    var ctx = canvas.getContext("2d");
+                    ctx.drawImage(imgEl, 0, 0, w, h);
+                    var data = ctx.getImageData(0, 0, w, h).data;
+                    var gray = new Float32Array(w * h);
+                    for (var i = 0, p = 0; i < data.length; i += 4, p++) {
+                        gray[p] = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+                    }
+                    return { gray: gray, w: w, h: h };
+                }
+
+                function __idwLaplacianMap(gray, w, h) {
+                    var lap = new Float32Array(w * h);
+                    for (var y = 1; y < h - 1; y++) {
+                        for (var x = 1; x < w - 1; x++) {
+                            var idx = y * w + x;
+                            var val =
+                                gray[idx - w] + gray[idx + w] + gray[idx - 1] + gray[idx + 1] - 4 * gray[idx];
+                            lap[idx] = val;
+                        }
+                    }
+                    return lap;
+                }
+
+                function __idwSharpnessVariance(lap, w, h) {
+                    var n = w * h;
+                    var sum = 0;
+                    for (var i = 0; i < n; i++) sum += lap[i];
+                    var mean = sum / n;
+                    var variance = 0;
+                    for (var i = 0; i < n; i++) variance += Math.pow(lap[i] - mean, 2);
+                    return variance / n;
+                }
+
+                function __idwTextLikeCellRatio(lap, w, h) {
+                    var cellSize = 16;
+                    var cols = Math.floor(w / cellSize);
+                    var rows = Math.floor(h / cellSize);
+                    if (cols < 1 || rows < 1) return 0;
+                    var textLikeCells = 0;
+                    var totalCells = 0;
+                    for (var cy = 0; cy < rows; cy++) {
+                        for (var cx = 0; cx < cols; cx++) {
+                            var edgeCount = 0;
+                            var strong = 0;
+                            for (var y = cy * cellSize; y < (cy + 1) * cellSize && y < h; y++) {
+                                for (var x = cx * cellSize; x < (cx + 1) * cellSize && x < w; x++) {
+                                    var v = Math.abs(lap[y * w + x]);
+                                    if (v > 15) edgeCount++;
+                                    if (v > 60) strong++;
+                                }
+                            }
+                            totalCells++;
+                            var cellPixels = cellSize * cellSize;
+                            var edgeDensity = edgeCount / cellPixels;
+                            if (edgeDensity > 0.12 && edgeDensity < 0.55 && strong < cellPixels * 0.3) {
+                                textLikeCells++;
+                            }
+                        }
+                    }
+                    return totalCells > 0 ? textLikeCells / totalCells : 0;
+                }
+
+                var IDW_SHARPNESS_MIN = 45;      // Laplacian variance floor - retune after real captures
+                var IDW_TEXT_RATIO_MIN = 0.03;   // fraction of grid cells that must look text-like
 
                 function checkBlur(imgEl, warningEl) {
-                    var canvas = document.createElement("canvas");
-                    canvas.width = imgEl.naturalWidth;
-                    canvas.height = imgEl.naturalHeight;
-                    var ctx = canvas.getContext("2d");
-                    ctx.drawImage(imgEl, 0, 0);
-                    var data = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-                    var sum = 0, mean = 0, variance = 0;
-                    for (var i = 0; i < data.length; i += 4) sum += 0.299*data[i]+0.587*data[i+1]+0.114*data[i+2];
-                    mean = sum/(data.length/4);
-                    for (var i = 0; i < data.length; i += 4) { var l=0.299*data[i]+0.587*data[i+1]+0.114*data[i+2]; variance+=Math.pow(l-mean,2); }
-                    variance = variance/(data.length/4);
-                    if (variance < 200) { warningEl.classList.remove("hidden"); return false; }
-                    warningEl.classList.add("hidden"); return true;
+                    var sample = __idwGetGrayscaleSample(imgEl, 400);
+                    var lap = __idwLaplacianMap(sample.gray, sample.w, sample.h);
+                    var sharpness = __idwSharpnessVariance(lap, sample.w, sample.h);
+                    var textRatio = __idwTextLikeCellRatio(lap, sample.w, sample.h);
+
+                    if (IDW_DEBUG_LOG_SCORES) {
+                        console.log("[ID capture check] sharpness=" + sharpness.toFixed(2) + " textRatio=" + textRatio.toFixed(3));
+                    }
+
+                    if (sharpness < IDW_SHARPNESS_MIN) {
+                        warningEl.textContent = "Image is blurry. Please retake.";
+                        warningEl.classList.remove("hidden");
+                        return false;
+                    }
+                    if (textRatio < IDW_TEXT_RATIO_MIN) {
+                        warningEl.textContent = "No legible ID text detected. Please retake with the ID clearly in frame.";
+                        warningEl.classList.remove("hidden");
+                        return false;
+                    }
+                    warningEl.classList.add("hidden");
+                    return true;
                 }
 
                 function startCamera(side) {
                     currentSide = side;
-                    document.getElementById("upload-zone-trigger").classList.add("hidden");
                     var container = document.getElementById("camera-container");
+                    var btnWrapper = document.getElementById("capture-btn-wrapper");
+                    var frontTrigger = document.getElementById("upload-zone-trigger");
+                    var backTrigger = document.getElementById("upload-zone-trigger-back");
+                    var frontLabel = document.getElementById("upload-zone-trigger-front-label");
+                    var backLabel = document.getElementById("upload-zone-trigger-back-label");
+                    var activeTrigger = side === "front" ? frontTrigger : backTrigger;
+
+                    frontTrigger.classList.add("hidden");
+                    backTrigger.classList.add("hidden");
+                    frontLabel.classList.add("hidden");
+                    backLabel.classList.add("hidden");
+
+                    activeTrigger.parentNode.insertBefore(container, activeTrigger);
+                    activeTrigger.parentNode.insertBefore(btnWrapper, activeTrigger);
+
                     container.classList.remove("hidden");
-                    document.getElementById("capture-btn-wrapper").classList.remove("hidden");
+                    btnWrapper.classList.remove("hidden");
                     navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false })
                         .then(function(s) {
                             stream = s;
                             document.getElementById("camera-stream").srcObject = s;
-                            var label = side === "front" ? "Take photo of FRONT of ID" : "Take photo of BACK of ID";
+                            var label;
+                            if (side === "front") {
+                                label = isPassport ? "Take a picture of the passport data page" : "Take a picture of the front of ID";
+                            } else {
+                                label = "Take a picture of the back of ID";
+                            }
                             document.getElementById("capture-btn").title = label;
+                            document.getElementById("camera-instruction-label").textContent = label;
                         })
                         .catch(function() { alert("Camera access denied. Please allow camera permissions and try again."); });
                 }
@@ -350,13 +495,42 @@
                     document.getElementById("capture-btn-wrapper").classList.add("hidden");
                 }
 
+                // Crops the capture to the same guide-border rectangle the user sees
+                // (CSS overlay is decorative only and has no effect on the raw video
+                // frame, so we replicate the object-cover + centered-88%-box math here
+                // in native video pixel coordinates).
+                function __idwGetGuideCropRect(video) {
+                    var containerAspect = 16 / 9;
+                    var videoAspect = video.videoWidth / video.videoHeight;
+                    var visW, visH, offX, offY;
+                    if (videoAspect > containerAspect) {
+                        visH = video.videoHeight;
+                        visW = visH * containerAspect;
+                        offX = (video.videoWidth - visW) / 2;
+                        offY = 0;
+                    } else {
+                        visW = video.videoWidth;
+                        visH = visW / containerAspect;
+                        offX = 0;
+                        offY = (video.videoHeight - visH) / 2;
+                    }
+                    var guideAspect = 1.586;
+                    var guideW = visW * 0.88;
+                    var guideH = guideW / guideAspect;
+                    if (guideH > visH) { guideH = visH; guideW = guideH * guideAspect; }
+                    var guideX = offX + (visW - guideW) / 2;
+                    var guideY = offY + (visH - guideH) / 2;
+                    return { x: guideX, y: guideY, w: guideW, h: guideH };
+                }
+
                 if (photoIdRequired) {
                     document.getElementById("capture-btn").addEventListener("click", function() {
                         var video = document.getElementById("camera-stream");
+                        var crop = __idwGetGuideCropRect(video);
                         var canvas = document.createElement("canvas");
-                        canvas.width = video.videoWidth;
-                        canvas.height = video.videoHeight;
-                        canvas.getContext("2d").drawImage(video, 0, 0);
+                        canvas.width = crop.w;
+                        canvas.height = crop.h;
+                        canvas.getContext("2d").drawImage(video, crop.x, crop.y, crop.w, crop.h, 0, 0, crop.w, crop.h);
                         var dataUrl = canvas.toDataURL("image/jpeg", 0.92);
                         stopCamera();
                         if (currentSide === "front") {
@@ -365,7 +539,13 @@
                             document.getElementById("front-preview-block").classList.remove("hidden");
                             img.onload = function() {
                                 var ok = checkBlur(img, document.getElementById("front-blur-warning"));
-                                if (ok) { document.getElementById("photo-id-data").value = dataUrl; startCamera("back"); }
+                                if (ok) {
+                                    document.getElementById("photo-id-data").value = dataUrl;
+                                    if (!isPassport) {
+                                        document.getElementById("upload-zone-trigger-back").classList.remove("hidden");
+                                        document.getElementById("upload-zone-trigger-back-label").classList.remove("hidden");
+                                    }
+                                }
                             };
                         } else {
                             var img = document.getElementById("back-preview");
@@ -380,6 +560,8 @@
 
                     document.getElementById("retake-front-btn").addEventListener("click", function() {
                         document.getElementById("front-preview-block").classList.add("hidden");
+                        document.getElementById("upload-zone-trigger-back").classList.add("hidden");
+                        document.getElementById("upload-zone-trigger-back-label").classList.add("hidden");
                         document.getElementById("photo-id-data").value = "";
                         startCamera("front");
                     });
@@ -400,9 +582,9 @@
                         var frontBlur = document.getElementById("front-blur-warning");
                         var backBlur = document.getElementById("back-blur-warning");
                         if (!front) { alert("Please take a photo of the front of your ID."); return; }
-                        if (!back) { alert("Please take a photo of the back of your ID."); return; }
+                        if (!isPassport && !back) { alert("Please take a photo of the back of your ID."); return; }
                         if (!frontBlur.classList.contains("hidden")) { alert("Front ID photo is blurry. Please retake."); return; }
-                        if (!backBlur.classList.contains("hidden")) { alert("Back ID photo is blurry. Please retake."); return; }
+                        if (!isPassport && !backBlur.classList.contains("hidden")) { alert("Back ID photo is blurry. Please retake."); return; }
                     }
 
                     function b64toBlob(b64) {
@@ -415,7 +597,9 @@
                     var fd = new FormData(form);
                     if (photoIdRequired) {
                         fd.set("photo_id", b64toBlob(document.getElementById("photo-id-data").value), "front.jpg");
-                        fd.set("photo_id_back", b64toBlob(document.getElementById("photo-id-back-data").value), "back.jpg");
+                        if (!isPassport) {
+                            fd.set("photo_id_back", b64toBlob(document.getElementById("photo-id-back-data").value), "back.jpg");
+                        }
                     }
 
                     var submitBtn = form.querySelector('[type="submit"]');

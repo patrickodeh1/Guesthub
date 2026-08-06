@@ -47,18 +47,18 @@
                             @if($booking->photo_id_path)
                                 <div>
                                     <p class="text-xs font-semibold text-slate-500 mb-1">Front</p>
-                                    <a href="{{ route('admin.bookings.photo-id-view', $booking) }}" target="_blank">
+                                    <button type="button" onclick="openPhotoIdModal('{{ route('admin.bookings.photo-id-view', $booking) }}', 'Photo ID front')" class="block w-full text-left">
                                         <img src="{{ route('admin.bookings.photo-id-view', $booking) }}" alt="Photo ID front" class="rounded-lg border border-slate-200 max-h-64 w-auto object-contain">
-                                    </a>
+                                    </button>
                                     <a class="mt-2 block text-sm font-semibold text-teal-800" href="{{ route('admin.bookings.photo-id', $booking) }}">Download original</a>
                                 </div>
                             @endif
                             @if($booking->photo_id_back_path)
                                 <div>
                                     <p class="text-xs font-semibold text-slate-500 mb-1">Back</p>
-                                    <a href="{{ route('admin.bookings.photo-id-back-view', $booking) }}" target="_blank">
+                                    <button type="button" onclick="openPhotoIdModal('{{ route('admin.bookings.photo-id-back-view', $booking) }}', 'Photo ID back')" class="block w-full text-left">
                                         <img src="{{ route('admin.bookings.photo-id-back-view', $booking) }}" alt="Photo ID back" class="rounded-lg border border-slate-200 max-h-64 w-auto object-contain">
-                                    </a>
+                                    </button>
                                     <a class="mt-2 block text-sm font-semibold text-teal-800" href="{{ route('admin.bookings.photo-id-back', $booking) }}">Download original</a>
                                 </div>
                             @endif
@@ -72,6 +72,7 @@
                 <div class="rounded-xl border border-slate-200 p-4"><p class="text-sm text-slate-500">Parking</p><p class="mt-2 font-semibold text-slate-950">{{ is_null($booking->parking_needed) ? 'Unknown' : ($booking->parking_needed ? 'Needed' : 'Not needed') }}</p></div>
                 <div class="rounded-xl border border-slate-200 p-4"><p class="text-sm text-slate-500">Requested Check-in Time</p><p class="mt-2 font-semibold text-slate-950">{{ $booking->checkin_time_preference ?: 'Not specified' }}</p></div>
                 <div class="rounded-xl border border-slate-200 p-4"><p class="text-sm text-slate-500">Early Check-in Exception</p><p class="mt-2 font-semibold {{ $booking->early_checkin ? 'text-emerald-700' : 'text-slate-950' }}">{{ $booking->early_checkin ? 'Enabled' : 'Not enabled' }}</p></div>
+                <div class="rounded-xl border border-slate-200 p-4"><p class="text-sm text-slate-500">ID Type</p><p class="mt-2 font-semibold text-slate-950">{{ $booking->id_type === 'passport' ? 'Passport' : 'State-issued ID' }}</p></div>
                 <div class="rounded-xl border border-slate-200 p-4"><p class="text-sm text-slate-500">Photo ID Already Received</p><p class="mt-2 font-semibold {{ $booking->photo_id_received ? 'text-emerald-700' : 'text-slate-950' }}">{{ $booking->photo_id_received ? 'Enabled' : 'Not enabled' }}</p></div>
                 <div class="rounded-xl border border-slate-200 p-4"><p class="text-sm text-slate-500">Contact</p><p class="mt-2 font-semibold text-slate-950">{{ $booking->email ?: 'No email yet' }}</p></div>
             </div>
@@ -172,6 +173,27 @@
         </div>
     </div>
 
+    {{-- Photo ID Viewer Modal --}}
+    <div id="photo-id-modal" tabindex="-1" class="fixed inset-0 hidden items-center justify-center bg-slate-950/40 p-4" style="z-index:2147483000;">
+        <div class="w-full max-w-2xl rounded-xl bg-white p-5 shadow-xl">
+            <div class="mb-3 flex items-center justify-between gap-3">
+                <p id="photo-id-modal-title" class="text-sm font-bold text-slate-700">Photo ID</p>
+                <div class="flex items-center gap-2">
+                    <button type="button" onclick="photoIdZoomOut()" class="rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-50">&minus;</button>
+                    <span id="photo-id-modal-zoom-level" class="w-10 text-center text-xs font-semibold text-slate-500">100%</span>
+                    <button type="button" onclick="photoIdZoomIn()" class="rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-50">+</button>
+                    <button type="button" onclick="photoIdZoomReset()" class="rounded-md border border-slate-200 px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-50">Reset</button>
+                    <button type="button" onclick="closePhotoIdModal()" class="text-slate-400 hover:text-slate-700">
+                        <x-icon name="x" class="h-5 w-5" />
+                    </button>
+                </div>
+            </div>
+            <div id="photo-id-modal-viewport" class="max-h-[75vh] w-full overflow-hidden rounded-lg bg-slate-100" style="cursor: grab;">
+                <img id="photo-id-modal-img" src="" alt="" class="h-full w-full select-none object-contain" style="transform-origin: center center; transition: transform 0.08s ease-out; user-select:none; -webkit-user-drag:none;" draggable="false">
+            </div>
+        </div>
+    </div>
+
     {{-- Force TinyMCE's floating menus/dropdowns/overflow drawer below our modal --}}
     <style>
     .tox-tinymce-aux,
@@ -193,7 +215,126 @@
     <script>
     let __mediaPickerCurrentFolder = null;
 
-    function closeMediaPickerForEditor() {
+    let __photoIdZoom = 1;
+    let __photoIdPanX = 0;
+    let __photoIdPanY = 0;
+    let __photoIdDragging = false;
+    let __photoIdDragStartX = 0;
+    let __photoIdDragStartY = 0;
+    const PHOTO_ID_ZOOM_MIN = 1;
+    const PHOTO_ID_ZOOM_MAX = 4;
+    const PHOTO_ID_ZOOM_STEP = 0.25;
+
+    function __photoIdApplyTransform() {
+        const img = document.getElementById('photo-id-modal-img');
+        img.style.transform = `translate(${__photoIdPanX}px, ${__photoIdPanY}px) scale(${__photoIdZoom})`;
+        document.getElementById('photo-id-modal-zoom-level').textContent = Math.round(__photoIdZoom * 100) + '%';
+        const viewport = document.getElementById('photo-id-modal-viewport');
+        viewport.style.cursor = __photoIdZoom > 1 ? 'grab' : 'default';
+    }
+
+    function __photoIdClampPan() {
+        if (__photoIdZoom <= 1) {
+            __photoIdPanX = 0;
+            __photoIdPanY = 0;
+            return;
+        }
+        const viewport = document.getElementById('photo-id-modal-viewport');
+        const maxPanX = (viewport.clientWidth * (__photoIdZoom - 1)) / 2;
+        const maxPanY = (viewport.clientHeight * (__photoIdZoom - 1)) / 2;
+        __photoIdPanX = Math.max(-maxPanX, Math.min(maxPanX, __photoIdPanX));
+        __photoIdPanY = Math.max(-maxPanY, Math.min(maxPanY, __photoIdPanY));
+    }
+
+    function photoIdZoomIn() {
+        __photoIdZoom = Math.min(PHOTO_ID_ZOOM_MAX, __photoIdZoom + PHOTO_ID_ZOOM_STEP);
+        __photoIdClampPan();
+        __photoIdApplyTransform();
+    }
+
+    function photoIdZoomOut() {
+        __photoIdZoom = Math.max(PHOTO_ID_ZOOM_MIN, __photoIdZoom - PHOTO_ID_ZOOM_STEP);
+        __photoIdClampPan();
+        __photoIdApplyTransform();
+    }
+
+    function photoIdZoomReset() {
+        __photoIdZoom = 1;
+        __photoIdPanX = 0;
+        __photoIdPanY = 0;
+        __photoIdApplyTransform();
+    }
+
+    function openPhotoIdModal(url, title) {
+        document.getElementById('photo-id-modal-img').src = url;
+        document.getElementById('photo-id-modal-title').textContent = title;
+        const modal = document.getElementById('photo-id-modal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        document.body.style.overflow = 'hidden';
+        modal.focus();
+        modal.scrollIntoView({ behavior: 'instant', block: 'center' });
+        photoIdZoomReset();
+    }
+
+    function closePhotoIdModal() {
+        const modal = document.getElementById('photo-id-modal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+        document.getElementById('photo-id-modal-img').src = '';
+        document.body.style.overflow = '';
+        photoIdZoomReset();
+    }
+
+    (function initPhotoIdZoomInteractions() {
+        const viewport = document.getElementById('photo-id-modal-viewport');
+        const img = document.getElementById('photo-id-modal-img');
+
+        viewport.addEventListener('wheel', function (e) {
+            if (document.getElementById('photo-id-modal').classList.contains('hidden')) return;
+            e.preventDefault();
+            if (e.deltaY < 0) {
+                __photoIdZoom = Math.min(PHOTO_ID_ZOOM_MAX, __photoIdZoom + PHOTO_ID_ZOOM_STEP);
+            } else {
+                __photoIdZoom = Math.max(PHOTO_ID_ZOOM_MIN, __photoIdZoom - PHOTO_ID_ZOOM_STEP);
+            }
+            __photoIdClampPan();
+            __photoIdApplyTransform();
+        }, { passive: false });
+
+        viewport.addEventListener('mousedown', function (e) {
+            if (__photoIdZoom <= 1) return;
+            __photoIdDragging = true;
+            __photoIdDragStartX = e.clientX - __photoIdPanX;
+            __photoIdDragStartY = e.clientY - __photoIdPanY;
+            viewport.style.cursor = 'grabbing';
+        });
+
+        window.addEventListener('mousemove', function (e) {
+            if (!__photoIdDragging) return;
+            __photoIdPanX = e.clientX - __photoIdDragStartX;
+            __photoIdPanY = e.clientY - __photoIdDragStartY;
+            __photoIdClampPan();
+            __photoIdApplyTransform();
+        });
+
+        window.addEventListener('mouseup', function () {
+            if (!__photoIdDragging) return;
+            __photoIdDragging = false;
+            viewport.style.cursor = __photoIdZoom > 1 ? 'grab' : 'default';
+        });
+
+        img.addEventListener('dblclick', function () {
+            if (__photoIdZoom > 1) {
+                photoIdZoomReset();
+            } else {
+                __photoIdZoom = 2;
+                __photoIdApplyTransform();
+            }
+        });
+    })();
+
+        function closeMediaPickerForEditor() {
         const modal = document.getElementById('media-picker-modal');
         modal.classList.add('hidden');
         modal.classList.remove('flex');

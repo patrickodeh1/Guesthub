@@ -18,23 +18,19 @@
         'checkout-instructions' => 'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=1400&q=80',
     ];
     $heroImage = $heroImage ?: ($fallbackPhotos[$category->slug] ?? null);
+    $heroImage = $heroImage ?: $booking->property->heroImageUrl();
     $tone = ['#eef2ff', '#3b65ce'];
 @endphp
 
 <x-guest-layout :booking="$booking" :property="$booking->property" :title="$displayTitle" state="guide">
 <section class="guest-detail-shell">
-    <a href="{{ route('guest.show', [$booking->booking_id, $booking->token]) }}"
-       class="mb-5 inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-bold text-slate-700 shadow-sm transition hover:-translate-y-px hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300">
-        <x-icon name="arrow-left" class="h-4 w-4" />
-        Back to guide
-    </a>
-
     <header class="guest-detail-hero">
         @if($heroImage)
             <img src="{{ $heroImage }}" alt="{{ $displayTitle }}" loading="eager">
         @endif
     </header>
 
+    <div class="guest-category-scroll-wrap">
     <div class="guest-category-scroll">
         @foreach($categories as $cat)
             @php
@@ -53,14 +49,15 @@
             @endif
                 <span class="guest-category-scroll-icon">
                     @if($cat->guest_icon)
-                        <img src="{{ url('/img/'.$cat->guest_icon) }}" alt="{{ $catTitle }}" class="h-6 w-6 rounded object-cover">
+                        <img src="{{ url('/img/'.$cat->guest_icon) }}" alt="{{ $catTitle }}" class="h-full w-full rounded object-cover">
                     @else
-                        <x-icon :name="$cat->slug" class="h-6 w-6" />
+                        <x-icon :name="$cat->slug" class="h-4/5 w-4/5" />
                     @endif
                 </span>
                 <span class="guest-category-scroll-label">{{ $catTitle }}</span>
             </a>
         @endforeach
+    </div>
     </div>
 
     @php
@@ -83,8 +80,6 @@
                         />
                     @endforeach
                 </div>
-            @elseif($category->action === 'door_lock')
-                <p class="text-sm font-bold text-slate-500 text-center py-6">No lock is configured for this property yet.</p>
             @elseif(optional($page)->content)
                 <div class="prose-welcome text-base {{ $category->slug === 'wifi' ? 'wifi-cards' : '' }}">{!! $page->renderContent($booking) !!}</div>
             @endif
@@ -119,5 +114,52 @@
             </a>
         @endif
     </div>
+    <a href="{{ route('guest.show', [$booking->booking_id, $booking->token]) }}"
+       class="mt-6 flex w-full items-center justify-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 shadow-sm transition hover:-translate-y-px hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-300">
+        <x-icon name="arrow-left" class="h-4 w-4" />
+        Dashboard
+    </a>
 </section>
+<script>
+(function() {
+    var active = document.querySelector('.guest-category-scroll-item.is-active');
+    if (active) {
+        active.scrollIntoView({ block: 'nearest', inline: 'center' });
+    }
+
+    var scroller = document.querySelector('.guest-category-scroll');
+    if (scroller) {
+        scroller.addEventListener('wheel', function(e) {
+            if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+                scroller.scrollLeft += e.deltaY;
+                e.preventDefault();
+            }
+        }, { passive: false });
+
+        var isDown = false;
+        var startX, scrollLeftStart;
+        scroller.addEventListener('mousedown', function(e) {
+            isDown = true;
+            scroller.classList.add('is-dragging');
+            startX = e.pageX - scroller.offsetLeft;
+            scrollLeftStart = scroller.scrollLeft;
+        });
+        scroller.addEventListener('mouseleave', function() {
+            isDown = false;
+            scroller.classList.remove('is-dragging');
+        });
+        scroller.addEventListener('mouseup', function() {
+            isDown = false;
+            scroller.classList.remove('is-dragging');
+        });
+        scroller.addEventListener('mousemove', function(e) {
+            if (!isDown) return;
+            e.preventDefault();
+            var x = e.pageX - scroller.offsetLeft;
+            var walk = (x - startX) * 1.5;
+            scroller.scrollLeft = scrollLeftStart - walk;
+        });
+    }
+})();
+</script>
 </x-guest-layout>

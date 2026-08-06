@@ -19,9 +19,7 @@
             <x-icon :name="$icon" class="h-4/5 w-4/5" />
         @endif
     </span>
-    @unless($guestIcon)
-        <span class="guest-guide-title">{{ $title }}</span>
-    @endunless
+    <span class="guest-guide-title">{{ $title }}</span>
     @if($description)
         <span class="guest-guide-copy">{{ $description }}</span>
     @endif

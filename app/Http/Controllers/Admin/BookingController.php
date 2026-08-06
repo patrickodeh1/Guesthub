@@ -53,6 +53,9 @@ class BookingController extends Controller
         if (($data['status'] ?? null) === 'id_uploaded') {
             $data['photo_id_received'] = true;
         }
+        if ($data['photo_id_received'] && empty($data['approved_at'])) {
+            $data['approved_at'] = now();
+        }
         $booking            = Booking::create($data);
 
         ActivityLogService::admin('booking_created', "Guest booking created for {$booking->guest_name} ({$booking->booking_id}).", 'guests', [
@@ -155,6 +158,9 @@ class BookingController extends Controller
         if (($data['status'] ?? null) === 'id_uploaded') {
             $data['photo_id_received'] = true;
         }
+        if ($data['photo_id_received'] && empty($booking->approved_at) && empty($data['approved_at'])) {
+            $data['approved_at'] = now();
+        }
         $booking->update($data);
 
         ActivityLogService::admin('booking_updated', auth()->user()->name." updated booking for {$booking->guest_name}.", 'guests', [
@@ -239,6 +245,7 @@ class BookingController extends Controller
         $booking->update([
             'photo_id_received' => true,
             'status' => in_array($booking->status, ['pending', 'waiting_checkin'], true) ? 'id_uploaded' : $booking->status,
+            'approved_at' => $booking->approved_at ?: now(),
         ]);
 
         ActivityLogService::admin('photo_id_marked', auth()->user()->name." marked photo ID as received for {$booking->guest_name}.", 'photo_id', [
@@ -359,6 +366,7 @@ class BookingController extends Controller
             'check_in_date'  => ['required', 'date'],
             'check_out_date' => ['required', 'date', 'after_or_equal:check_in_date'],
             'property_id'    => ['required', 'exists:properties,id'],
+            'id_type'        => ['required', 'in:state_id,passport'],
             'parking_needed' => ['nullable', 'boolean'],
             'early_checkin'  => ['nullable', 'boolean'],
             'photo_id_received' => ['nullable', 'boolean'],

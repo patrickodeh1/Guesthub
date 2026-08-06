@@ -64,15 +64,17 @@ class GuestController extends Controller
         $photoRequired = ! $booking->photo_id_received;
 
         $data = $request->validate([
+            'guest_name' => ['nullable', 'string', 'max:255'],
             'email'    => ['required', 'email', 'max:255'],
             'phone'    => ['nullable', 'string', 'max:50'],
             'photo_id' => [$photoRequired ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
-            'photo_id_back' => [$photoRequired ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
+            'photo_id_back' => [($photoRequired && $booking->id_type !== 'passport') ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
             'parking_needed' => ['nullable', 'boolean'],
             'checkin_time_preference' => ['nullable', 'string', 'max:100'],
         ]);
 
         $updates = [
+            'guest_name'   => ($data['guest_name'] ?? null) ?: $booking->guest_name,
             'email'        => $data['email'],
             'phone'        => ($data['phone'] ?? null) ?: $booking->phone,
             'parking_needed' => is_null($booking->parking_needed) ? $request->boolean('parking_needed') : $booking->parking_needed,

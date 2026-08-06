@@ -15,7 +15,15 @@
       "PowerShell(cd \"D:\\\\Work\\\\htdocs\\\\htdocs\\\\Laravel welcome guide\"; php artisan tinker --execute=\"try { \\\\App\\\\Http\\\\Controllers\\\\Admin\\\\DashboardController::class; echo 'ok'; } catch\\(\\\\Throwable \\\\$e\\) { echo \\\\$e->getMessage\\(\\); }\" 2>&1)",
       "PowerShell(cd \"D:\\\\Work\\\\htdocs\\\\htdocs\\\\Laravel welcome guide\"; php artisan view:cache 2>&1 | Select-Object -Last 5; $files = Get-ChildItem \"storage\\\\framework\\\\views\\\\\"; foreach \\($f in $files\\) { $c = Get-Content $f.FullName -Raw; if \\($c -match 'siteLogo'\\) { Write-Output $f.Name; break } })",
       "PowerShell($f = \"D:\\\\Work\\\\htdocs\\\\htdocs\\\\Laravel welcome guide\\\\storage\\\\framework\\\\views\\\\1f3b6060116eb602d2c0673f62b99f41.php\"; $c = Get-Content $f -Raw; $i = $c.IndexOf\\('siteLogo'\\); $c.Substring\\($i - 20, 200\\))",
-      "PowerShell(cd \"D:\\\\Work\\\\htdocs\\\\htdocs\\\\Laravel welcome guide\"; $f = Get-ChildItem \"storage\\\\framework\\\\views\\\\\" | Where-Object { \\(Get-Content $_.FullName -Raw\\) -match 'siteLogo' } | Select-Object -First 1; $c = Get-Content $f.FullName -Raw; $i = $c.IndexOf\\('siteLogo'\\); $c.Substring\\($i - 10, 120\\))"
+      "PowerShell(cd \"D:\\\\Work\\\\htdocs\\\\htdocs\\\\Laravel welcome guide\"; $f = Get-ChildItem \"storage\\\\framework\\\\views\\\\\" | Where-Object { \\(Get-Content $_.FullName -Raw\\) -match 'siteLogo' } | Select-Object -First 1; $c = Get-Content $f.FullName -Raw; $i = $c.IndexOf\\('siteLogo'\\); $c.Substring\\($i - 10, 120\\))",
+      "Bash(docker compose exec *)",
+      "WebSearch",
+      "WebFetch(domain:www.tiny.cloud)",
+      "Bash(docker compose exec app php ...)",
+      "Bash(docker compose ps *)",
+      "Bash(docker compose up *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8081/v2/languages)",
+      "Bash(time curl -s -X POST --max-time 30 -d \"text=This is a mispelled word.\" -d \"language=en-US\" http://localhost:8081/v2/check)"
     ]
   }
 }
