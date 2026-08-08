@@ -24,9 +24,9 @@ class DashboardController extends Controller
             ['label' => 'Update brand and logo', 'done' => $brandReady, 'route' => route('admin.settings.edit'), 'icon' => 'sparkles'],
             ['label' => 'Add contact details', 'done' => $contactReady, 'route' => route('admin.settings.edit'), 'icon' => 'contact-guest-services'],
             ['label' => 'Add default categories', 'done' => $categoriesReady, 'route' => route('admin.categories.index'), 'icon' => 'categories'],
-            ['label' => 'Add first guest booking', 'done' => $guests > 0, 'route' => route('admin.bookings.create'), 'icon' => 'guests'],
-            ['label' => 'Copy a guest URL', 'done' => (bool) $firstBooking, 'route' => $firstBooking ? route('admin.bookings.show', $firstBooking) : route('admin.bookings.index'), 'icon' => 'copy'],
-            ['label' => 'Test guest pre-check-in page', 'done' => (bool) $firstBooking, 'route' => $firstBooking?->publicUrl() ?? route('admin.bookings.index'), 'icon' => 'security'],
+            ['label' => 'Add first guest booking', 'done' => $guests > 0, 'route' => route('admin.guests.create'), 'icon' => 'guests'],
+            ['label' => 'Copy a guest URL', 'done' => (bool) $firstBooking, 'route' => $firstBooking ? route('admin.guests.show', $firstBooking) : route('admin.guests.index'), 'icon' => 'copy'],
+            ['label' => 'Test guest pre-check-in page', 'done' => (bool) $firstBooking, 'route' => $firstBooking?->publicUrl() ?? route('admin.guests.index'), 'icon' => 'security'],
             ['label' => 'Review Admin Guide', 'done' => filled(auth()->user()->admin_tour_completed_at), 'route' => route('admin.guide'), 'icon' => 'guide'],
         ]);
         $checklistPercent = $checklist->count() ? (int) round(($checklist->where('done', true)->count() / $checklist->count()) * 100) : 0;

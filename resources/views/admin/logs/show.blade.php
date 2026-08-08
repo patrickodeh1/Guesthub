@@ -110,11 +110,11 @@
                     @endif
                     @if($log->booking_id)
                         <div>
-                            <dt class="field-label text-xs">Booking</dt>
+                            <dt class="field-label text-xs">Guest</dt>
                             <dd class="mt-1">
-                                <a href="{{ route('admin.bookings.show', $log->booking_id) }}"
+                                <a href="{{ route('admin.guests.show', $log->booking_id) }}"
                                    class="text-sm font-semibold text-[#102338] hover:underline">
-                                    View booking #{{ $log->booking_id }} →
+                                    View guest #{{ $log->booking_id }} →
                                 </a>
                             </dd>
                         </div>

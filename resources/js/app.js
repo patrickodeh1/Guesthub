@@ -335,7 +335,8 @@ document.addEventListener('DOMContentLoaded', () => {
     // Form submit loading states
     document.querySelectorAll('form[data-loading], form[method="post"], form[method="POST"]').forEach((form) => {
         if (form.hasAttribute('data-skip-loading')) return;
-        form.addEventListener('submit', () => {
+        form.addEventListener('submit', (e) => {
+            if (e.defaultPrevented) return;
             const btn = form.querySelector('[type="submit"], button:not([type="button"])');
             if (!btn || btn.dataset.loadingActive) return;
             btn.dataset.loadingActive = 'true';
@@ -345,6 +346,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
+    // Row action menus (kebab dropdowns) — close any open one when clicking outside
+    document.addEventListener('click', (e) => {
+        if (e.target.closest('[data-row-menu]')) return;
+        document.querySelectorAll('[data-row-menu-panel]').forEach((panel) => panel.classList.add('hidden'));
+    });
     // Copy-to-clipboard buttons
     document.querySelectorAll('[data-copy]').forEach((btn) => {
         btn.addEventListener('click', async () => {
@@ -513,36 +519,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ── GPS verify (guest page) ────────────────────────────────────────────────
-    const gpsBtn = document.getElementById('gps-verify-btn');
-    if (gpsBtn) {
-        gpsBtn.addEventListener('click', () => {
-            const form = document.getElementById('gps-form');
-            if (!form) return;
-
-            gpsBtn.disabled  = true;
-            gpsBtn.innerHTML = '<span class="ui-spinner"></span><span>Checking your location…</span>';
-
-            navigator.geolocation.getCurrentPosition(
-                (pos) => {
-                    document.getElementById('gps-lat').value = pos.coords.latitude;
-                    document.getElementById('gps-lon').value = pos.coords.longitude;
-                    form.submit();
-                },
-                (err) => {
-                    gpsBtn.disabled  = false;
-                    gpsBtn.innerHTML = 'Verify My Location';
-                    const msg = document.getElementById('gps-error');
-                    if (msg) {
-                        msg.textContent = 'Location access was denied. Please enable location in your browser and try again, or contact guest services for manual approval.';
-                        msg.classList.remove('hidden');
-                    }
-                },
-                { timeout: 12000, enableHighAccuracy: true }
-            );
-        });
-    }
-
     // ── GPS JSON verify (AJAX) ─────────────────────────────────────────────────
     const gpsAjaxBtn = document.getElementById('gps-ajax-verify-btn');
     if (gpsAjaxBtn) {
@@ -575,6 +551,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             body: JSON.stringify({
                                 latitude:  pos.coords.latitude,
                                 longitude: pos.coords.longitude,
+                                accuracy:  pos.coords.accuracy,
                             }),
                         });
                         const data = await res.json();
@@ -593,9 +570,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 },
                 (err) => {
-                    showMsg('Location access denied. Please allow location access and try again, or contact guest services.', true);
-                    gpsAjaxBtn.disabled  = false;
-                    gpsAjaxBtn.innerHTML = 'Retry Location Check';
+                    if (err.code === err.PERMISSION_DENIED) {
+                        showMsg('Location permission is blocked. After allowing location access in your browser settings, tap below to reload and try again.', true);
+                        gpsAjaxBtn.disabled  = false;
+                        gpsAjaxBtn.innerHTML = 'Reload Page';
+                        gpsAjaxBtn.onclick   = () => location.reload();
+
+                        // Where supported, auto-reload the moment permission is granted
+                        // so the guest doesn't have to tap anything themselves.
+                        if (navigator.permissions?.query) {
+                            navigator.permissions.query({ name: 'geolocation' }).then((status) => {
+                                status.onchange = () => {
+                                    if (status.state === 'granted') location.reload();
+                                };
+                            }).catch(() => {});
+                        }
+                    } else {
+                        showMsg('Location access failed. Please try again, or contact guest services.', true);
+                        gpsAjaxBtn.disabled  = false;
+                        gpsAjaxBtn.innerHTML = 'Retry Location Check';
+                    }
                 },
                 { timeout: 14000, enableHighAccuracy: true }
             );
@@ -655,5 +649,43 @@ document.addEventListener('DOMContentLoaded', () => {
     const successBanner = document.querySelector('[data-flash-success]');
     if (successBanner) {
         window.Toast?.success(successBanner.dataset.flashSuccess);
+    }
+
+    const pollTarget = document.querySelector('[data-poll-gps-status]');
+    if (pollTarget) {
+        const statusUrl = pollTarget.dataset.pollGpsStatus;
+        const pollInterval = setInterval(async () => {
+            try {
+                const res = await fetch(statusUrl, { headers: { Accept: 'application/json' } });
+                const data = await res.json();
+                if (data.gps_verified) {
+                    clearInterval(pollInterval);
+                    location.reload();
+                }
+            } catch (_) {
+                // network hiccup — next tick will retry
+            }
+        }, 5000);
+    }
+
+    const scrollTarget = document.querySelector('[data-scroll-to]');
+    if (scrollTarget) {
+        const anchorSelector = scrollTarget.dataset.scrollTo;
+        const anchor = anchorSelector ? document.querySelector(anchorSelector) : null;
+        if (anchor) {
+            if (scrollTarget.dataset.expandCommunication === 'true') {
+                const body = document.getElementById('communication-body');
+                const chevron = document.getElementById('communication-chevron');
+                if (body && body.classList.contains('hidden')) {
+                    body.classList.remove('hidden');
+                    chevron?.classList.add('rotate-90');
+                }
+            }
+            setTimeout(() => {
+                anchor.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                anchor.classList.add('scroll-highlight-pulse');
+                setTimeout(() => anchor.classList.remove('scroll-highlight-pulse'), 2000);
+            }, 150);
+        }
     }
 });

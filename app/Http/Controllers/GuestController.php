@@ -38,6 +38,7 @@ class GuestController extends Controller
             'checkinSteps'  => ($state === 'guide' && ! $booking->instructionsCompleted()) ? $this->checkinSteps($booking) : [],
             'checkoutSteps' => $this->checkoutSteps($booking),
             'parkingSteps'  => ($state === 'guide' && ! $booking->instructionsCompleted()) ? $this->parkingSteps($booking) : [],
+            'checkinTimeOptions' => $this->checkinTimeOptions(),
         ]);
     }
 
@@ -45,10 +46,27 @@ class GuestController extends Controller
     {
         $booking = $this->booking($bookingId, $token);
         $booking->update([
-            'status'        => 'checked_in',
+            'status'        => 'currently_hosting',
             'checked_in_at' => now(),
         ]);
         ActivityLogService::guest('guest_confirmed_checkin', "Guest {$booking->guest_name} confirmed check-in.", 'check', [
+            'booking_id'  => $booking->id,
+            'property_id' => $booking->property_id,
+            'actor_name'  => $booking->guest_name,
+            'actor_email' => $booking->email,
+            'severity'    => 'success',
+        ]);
+        return response()->json(['ok' => true]);
+    }
+
+    public function confirmCheckout(string $bookingId, string $token)
+    {
+        $booking = $this->booking($bookingId, $token);
+        $booking->update([
+            'status'         => 'checked_out',
+            'checked_out_at' => now(),
+        ]);
+        ActivityLogService::guest('guest_confirmed_checkout', "Guest {$booking->guest_name} confirmed check-out.", 'check', [
             'booking_id'  => $booking->id,
             'property_id' => $booking->property_id,
             'actor_name'  => $booking->guest_name,
@@ -70,7 +88,7 @@ class GuestController extends Controller
             'photo_id' => [$photoRequired ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
             'photo_id_back' => [($photoRequired && $booking->id_type !== 'passport') ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
             'parking_needed' => ['nullable', 'boolean'],
-            'checkin_time_preference' => ['nullable', 'string', 'max:100'],
+            'checkin_time_preference' => ['required', 'regex:/^([01][0-9]|2[0-3]):(00|30)$/'],
         ]);
 
         $updates = [
@@ -78,8 +96,8 @@ class GuestController extends Controller
             'email'        => $data['email'],
             'phone'        => ($data['phone'] ?? null) ?: $booking->phone,
             'parking_needed' => is_null($booking->parking_needed) ? $request->boolean('parking_needed') : $booking->parking_needed,
-            'checkin_time_preference' => $data['checkin_time_preference'] ?? null,
-            'status'       => 'id_uploaded',
+            'checkin_time_preference' => $data['checkin_time_preference'],
+            'status'       => 'pre_checkin_complete',
             'identity_confirmed_at' => now(),
             'decline_reason' => null,
             'photo_id_received' => true,
@@ -145,6 +163,7 @@ class GuestController extends Controller
         $data    = $request->validate([
             'latitude'  => ['required', 'numeric'],
             'longitude' => ['required', 'numeric'],
+            'accuracy'  => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $property = $booking->property;
@@ -158,18 +177,29 @@ class GuestController extends Controller
         );
         $radius = (int) Setting::getValue('gps_radius_meters', 150);
 
-        if ($distance > $radius) {
-            ActivityLogService::guest('gps_failed', "Guest {$booking->guest_name} GPS verification failed (distance: ".round($distance)."m, radius: {$radius}m).", 'gps', [
+        // Browser-reported GPS accuracy is a margin of error, not a guarantee.
+        // A guest genuinely on-site can still get a low-precision fix (e.g. indoors),
+        // so extend the effective radius by the reported accuracy, capped so a wildly
+        // inaccurate/spoofed reading can't be used to pass verification from far away.
+        $maxAccuracyBonus = (int) Setting::getValue('gps_accuracy_bonus_cap_meters', 100);
+        $accuracy          = isset($data['accuracy']) ? (float) $data['accuracy'] : 0.0;
+        $accuracyBonus     = min(max($accuracy, 0), $maxAccuracyBonus);
+        $effectiveRadius   = $radius + $accuracyBonus;
+
+        if ($distance > $effectiveRadius) {
+            ActivityLogService::guest('gps_failed', "Guest {$booking->guest_name} GPS verification failed (distance: ".round($distance)."m, radius: {$radius}m, accuracy: ".round($accuracy)."m, effective radius: ".round($effectiveRadius)."m).", 'gps', [
                 'booking_id'  => $booking->id,
                 'property_id' => $booking->property_id,
                 'actor_name'  => $booking->guest_name,
                 'actor_email' => $booking->email,
                 'severity'    => 'warning',
                 'metadata'    => [
-                    'submitted_lat'  => $data['latitude'],
-                    'submitted_lon'  => $data['longitude'],
-                    'distance_meters' => round($distance),
-                    'radius_meters'  => $radius,
+                    'submitted_lat'    => $data['latitude'],
+                    'submitted_lon'    => $data['longitude'],
+                    'distance_meters'  => round($distance),
+                    'radius_meters'    => $radius,
+                    'accuracy_meters'  => round($accuracy),
+                    'effective_radius' => round($effectiveRadius),
                 ],
             ]);
 
@@ -184,23 +214,30 @@ class GuestController extends Controller
             'gps_verified'  => true,
         ]);
 
-        ActivityLogService::guest('gps_verified', "Guest {$booking->guest_name} GPS verified and checked in (distance: ".round($distance)."m).", 'gps', [
+        ActivityLogService::guest('gps_verified', "Guest {$booking->guest_name} GPS verified and checked in (distance: ".round($distance)."m, accuracy: ".round($accuracy)."m).", 'gps', [
             'booking_id'  => $booking->id,
             'property_id' => $booking->property_id,
             'actor_name'  => $booking->guest_name,
             'actor_email' => $booking->email,
             'severity'    => 'success',
             'metadata'    => [
-                'submitted_lat'   => $data['latitude'],
-                'submitted_lon'   => $data['longitude'],
-                'distance_meters' => round($distance),
-                'radius_meters'   => $radius,
+                'submitted_lat'    => $data['latitude'],
+                'submitted_lon'    => $data['longitude'],
+                'distance_meters'  => round($distance),
+                'radius_meters'    => $radius,
+                'accuracy_meters'  => round($accuracy),
+                'effective_radius' => round($effectiveRadius),
             ],
         ]);
 
         return response()->json(['ok' => true, 'message' => 'Location verified. Your check-in details are unlocked.']);
     }
 
+    public function gpsStatus(string $bookingId, string $token)
+    {
+        $booking = $this->booking($bookingId, $token);
+        return response()->json(['gps_verified' => (bool) $booking->gps_verified]);
+    }
     public function category(string $bookingId, string $token, Category $category)
     {
         $booking = $this->booking($bookingId, $token);
@@ -357,7 +394,7 @@ class GuestController extends Controller
             return 'waiting';
         }
 
-        if (! $booking->isCheckedIn()) {
+        if (! $booking->gps_verified) {
             return 'arrival';
         }
 
@@ -422,6 +459,18 @@ class GuestController extends Controller
             ->toArray();
     }
 
+    private function checkinTimeOptions(): array
+    {
+        $options = [];
+        for ($hour = 0; $hour < 24; $hour++) {
+            foreach ([0, 30] as $minute) {
+                $value = sprintf('%02d:%02d', $hour, $minute);
+                $label = \Carbon\Carbon::createFromTime($hour, $minute)->format('g:i A');
+                $options[$value] = $label;
+            }
+        }
+        return $options;
+    }
     private function availableCategories(Booking $booking)
     {
         return $booking->property->categories

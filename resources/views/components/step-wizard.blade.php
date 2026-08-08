@@ -90,8 +90,11 @@
     document.getElementById("wizard-next-" + type).addEventListener("click", function() { if (current < total - 1) goTo(current + 1); });
     document.getElementById("wizard-prev-" + type).addEventListener("click", function() { if (current > 0) goTo(current - 1); });
     document.getElementById("wizard-done-" + type).addEventListener("click", function() {
-        if (type === "checkin") {
-            fetch("{{ route('guest.confirm-checkin', [$bookingId, $token]) }}", {
+        if (type === "checkin" || type === "checkout") {
+            var confirmUrl = type === "checkin"
+                ? "{{ route('guest.confirm-checkin', [$bookingId, $token]) }}"
+                : "{{ route('guest.confirm-checkout', [$bookingId, $token]) }}";
+            fetch(confirmUrl, {
                 method: "POST",
                 headers: { "X-CSRF-TOKEN": "{{ csrf_token() }}", "Content-Type": "application/json" }
             }).then(function() {

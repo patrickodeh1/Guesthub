@@ -1,154 +1,284 @@
 <x-admin-layout title="Guest Details">
-    <div class="page-header">
-        <div>
-            <p class="eyebrow">Booking {{ $booking->booking_id }}</p>
-            <h1 class="page-title">{{ $booking->guest_name }}</h1>
-            <p class="page-subtitle">{{ $booking->property->name }} · {{ $booking->stayRangeLabel() }}</p>
+    <a href="{{ route('admin.guests.index') }}" class="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-800">
+        <x-icon name="arrow-left" class="h-4 w-4" />
+        Back to Bookings
+    </a>
+
+    <div class="grid grid-cols-1 gap-3 lg:grid-cols-4 lg:items-start">
+    <div class="lg:col-span-3">
+    <section class="card card-pad mb-6">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <p class="eyebrow">Guest {{ $booking->booking_id }}</p>
+                <h1 class="page-title !mt-0.5">{{ $booking->guest_name }}</h1>
+                <p class="page-subtitle !mt-1">{{ $booking->property->name }} · {{ $booking->stayRangeLabel() }}</p>
+            </div>
+            <div class="flex flex-wrap items-center gap-3">
+                <div class="text-right">
+                    <p class="text-xs text-slate-500">Current Status</p>
+                    <span class="badge badge-{{ $booking->effectiveStatus() }} mt-1 px-3 py-1 text-sm">{{ $booking->statusLabel() }}</span>
+                </div>
+                <a href="{{ route('admin.guests.edit', $booking) }}" class="btn-primary">Edit Booking</a>
+            </div>
         </div>
-        <div class="flex flex-wrap gap-2"><a href="{{ route('admin.bookings.edit', $booking) }}" class="btn-secondary">Edit Booking</a><a href="{{ route('admin.bookings.index') }}" class="btn-ghost">Back</a></div>
+    </section>
     </div>
 
-    <div class="grid gap-6 xl:grid-cols-[1fr_360px]">
-        <section class="card card-pad">
-            <div class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <p class="text-sm font-semibold text-slate-700">Secure guest URL</p>
-                <div class="mt-3 flex flex-col gap-2 sm:flex-row">
-                    <input id="guest-url" readonly value="{{ $booking->publicUrl() }}" class="input mt-0 min-w-0 flex-1">
-                    <button type="button" data-copy="#guest-url" class="btn-primary gap-2"><x-icon name="copy" class="h-4 w-4" />Copy URL</button>
-                </div>
-            </div>
-
-            <div class="mt-6 rounded-xl border border-[#eadfc8] bg-[#fffaf1] p-4">
-                <p class="text-sm font-semibold text-slate-800">Guest message templates</p>
-                <textarea id="guest-message" readonly class="textarea min-h-24">Hi {{ $booking->guest_name }}, your secure check-in page is ready: {{ $booking->publicUrl() }}</textarea>
-                <div class="mt-3 flex flex-wrap gap-2">
-                    <button type="button" data-copy="#guest-message" class="btn-secondary gap-2"><x-icon name="copy" class="h-4 w-4" />Copy Full Message</button>
-                    <a class="btn-secondary gap-2" href="https://wa.me/?text={{ urlencode('Hi '.$booking->guest_name.', your secure check-in page is ready: '.$booking->publicUrl()) }}" target="_blank"><x-icon name="contact-guest-services" class="h-4 w-4" />WhatsApp</a>
-                </div>
-
-                <div class="mt-5 border-t border-[#eadfc8] pt-4">
-                    <p class="text-sm font-semibold text-slate-800">Custom welcome message for this guest</p>
-                    <p class="mt-1 text-xs text-slate-500">Optional. If left blank, the global default intro from Settings is used instead.</p>
-                    <form method="post" action="{{ route('admin.bookings.welcome-message', $booking) }}" class="mt-3">
-                        @csrf
-                        @method('put')
-                        <textarea id="welcome-message-editor" name="welcome_message" rows="5" class="textarea">{{ old('welcome_message', $booking->welcome_message) }}</textarea>
-                        <button class="btn-primary mt-3">Save Welcome Message</button>
-                    </form>
-                </div>
-            </div>
-
-            <div class="mt-6 grid gap-4 md:grid-cols-2">
-                <div class="rounded-xl border border-slate-200 p-4"><p class="text-sm text-slate-500">Status</p><p class="mt-2"><span class="badge badge-{{ $booking->status }}">{{ $booking->statusLabel() }}</span></p></div>
-                <div class="rounded-xl border border-slate-200 p-4 sm:col-span-2">
-                    <p class="text-sm text-slate-500">Photo ID</p>
+        <div class="mt-3 grid content-start gap-3 lg:col-span-3 order-3 lg:order-none">
+            <div class="grid gap-6 lg:grid-cols-5">
+                {{-- Photo ID --}}
+                <section class="card card-pad lg:col-span-3">
+                    <div class="flex items-center justify-between">
+                        <h2 class="section-title">Photo ID</h2>
+                        <span class="badge badge-active">{{ $booking->id_type === 'passport' ? 'Passport' : 'State-issued ID' }}</span>
+                    </div>
                     @if($booking->photo_id_path || $booking->photo_id_back_path)
-                        <div class="mt-3 grid gap-4 sm:grid-cols-2">
+                        <div class="mt-4">
+                            <div class="flex gap-4 border-b border-slate-200 text-sm font-semibold text-slate-500">
+                                @if($booking->photo_id_path)
+                                    <button type="button" id="photo-id-tab-front" onclick="switchPhotoIdTab('front')" class="-mb-px border-b-2 border-teal-700 pb-2 text-teal-800">Front</button>
+                                @endif
+                                @if($booking->photo_id_back_path)
+                                    <button type="button" id="photo-id-tab-back" onclick="switchPhotoIdTab('back')" class="-mb-px pb-2 {{ $booking->photo_id_path ? '' : 'border-b-2 border-teal-700 text-teal-800' }}">Back</button>
+                                @endif
+                            </div>
                             @if($booking->photo_id_path)
-                                <div>
-                                    <p class="text-xs font-semibold text-slate-500 mb-1">Front</p>
-                                    <button type="button" onclick="openPhotoIdModal('{{ route('admin.bookings.photo-id-view', $booking) }}', 'Photo ID front')" class="block w-full text-left">
-                                        <img src="{{ route('admin.bookings.photo-id-view', $booking) }}" alt="Photo ID front" class="rounded-lg border border-slate-200 max-h-64 w-auto object-contain">
+                                <div id="photo-id-panel-front" class="mt-4">
+                                    <button type="button" onclick="openPhotoIdModal('{{ route('admin.guests.photo-id-view', $booking) }}', 'Photo ID front')" class="block w-full text-left">
+                                        <img src="{{ route('admin.guests.photo-id-view', $booking) }}" alt="Photo ID front" class="w-full max-h-64 rounded-lg border border-slate-200 object-contain bg-slate-50">
                                     </button>
-                                    <a class="mt-2 block text-sm font-semibold text-teal-800" href="{{ route('admin.bookings.photo-id', $booking) }}">Download original</a>
+                                    <div class="mt-3 flex flex-wrap gap-3">
+                                        <button type="button" onclick="openPhotoIdModal('{{ route('admin.guests.photo-id-view', $booking) }}', 'Photo ID front')" class="text-sm font-semibold text-teal-800">View full size</button>
+                                        <a class="text-sm font-semibold text-teal-800" href="{{ route('admin.guests.photo-id', $booking) }}">Download original</a>
+                                    </div>
                                 </div>
                             @endif
                             @if($booking->photo_id_back_path)
-                                <div>
-                                    <p class="text-xs font-semibold text-slate-500 mb-1">Back</p>
-                                    <button type="button" onclick="openPhotoIdModal('{{ route('admin.bookings.photo-id-back-view', $booking) }}', 'Photo ID back')" class="block w-full text-left">
-                                        <img src="{{ route('admin.bookings.photo-id-back-view', $booking) }}" alt="Photo ID back" class="rounded-lg border border-slate-200 max-h-64 w-auto object-contain">
+                                <div id="photo-id-panel-back" class="mt-4 {{ $booking->photo_id_path ? 'hidden' : '' }}">
+                                    <button type="button" onclick="openPhotoIdModal('{{ route('admin.guests.photo-id-back-view', $booking) }}', 'Photo ID back')" class="block w-full text-left">
+                                        <img src="{{ route('admin.guests.photo-id-back-view', $booking) }}" alt="Photo ID back" class="w-full max-h-64 rounded-lg border border-slate-200 object-contain bg-slate-50">
                                     </button>
-                                    <a class="mt-2 block text-sm font-semibold text-teal-800" href="{{ route('admin.bookings.photo-id-back', $booking) }}">Download original</a>
+                                    <div class="mt-3 flex flex-wrap gap-3">
+                                        <button type="button" onclick="openPhotoIdModal('{{ route('admin.guests.photo-id-back-view', $booking) }}', 'Photo ID back')" class="text-sm font-semibold text-teal-800">View full size</button>
+                                        <a class="text-sm font-semibold text-teal-800" href="{{ route('admin.guests.photo-id-back', $booking) }}">Download original</a>
+                                    </div>
                                 </div>
                             @endif
                         </div>
                     @else
-                        <p class="mt-2 font-semibold text-slate-950">Not uploaded</p>
+                        <p class="mt-4 font-semibold text-slate-950">Not uploaded</p>
                     @endif
-                </div>
-                <div class="rounded-xl border border-slate-200 p-4"><p class="text-sm text-slate-500">Check-in approval</p><p class="mt-2 font-semibold text-slate-950">{{ $booking->isCheckedIn() ? 'Approved' : 'Not approved' }}</p></div>
-                <div class="rounded-xl border border-slate-200 p-4"><p class="text-sm text-slate-500">GPS</p><p class="mt-2 font-semibold text-slate-950">{{ $booking->gps_verified ? 'Verified by guest' : 'Not verified' }}</p></div>
-                <div class="rounded-xl border border-slate-200 p-4"><p class="text-sm text-slate-500">Parking</p><p class="mt-2 font-semibold text-slate-950">{{ is_null($booking->parking_needed) ? 'Unknown' : ($booking->parking_needed ? 'Needed' : 'Not needed') }}</p></div>
-                <div class="rounded-xl border border-slate-200 p-4"><p class="text-sm text-slate-500">Requested Check-in Time</p><p class="mt-2 font-semibold text-slate-950">{{ $booking->checkin_time_preference ?: 'Not specified' }}</p></div>
-                <div class="rounded-xl border border-slate-200 p-4"><p class="text-sm text-slate-500">Early Check-in Exception</p><p class="mt-2 font-semibold {{ $booking->early_checkin ? 'text-emerald-700' : 'text-slate-950' }}">{{ $booking->early_checkin ? 'Enabled' : 'Not enabled' }}</p></div>
-                <div class="rounded-xl border border-slate-200 p-4"><p class="text-sm text-slate-500">ID Type</p><p class="mt-2 font-semibold text-slate-950">{{ $booking->id_type === 'passport' ? 'Passport' : 'State-issued ID' }}</p></div>
-                <div class="rounded-xl border border-slate-200 p-4"><p class="text-sm text-slate-500">Photo ID Already Received</p><p class="mt-2 font-semibold {{ $booking->photo_id_received ? 'text-emerald-700' : 'text-slate-950' }}">{{ $booking->photo_id_received ? 'Enabled' : 'Not enabled' }}</p></div>
-                <div class="rounded-xl border border-slate-200 p-4"><p class="text-sm text-slate-500">Contact</p><p class="mt-2 font-semibold text-slate-950">{{ $booking->email ?: 'No email yet' }}</p></div>
+
+                    @if($booking->photo_id_path || $booking->photo_id_back_path)
+                        <div class="mt-5 border-t border-slate-100 pt-4">
+                            @if($booking->isApproved())
+                                <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">Approved {{ $booking->approved_at->format('M j, Y g:i A') }}</div>
+                            @else
+                                <div class="flex gap-2">
+                                    <form method="post" action="{{ route('admin.guests.approve', $booking) }}" class="flex-1"><button class="btn-primary w-full gap-2"><x-icon name="check" class="h-4 w-4" />Approve</button></form>
+                                    <button type="button" class="btn-danger flex-1 gap-2" onclick="document.getElementById('decline-form-{{ $booking->id }}').classList.toggle('hidden')"><x-icon name="x" class="h-4 w-4" />Decline</button>
+                                </div>
+                                <form id="decline-form-{{ $booking->id }}" method="post" action="{{ route('admin.guests.decline', $booking) }}" class="hidden mt-2 grid gap-2">
+                                    @csrf
+                                    <textarea name="decline_reason" class="input" rows="3" placeholder="Reason for declining (shown to guest)" required>{{ old('decline_reason') }}</textarea>
+                                    <button class="btn-secondary w-full">Submit Decline</button>
+                                </form>
+                            @endif
+                        </div>
+                    @endif
+                </section>
+
+                {{-- Guest Details --}}
+                <section class="card card-pad lg:col-span-2">
+                    <div class="flex items-center justify-between">
+                        <h2 class="section-title">Guest Details</h2>
+                        <a href="{{ route('admin.guests.edit', $booking) }}" class="text-sm font-semibold text-teal-800">Edit Details</a>
+                    </div>
+                    <dl class="mt-4 grid gap-0 text-sm">
+                        @foreach([
+                            ['mail', 'Email', $booking->email ?: 'No email yet'],
+                            ['security', 'ID Type', $booking->id_type === 'passport' ? 'Passport' : 'State-issued ID'],
+                            ['parking', 'Parking', is_null($booking->parking_needed) ? 'Unknown' : ($booking->parking_needed ? 'Needed' : 'Not needed')],
+                            ['calendar', 'Early Check-in', $booking->early_checkin ? 'Enabled' : 'Disabled'],
+                            ['clock', 'Requested Check-in Time', $booking->checkin_time_preference ?: 'Not specified'],
+                            ['upload', 'Photo ID Already Received', $booking->photo_id_received ? 'Yes' : 'No'],
+                            ['map', 'GPS', $booking->gps_verified ? 'Verified' : 'Not verified'],
+                            ['contact-guest-services', 'Checked In At', $booking->checked_in_at ? $booking->checked_in_at->format('M j, Y g:i A') : 'Not yet'],
+                            ['contact-guest-services', 'Checked Out At', $booking->checked_out_at ? $booking->checked_out_at->format('M j, Y g:i A') : 'Not yet'],
+                        ] as [$icon, $label, $value])
+                            <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3 last:border-0">
+                                <span class="flex items-center gap-2.5 text-slate-500"><x-icon :name="$icon" class="h-4 w-4 shrink-0 text-slate-400" />{{ $label }}</span>
+                                <span class="font-semibold text-slate-950 text-right">{{ $value }}</span>
+                            </div>
+                        @endforeach
+                    </dl>
+                    @if($booking->decline_reason && !$booking->isApproved())
+                        <div class="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800"><span class="font-semibold">Last decline reason:</span> {{ $booking->decline_reason }}</div>
+                    @endif
+                    @if($booking->notes)
+                        <div class="mt-4 rounded-lg bg-slate-50 border border-slate-200 p-3">
+                            <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Internal notes</p>
+                            <p class="mt-1 whitespace-pre-line text-sm leading-6 text-slate-600">{{ $booking->notes }}</p>
+                        </div>
+                    @endif
+                </section>
             </div>
 
-            @if($booking->notes)<div class="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4"><p class="text-sm font-semibold text-slate-700">Internal notes</p><p class="mt-2 whitespace-pre-line text-sm leading-6 text-slate-600">{{ $booking->notes }}</p></div>@endif
-        </section>
-
-        <aside class="grid gap-6">
+            {{-- Communication (collapsible) --}}
             <section class="card card-pad">
-                <h2 class="section-title">Admin actions</h2>
-                <p class="section-copy">Use manual actions when an off-platform event has already been completed.</p>
-                <div class="mt-5 grid gap-3">
-                    <form method="post" action="{{ route('admin.bookings.override-gps', $booking) }}">@csrf<button class="btn-secondary w-full">Override GPS Verification</button></form>
-                    <form method="post" action="{{ route('admin.bookings.override', $booking) }}">@csrf<button class="btn-primary w-full">Manually Mark Checked In</button></form>
-                    <form method="post" action="{{ route('admin.bookings.mark-id', $booking) }}">@csrf<button class="btn-secondary w-full">Mark Photo ID Received</button></form>
-                    @if($booking->photo_id_path || $booking->photo_id_back_path)
-                        @if($booking->isApproved())
-                            <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">Approved {{ $booking->approved_at->format('M j, Y g:i A') }}</div>
-                        @else
-                            <form method="post" action="{{ route('admin.bookings.approve', $booking) }}">@csrf<button class="btn-primary w-full">Approve for Check-In</button></form>
-                            <button type="button" class="btn-secondary w-full" onclick="document.getElementById('decline-form-{{ $booking->id }}').classList.toggle('hidden')">Decline ID</button>
-                            <form id="decline-form-{{ $booking->id }}" method="post" action="{{ route('admin.bookings.decline', $booking) }}" class="hidden grid gap-2">
+                <button type="button" onclick="toggleCommunicationSection()" class="flex w-full items-center justify-between text-left">
+                    <div>
+                        <h2 class="section-title">Communication</h2>
+                        <p class="section-copy">Share secure link, send messages and customize welcome message.</p>
+                    </div>
+                    <span id="communication-chevron" class="transition-transform duration-150">
+                        <x-icon name="chevron-right" class="h-5 w-5 text-slate-400" />
+                    </span>
+                </button>
+
+                <div id="communication-body" class="mt-5 hidden">
+                    <div class="grid gap-6">
+                    <div id="guest-link-card" class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <p class="text-sm font-semibold text-slate-700">Secure guest URL</p>
+                        <div class="mt-3 flex flex-col gap-2 sm:flex-row">
+                            <input id="guest-url" readonly value="{{ $booking->publicUrl() }}" class="input mt-0 min-w-0 flex-1">
+                            <button type="button" data-copy="#guest-url" class="btn-primary gap-2"><x-icon name="copy" class="h-4 w-4" />Copy URL</button>
+                        </div>
+                    </div>
+
+                    <div class="rounded-xl border border-[#eadfc8] bg-[#fffaf1] p-4">
+                        <p class="text-sm font-semibold text-slate-800">Guest message templates</p>
+                        <textarea id="guest-message" readonly class="textarea min-h-24">Hi {{ $booking->guest_name }}, your secure check-in page is ready: {{ $booking->publicUrl() }}</textarea>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            <button type="button" data-copy="#guest-message" class="btn-secondary gap-2"><x-icon name="copy" class="h-4 w-4" />Copy Full Message</button>
+                            <a class="btn-secondary gap-2" href="https://wa.me/?text={{ urlencode('Hi '.$booking->guest_name.', your secure check-in page is ready: '.$booking->publicUrl()) }}" target="_blank"><x-icon name="contact-guest-services" class="h-4 w-4" />WhatsApp</a>
+                        </div>
+
+                        <div class="mt-5 border-t border-[#eadfc8] pt-4">
+                            <p class="text-sm font-semibold text-slate-800">Custom welcome message for this guest</p>
+                            <p class="mt-1 text-xs text-slate-500">Optional. If left blank, the global default intro from Settings is used instead.</p>
+                            <form method="post" action="{{ route('admin.guests.welcome-message', $booking) }}" class="mt-3">
                                 @csrf
-                                <textarea name="decline_reason" class="input" rows="3" placeholder="Reason for declining (shown to guest)" required>{{ old('decline_reason') }}</textarea>
-                                <button class="btn-secondary w-full">Submit Decline</button>
+                                @method('put')
+                                <textarea id="welcome-message-editor" name="welcome_message" rows="5" class="textarea">{{ old('welcome_message', $booking->welcome_message) }}</textarea>
+                                <button class="btn-primary mt-3">Save Welcome Message</button>
                             </form>
-                        @endif
-                        @if($booking->decline_reason && !$booking->isApproved())
-                            <div class="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800"><span class="font-semibold">Last decline reason:</span> {{ $booking->decline_reason }}</div>
-                        @endif
-                    @endif
+                        </div>
+                    </div>
+                    </div>
                 </div>
             </section>
-            <section class="card card-pad">
-                <h2 class="section-title">Guest progress</h2>
-                <div class="mt-5 grid gap-3 text-sm">
-                    @foreach([
-                        ['Email received', filled($booking->email)],
-                        ['Photo ID uploaded', filled($booking->photo_id_path)],
-                        ['GPS verified', $booking->gps_verified],
-                        ['Checked in', $booking->isCheckedIn()],
-                    ] as [$label, $done])
-                        <div class="flex items-center justify-between rounded-lg bg-slate-50 p-3"><span>{{ $label }}</span><span class="badge {{ $done ? 'badge-active' : 'badge-pending' }}">{{ $done ? 'Done' : 'Open' }}</span></div>
+
+        </div>
+
+        {{-- Sidebar --}}
+        <aside class="contents lg:grid lg:content-start lg:gap-3 lg:col-start-4 lg:row-start-1 lg:row-span-3 lg:sticky lg:top-20">
+            <section class="card card-pad order-2 lg:order-none">
+                <h2 class="section-title">Quick Actions</h2>
+                <p class="section-copy">Take action on this booking.</p>
+
+                <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    <p class="text-sm font-semibold text-slate-800">Update guest status</p>
+                    <p class="text-xs text-slate-500">Change the booking's stage directly. Guest-facing pages update immediately.</p>
+                    <form method="post" action="{{ route('admin.guests.update-status', $booking) }}" class="mt-2">
+                        @csrf
+                        <select name="status" onchange="this.form.submit()" class="input mt-0 w-full text-sm">
+                            @foreach(['pending','pre_checkin_complete','awaiting_deposit','guest_approved','currently_hosting','checked_out'] as $status)
+                                <option value="{{ $status }}" @selected($booking->status===$status)>{{ str($status)->replace('_',' ')->title() }}</option>
+                            @endforeach
+                        </select>
+                    </form>
+                </div>
+
+                <div class="mt-5 grid gap-2.5">
+                    @if($booking->isApproved())
+                        @if($booking->isBackgroundCheckComplete())
+                            <div class="rounded-lg bg-indigo-50 border border-indigo-200 p-3 text-sm text-indigo-800 font-semibold">Background check completed {{ $booking->background_check_completed_at->format('M j, Y g:i A') }}</div>
+                        @else
+                            <form method="post" action="{{ route('admin.guests.background-check', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="shield-alert" class="h-4 w-4" />Mark Background Check Complete</button></form>
+                        @endif
+                    @endif
+                    @if($booking->isBackgroundCheckComplete())
+                        @if($booking->isDepositVerified())
+                            <div class="rounded-lg bg-teal-50 border border-teal-200 p-3 text-sm text-teal-800 font-semibold">Deposit verified {{ $booking->deposit_verified_at->format('M j, Y g:i A') }}</div>
+                        @else
+                            <form method="post" action="{{ route('admin.guests.deposit-verified', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="lock" class="h-4 w-4" />Mark Deposit Verified</button></form>
+                        @endif
+                    @endif
+                    <form method="post" action="{{ route('admin.guests.override-gps', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="map" class="h-4 w-4" />Override GPS Verification</button></form>
+                    <form method="post" action="{{ route('admin.guests.override', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="contact-guest-services" class="h-4 w-4" />Manually Mark Checked In</button></form>
+                    <form method="post" action="{{ route('admin.guests.override-checkout', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="contact-guest-services" class="h-4 w-4" />Manually Mark Checked Out</button></form>
+                    <form method="post" action="{{ route('admin.guests.mark-id', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="upload" class="h-4 w-4" />Mark Photo ID Received</button></form>
+                </div>
+            </section>
+
+            <section class="card card-pad order-4 lg:order-none">
+                <h2 class="section-title">Status Overview</h2>
+                @php
+                    $steps = [
+                        'Email Received' => filled($booking->email),
+                        'Photo ID Uploaded' => filled($booking->photo_id_path),
+                        'Photo ID Approval' => $booking->isApproved(),
+                        'Background Check' => $booking->isBackgroundCheckComplete(),
+                        'Deposit Verified' => $booking->isDepositVerified(),
+                        'GPS Verified' => $booking->gps_verified,
+                        'Currently Hosting' => $booking->isCheckedIn(),
+                        'Checked Out' => filled($booking->checked_out_at),
+                    ];
+                    $progress = round((count(array_filter($steps)) / count($steps)) * 100);
+                @endphp
+                <p class="section-copy">Overall progress</p>
+                <div class="mt-2 flex items-center gap-3">
+                    <div class="h-2 flex-1 overflow-hidden rounded-full bg-slate-100"><div class="h-full rounded-full bg-emerald-500" style="width: {{ $progress }}%"></div></div>
+                    <span class="text-sm font-semibold text-slate-700">{{ $progress }}%</span>
+                </div>
+                <div class="mt-5 grid gap-1 text-sm">
+                    @foreach($steps as $label => $done)
+                        <div class="flex items-center justify-between border-b border-slate-100 py-2.5 last:border-0"><span class="text-slate-700">{{ $label }}</span><span class="badge {{ $done ? 'badge-active' : 'badge-pending' }}">{{ $done ? 'Done' : 'Pending' }}</span></div>
                     @endforeach
                 </div>
             </section>
-            <section class="card card-pad">
-                <h2 class="section-title">Preview guest flow</h2>
-                <p class="section-copy">Open any guest state without changing the real booking status.</p>
+
+            <section class="card card-pad order-5 lg:order-none">
+                <h2 class="section-title">Preview Guest Flow</h2>
+                <p class="section-copy">Open any guest state without changing the real status.</p>
                 <div class="mt-4 grid gap-2">
                     @foreach(['identity' => 'Pre Check-In', 'waiting' => 'Waiting', 'arrival' => 'Check-In Day', 'guide' => 'Welcome Guide', 'checkout' => 'Checkout Day'] as $state => $label)
-                        <a class="btn-secondary justify-start" href="{{ route('admin.bookings.preview', [$booking, $state]) }}" target="_blank">{{ $label }}</a>
+                        <a class="btn-secondary justify-start" href="{{ route('admin.guests.preview', [$booking, $state]) }}" target="_blank">{{ $label }}</a>
                     @endforeach
                 </div>
             </section>
         </aside>
     </div>
 
+    {{-- Guest progress timeline (always last, full width) --}}
     <section class="mt-6 card card-pad">
-        <h2 class="section-title">Guest progress timeline</h2>
-        <div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            @foreach([
-                ['properties', 'Booking created', $booking->created_at, true],
-                ['security', 'Link opened', null, false],
-                ['mail', 'Email submitted', $booking->updated_at, filled($booking->email)],
-                ['upload', 'Photo ID uploaded', $booking->updated_at, filled($booking->photo_id_path)],
-                ['calendar', 'Check-in day reached', $booking->check_in_date, $booking->isCheckinDay()],
-                ['map', 'GPS verified', $booking->checked_in_at, $booking->gps_verified],
-                ['security', 'Manual approval', $booking->checked_in_at, $booking->manually_checked_in],
-                ['checkout-instructions', 'Checkout day', $booking->check_out_date, $booking->isCheckoutDay()],
-            ] as [$icon, $label, $time, $done])
-                <div class="rounded-xl border border-slate-200 bg-white p-4">
-                    <span class="icon-chip"><x-icon :name="$icon" /></span>
-                    <p class="mt-3 font-semibold text-slate-950">{{ $label }}</p>
-                    <p class="mt-1 text-sm text-slate-500">{{ $done ? ($time ? $time->format('M j, Y g:i A') : 'Completed') : 'Pending' }}</p>
-                    <span class="mt-3 badge {{ $done ? 'badge-active' : 'badge-pending' }}">{{ $done ? 'Done' : 'Open' }}</span>
+        <h2 class="section-title">Guest Progress Timeline</h2>
+        @php
+            $timelineSteps = [
+                ['properties', 'Guest Created', $booking->created_at, true],
+                ['mail', 'Email Submitted', $booking->updated_at, filled($booking->email)],
+                ['upload', 'Photo ID Uploaded', $booking->updated_at, filled($booking->photo_id_path)],
+                ['security', 'Photo ID Approval', $booking->approved_at, $booking->isApproved()],
+                ['shield-alert', 'Background Check', $booking->background_check_completed_at, $booking->isBackgroundCheckComplete()],
+                ['lock', 'Deposit Verified', $booking->deposit_verified_at, $booking->isDepositVerified()],
+                ['map', 'GPS Verified', $booking->checked_in_at, $booking->gps_verified],
+                ['contact-guest-services', 'Currently Hosting', $booking->checked_in_at, $booking->isCheckedIn()],
+                ['contact-guest-services', 'Checked Out', $booking->checked_out_at, filled($booking->checked_out_at)],
+            ];
+        @endphp
+        <div class="mt-8 flex items-start overflow-x-auto pb-2">
+            @foreach($timelineSteps as $i => [$icon, $label, $time, $done])
+                @if($i > 0)
+                    <div class="mt-7 h-px w-10 flex-shrink-0 sm:w-16 {{ $done ? 'bg-emerald-400' : 'border-t-2 border-dashed border-amber-300 bg-transparent' }}"></div>
+                @endif
+                <div class="flex w-28 flex-shrink-0 flex-col items-center text-center sm:w-32">
+                    <span class="flex h-14 w-14 items-center justify-center rounded-full border-2 {{ $done ? 'border-emerald-400 bg-emerald-50 text-emerald-600' : 'border-amber-300 bg-amber-50 text-amber-500' }}">
+                        <x-icon :name="$icon" class="h-5 w-5" />
+                    </span>
+                    <p class="mt-3 text-sm font-semibold text-slate-950">{{ $label }}</p>
+                    <p class="mt-1 text-xs text-slate-500">{{ $done ? ($time ? $time->format('M j, Y g:i A') : 'Completed') : 'Pending' }}</p>
+                    <span class="mt-2 badge {{ $done ? 'badge-active' : 'badge-pending' }}">{{ $done ? 'Done' : 'Open' }}</span>
                 </div>
             @endforeach
         </div>
@@ -191,6 +321,13 @@
             <div id="photo-id-modal-viewport" class="max-h-[75vh] w-full overflow-hidden rounded-lg bg-slate-100" style="cursor: grab;">
                 <img id="photo-id-modal-img" src="" alt="" class="h-full w-full select-none object-contain" style="transform-origin: center center; transition: transform 0.08s ease-out; user-select:none; -webkit-user-drag:none;" draggable="false">
             </div>
+
+            @if(($booking->photo_id_path || $booking->photo_id_back_path) && !$booking->isApproved())
+                <div class="mt-4 flex gap-2 border-t border-slate-100 pt-4">
+                    <form method="post" action="{{ route('admin.guests.approve', $booking) }}" class="flex-1">@csrf<button class="btn-primary w-full gap-2"><x-icon name="check" class="h-4 w-4" />Approve</button></form>
+                    <button type="button" class="btn-danger flex-1 gap-2" onclick="document.getElementById('decline-form-{{ $booking->id }}').classList.toggle('hidden'); closePhotoIdModal();"><x-icon name="x" class="h-4 w-4" />Decline</button>
+                </div>
+            @endif
         </div>
     </div>
 
@@ -334,7 +471,50 @@
         });
     })();
 
-        function closeMediaPickerForEditor() {
+    
+    function switchPhotoIdTab(side) {
+        const frontPanel = document.getElementById('photo-id-panel-front');
+        const backPanel = document.getElementById('photo-id-panel-back');
+        const frontTab = document.getElementById('photo-id-tab-front');
+        const backTab = document.getElementById('photo-id-tab-back');
+        const activeClasses = ['border-b-2', 'border-teal-700', 'text-teal-800'];
+
+        if (side === 'front') {
+            if (frontPanel) frontPanel.classList.remove('hidden');
+            if (backPanel) backPanel.classList.add('hidden');
+            if (frontTab) frontTab.classList.add(...activeClasses);
+            if (backTab) backTab.classList.remove(...activeClasses);
+        } else {
+            if (backPanel) backPanel.classList.remove('hidden');
+            if (frontPanel) frontPanel.classList.add('hidden');
+            if (backTab) backTab.classList.add(...activeClasses);
+            if (frontTab) frontTab.classList.remove(...activeClasses);
+        }
+    }
+
+    function setCommunicationDefaultState() {
+        const body = document.getElementById('communication-body');
+        const chevron = document.getElementById('communication-chevron');
+        if (!body || !chevron) return;
+        const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
+        if (isDesktop) {
+            body.classList.remove('hidden');
+            chevron.classList.add('rotate-90');
+        } else {
+            body.classList.add('hidden');
+            chevron.classList.remove('rotate-90');
+        }
+    }
+    document.addEventListener('DOMContentLoaded', setCommunicationDefaultState);
+
+    function toggleCommunicationSection() {
+        const body = document.getElementById('communication-body');
+        const chevron = document.getElementById('communication-chevron');
+        body.classList.toggle('hidden');
+        chevron.classList.toggle('rotate-90');
+    }
+
+    function closeMediaPickerForEditor() {
         const modal = document.getElementById('media-picker-modal');
         modal.classList.add('hidden');
         modal.classList.remove('flex');

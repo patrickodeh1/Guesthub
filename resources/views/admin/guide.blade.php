@@ -20,7 +20,7 @@
     <div class="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-tour="guide-quick-actions">
         @foreach([
             ['properties', 'Add Property',    route('admin.properties.create'), 'Start here — add your first rental property.'],
-            ['guests',     'Add Guest',       route('admin.bookings.create'),   'Create a booking and generate a guest URL.'],
+            ['guests',     'Add Guest',       route('admin.guests.create'),   'Create a guest and generate a guest URL.'],
             ['users',      'Add Team Member', route('admin.users.create'),      'Invite staff with role-based permissions.'],
             ['logs',       'View Logs',       route('admin.logs.index'),        'Review the full system audit trail.'],
         ] as [$icon, $label, $url, $desc])
@@ -67,11 +67,11 @@
             {{-- Guest flow --}}
             <section class="card card-pad">
                 <h3 class="section-title">Complete guest flow</h3>
-                <p class="section-copy">How a guest moves from booking creation to checkout — step by step.</p>
+                <p class="section-copy">How a guest moves from guest creation to checkout — step by step.</p>
                 <div class="mt-5 grid gap-3">
                     @foreach([
-                        ['1', 'Admin creates booking',       'You add the guest in the Guests module. A secure URL is generated with a unique private token.',                        'guests'],
-                        ['2', 'Admin shares URL with guest', 'Copy the guest URL or the pre-built invitation message from the booking detail and send via email or message.',          'copy'],
+                        ['1', 'Admin creates guest',       'You add the guest in the Guests module. A secure URL is generated with a unique private token.',                        'guests'],
+                        ['2', 'Admin shares URL with guest', 'Copy the guest URL or the pre-built invitation message from the guest detail and send via email or message.',          'copy'],
                         ['3', 'Guest submits pre-arrival',   'Guest opens the URL, enters their email, and uploads a photo ID before arrival day.',                                    'upload'],
                         ['4', 'Check-in day arrives',        'On the check-in date, the GPS verification screen unlocks. Guest taps "Verify My Location".',                           'map'],
                         ['5', 'GPS verification',            'If the guest is within the configured radius, check-in is approved instantly. Admin can manually approve if GPS fails.', 'security'],
@@ -123,7 +123,7 @@
                         'Manual check-in overrides',
                         'Guest GPS verification attempts',
                         'User role changes',
-                        'Booking created / updated',
+                        'Guest created / updated',
                         'Category and content changes',
                         'Settings and branding updates',
                     ] as $event)
@@ -151,7 +151,7 @@
                     <div class="rounded-xl border border-slate-200 p-4">
                         <x-icon name="security" class="mb-2 h-5 w-5 text-[#b08a45]" />
                         <p class="font-semibold text-slate-950">Manual override</p>
-                        <p class="mt-2 text-sm text-slate-600">If GPS fails (browser blocked, VPN, low accuracy), open the guest booking and click <strong>Manual Check-In Override</strong>. This is logged as a security event with your name and IP.</p>
+                        <p class="mt-2 text-sm text-slate-600">If GPS fails (browser blocked, VPN, low accuracy), open the guest record and click <strong>Manual Check-In Override</strong>. This is logged as a security event with your name and IP.</p>
                     </div>
                 </div>
                 <div class="mt-4 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
@@ -164,7 +164,7 @@
                 <h3 class="section-title">Troubleshooting common issues</h3>
                 <div class="mt-5 grid gap-4">
                     @foreach([
-                        ['Guest says the link doesn\'t work',       'Verify the guest URL in the booking detail. Regenerate the token if needed — the old URL is invalidated and a new one is created. Check that the booking status is not checked_out.'],
+                        ['Guest says the link doesn\'t work',       'Verify the guest URL in the guest detail. Regenerate the token if needed — the old URL is invalidated and a new one is created. Check that the booking status is not checked_out.'],
                         ['GPS verification keeps failing',           'Confirm property GPS coordinates are set in the Properties module. Ask the guest to allow location access in their browser. Use manual override if time-sensitive.'],
                         ['Photo ID upload fails for guest',          'File must be JPG, PNG, WEBP, or PDF under 5MB. Ask the guest to compress the image or try a different browser (Safari on iOS sometimes blocks uploads).'],
                         ['Guest can\'t see the welcome guide',       'The guide only unlocks after successful GPS verification or manual check-in approval. Check the booking status — it must be "checked_in".'],
@@ -200,7 +200,7 @@
                 <div class="mt-4 grid gap-2">
                     @foreach([
                         ['Properties',    route('admin.properties.index'), 'properties'],
-                        ['Guest Bookings',route('admin.bookings.index'),   'guests'],
+                        ['Guests',route('admin.guests.index'),   'guests'],
                         ['Categories',    route('admin.categories.index'), 'categories'],
                         ['Team',          route('admin.users.index'),      'users'],
                         ['Activity Logs', route('admin.logs.index'),       'logs'],
@@ -224,7 +224,7 @@
                         'Brand logo uploaded in Settings',
                         'Contact details configured',
                         'Guide categories added',
-                        'First guest booking created',
+                        'First guest created',
                         'Guest URL tested end-to-end',
                         '2FA enabled on owner account',
                         'Team members invited (if any)',

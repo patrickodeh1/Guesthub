@@ -60,9 +60,9 @@
             <span class="grid h-5 w-5 shrink-0 place-items-center"><x-icon name="dashboard" class="h-4 w-4" /></span>
             <span class="font-medium">Dashboard</span>
         </a>
-        <a href="{{ route('admin.bookings.index') }}" data-tour="nav-calendar" class="flex items-center gap-2.5 rounded-sm px-3 py-2.5 transition focus:outline-none focus:ring-2 focus:ring-white/30 {{ request()->routeIs('admin.bookings.*') ? 'bg-white/10 text-white' : 'text-slate-200 hover:bg-white/10 hover:text-white' }}">
+        <a href="{{ route('admin.guests.index') }}" data-tour="nav-calendar" class="flex items-center gap-2.5 rounded-sm px-3 py-2.5 transition focus:outline-none focus:ring-2 focus:ring-white/30 {{ request()->routeIs('admin.guests.*') ? 'bg-white/10 text-white' : 'text-slate-200 hover:bg-white/10 hover:text-white' }}">
             <span class="grid h-5 w-5 shrink-0 place-items-center"><x-icon name="calendar" class="h-4 w-4" /></span>
-            <span class="font-medium">Bookings</span>
+            <span class="font-medium">Guests</span>
         </a>
 
         {{-- Properties: expandable --}}
@@ -178,7 +178,7 @@
                     </div>
                     <div class="divide-y divide-slate-100">
                         @if($pendingIds > 0)
-                            <a href="{{ route('admin.bookings.index', ['status' => 'pending']) }}"
+                            <a href="{{ route('admin.guests.index', ['status' => 'pending']) }}"
                                class="flex items-center gap-3 p-3 hover:bg-amber-50">
                                 <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-600"><x-icon name="upload" class="h-4 w-4" /></span>
                                 <div>
@@ -188,7 +188,7 @@
                             </a>
                         @endif
                         @if($todayIn > 0)
-                            <a href="{{ route('admin.bookings.index') }}"
+                            <a href="{{ route('admin.guests.index') }}"
                                class="flex items-center gap-3 p-3 hover:bg-blue-50">
                                 <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-blue-100 text-blue-600"><x-icon name="calendar" class="h-4 w-4" /></span>
                                 <div>
@@ -214,7 +214,7 @@
             </div>
 
             {{-- Add Guest shortcut --}}
-            <a href="{{ route('admin.bookings.create') }}" class="hidden btn-primary sm:inline-flex" data-tour="add-guest-btn">
+            <a href="{{ route('admin.guests.create') }}" class="hidden btn-primary sm:inline-flex" data-tour="add-guest-btn">
                 Add Guest
             </a>
 
@@ -281,10 +281,21 @@
     {{-- Alerts --}}
     <div class="page-shell pt-4 pb-0">
         @if(session('success'))
-            <div class="mb-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">
+            <div id="success-flash-banner" class="mb-4 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800 transition-opacity duration-300">
                 <x-icon name="check" class="h-4 w-4 shrink-0 text-emerald-600" />
                 {{ session('success') }}
             </div>
+            <script>
+                setTimeout(() => {
+                    const banner = document.getElementById('success-flash-banner');
+                    if (!banner) return;
+                    banner.style.opacity = '0';
+                    setTimeout(() => banner.remove(), 300);
+                }, 5000);
+            </script>
+        @endif
+        @if(session('success') === 'Guest booking created successfully.')
+            <div data-scroll-to="#guest-link-card" data-expand-communication="true"></div>
         @endif
         @if(session('error'))
             <div class="mb-4 flex items-center gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">

@@ -64,7 +64,7 @@
                                 </div>
                                 <p class="guest-stay-tile-label">Check-In</p>
                                 <p class="guest-stay-tile-date">{{ $booking->check_in_date->format('M d, Y') }}</p>
-                                <p class="guest-stay-tile-time">3:00 PM</p>
+                                <p class="guest-stay-tile-time">{{ $booking->effectiveCheckinTimeFormatted() }}</p>
                             </div>
                             <div class="guest-stay-tile">
                                 <div class="guest-stay-tile-icon">
@@ -185,9 +185,17 @@
                         {{-- Check-in time --}}
                         <div class="mt-5">
                             <label class="text-sm font-bold">What time are you planning to check in?
-                                <input type="text" name="checkin_time_preference" placeholder="e.g. 3:00 PM" class="guest-input mt-2" value="{{ old('checkin_time_preference') }}">
+                                <select name="checkin_time_preference" required class="guest-input mt-2 @error('checkin_time_preference') border-red-400 @enderror" aria-describedby="@error('checkin_time_preference') checkin-time-error @enderror">
+                                    <option value="" disabled {{ old('checkin_time_preference', $booking->checkin_time_preference) ? '' : 'selected' }}>Select a time</option>
+                                    @foreach($checkinTimeOptions as $value => $label)
+                                        <option value="{{ $value }}" {{ old('checkin_time_preference', $booking->checkin_time_preference) === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                    @endforeach
+                                </select>
                             </label>
-                            <p class="mt-1 text-xs text-slate-400">This helps us prepare for your arrival. Standard check-in is 3:00 PM.</p>
+                            @error('checkin_time_preference')
+                                <span id="checkin-time-error" class="guest-field-error">{{ $message }}</span>
+                            @enderror
+                            <p class="mt-1 text-xs text-slate-400">This helps us prepare for your arrival and unlocks your check-in details at the selected time.</p>
                         </div>
 
                         <div class="mt-6 grid grid-cols-2 gap-3">
@@ -662,7 +670,7 @@
                             </div>
                             <p class="guest-stay-tile-label">Check-In</p>
                             <p class="guest-stay-tile-date">{{ $booking->check_in_date->format('M d, Y') }}</p>
-                            <p class="guest-stay-tile-time">3:00 PM</p>
+                            <p class="guest-stay-tile-time">{{ $booking->effectiveCheckinTimeFormatted() }}</p>
                         </div>
                         <div class="guest-stay-tile">
                             <div class="guest-stay-tile-icon">
@@ -680,7 +688,7 @@
                         </span>
                         <div>
                             <p class="guest-detail-banner-title">Check-In Details Available</p>
-                            <p class="guest-detail-banner-sub">{{ $booking->check_in_date->format('M d, Y') }} at 3:00 PM</p>
+                            <p class="guest-detail-banner-sub">{{ $booking->check_in_date->format('M d, Y') }} at {{ $booking->effectiveCheckinTimeFormatted() }}</p>
                         </div>
                     </div>
 
@@ -688,6 +696,7 @@
                 </div>
             </div>
         @elseif($state === 'arrival')
+            <div data-poll-gps-status="{{ route('guest.gps-status', [$booking->booking_id, $booking->token]) }}"></div>
             <div class="guest-portal-card">
                 <div class="guest-status-bar">
                     <div>
@@ -708,7 +717,7 @@
                         </div>
                         <p class="guest-stay-tile-label">Check-In</p>
                         <p class="guest-stay-tile-date">{{ $booking->check_in_date->format('M d, Y') }}</p>
-                        <p class="guest-stay-tile-time">3:00 PM</p>
+                        <p class="guest-stay-tile-time">{{ $booking->effectiveCheckinTimeFormatted() }}</p>
                     </div>
                     <div class="guest-stay-tile">
                         <div class="guest-stay-tile-icon">
@@ -744,7 +753,7 @@
                         </span>
                         <div>
                             <p class="guest-detail-banner-title">Check-In Details Available</p>
-                            <p class="guest-detail-banner-sub">{{ $booking->check_in_date->format('M d, Y') }} at 3:00 PM</p>
+                            <p class="guest-detail-banner-sub">{{ $booking->check_in_date->format('M d, Y') }} at {{ $booking->effectiveCheckinTimeFormatted() }}</p>
                         </div>
                     </div>
                 @endif
@@ -763,7 +772,7 @@
             </div>
         @elseif($state === 'checkout')
             @if(count($checkoutSteps) > 0)
-                <x-step-wizard :steps="$checkoutSteps" type="checkout" next-section="checkout-complete" />
+                <x-step-wizard :steps="$checkoutSteps" type="checkout" next-section="checkout-complete" :booking-id="$booking->booking_id" :token="$booking->token" />
                 <div class="guest-portal-card" id="checkout-complete" style="display:none">
                     <div class="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center md:py-24">
                         <span class="guest-status-pill is-checked">

@@ -28,9 +28,11 @@ Route::prefix('guest/{booking_id}/{token}')->name('guest.')->group(function () {
     Route::post('/parking', [GuestController::class, 'parking'])->name('parking');
     Route::post('/verify-gps', [GuestController::class, 'verifyGps'])->name('gps');
     Route::post('/confirm-checkin', [GuestController::class, 'confirmCheckin'])->name('confirm-checkin');
+    Route::post('/confirm-checkout', [GuestController::class, 'confirmCheckout'])->name('confirm-checkout');
     Route::post('/unlock-door/{lock}', [GuestController::class, 'unlockDoor'])->name('unlock-door');
     Route::post('/lock-door/{lock}', [GuestController::class, 'lockDoor'])->name('lock-door');
     Route::get('/lock-status/{lock}', [GuestController::class, 'lockStatus'])->name('lock-status');
+    Route::get('/gps-status', [GuestController::class, 'gpsStatus'])->name('gps-status');
     Route::get('/guide/{category:slug}', [GuestController::class, 'category'])->name('category');
 });
 
@@ -74,18 +76,24 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     Route::resource('properties', PropertyController::class)->except(['show']);
 
     // ─── Guests / Bookings ────────────────────────────────────────────────────
-    Route::resource('bookings', BookingController::class);
-    Route::get('bookings/{booking}/preview/{state}', [BookingController::class, 'preview'])->name('bookings.preview');
-    Route::post('bookings/{booking}/override-checkin', [BookingController::class, 'overrideCheckin'])->name('bookings.override');
-    Route::post('bookings/{booking}/override-gps', [BookingController::class, 'overrideGps'])->name('bookings.override-gps');
-    Route::post('bookings/{booking}/mark-id', [BookingController::class, 'markIdReceived'])->name('bookings.mark-id');
-    Route::post('bookings/{booking}/approve', [BookingController::class, 'approveBooking'])->name('bookings.approve');
-    Route::post('bookings/{booking}/decline', [BookingController::class, 'declineBooking'])->name('bookings.decline');
-    Route::put('bookings/{booking}/welcome-message', [BookingController::class, 'updateWelcomeMessage'])->name('bookings.welcome-message');
-    Route::get('bookings/{booking}/photo-id', [BookingController::class, 'photoId'])->name('bookings.photo-id');
-    Route::get('bookings/{booking}/photo-id-back', [BookingController::class, 'photoIdBack'])->name('bookings.photo-id-back');
-    Route::get('bookings/{booking}/photo-id/view', [BookingController::class, 'photoIdView'])->name('bookings.photo-id-view');
-    Route::get('bookings/{booking}/photo-id-back/view', [BookingController::class, 'photoIdBackView'])->name('bookings.photo-id-back-view');
+    Route::resource('guests', BookingController::class)->parameters(['guests' => 'booking']);
+    Route::get('guests/{booking}/preview/{state}', [BookingController::class, 'preview'])->name('guests.preview');
+    Route::post('guests/{booking}/override-checkin', [BookingController::class, 'overrideCheckin'])->name('guests.override');
+    Route::post('guests/{booking}/override-checkout', [BookingController::class, 'overrideCheckout'])->name('guests.override-checkout');
+    Route::post('guests/{booking}/override-gps', [BookingController::class, 'overrideGps'])->name('guests.override-gps');
+    Route::post('guests/{booking}/archive', [BookingController::class, 'archive'])->name('guests.archive');
+    Route::post('guests/{booking}/unarchive', [BookingController::class, 'unarchive'])->name('guests.unarchive');
+    Route::post('guests/{booking}/mark-id', [BookingController::class, 'markIdReceived'])->name('guests.mark-id');
+    Route::post('guests/{booking}/approve', [BookingController::class, 'approveBooking'])->name('guests.approve');
+    Route::post('guests/{booking}/background-check', [BookingController::class, 'markBackgroundCheckComplete'])->name('guests.background-check');
+    Route::post('guests/{booking}/deposit-verified', [BookingController::class, 'markDepositVerified'])->name('guests.deposit-verified');
+    Route::post('guests/{booking}/update-status', [BookingController::class, 'updateStatus'])->name('guests.update-status');
+    Route::post('guests/{booking}/decline', [BookingController::class, 'declineBooking'])->name('guests.decline');
+    Route::put('guests/{booking}/welcome-message', [BookingController::class, 'updateWelcomeMessage'])->name('guests.welcome-message');
+    Route::get('guests/{booking}/photo-id', [BookingController::class, 'photoId'])->name('guests.photo-id');
+    Route::get('guests/{booking}/photo-id-back', [BookingController::class, 'photoIdBack'])->name('guests.photo-id-back');
+    Route::get('guests/{booking}/photo-id/view', [BookingController::class, 'photoIdView'])->name('guests.photo-id-view');
+    Route::get('guests/{booking}/photo-id-back/view', [BookingController::class, 'photoIdBackView'])->name('guests.photo-id-back-view');
 
     // ─── Categories ───────────────────────────────────────────────────────────
     Route::post('categories/reorder', [CategoryController::class, 'reorder'])->name('categories.reorder');
@@ -157,7 +165,7 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
             ->map(fn ($b) => [
                 'type'  => 'Guest',
                 'label' => $b->guest_name.' ('.$b->booking_id.')',
-                'url'   => route('admin.bookings.show', $b),
+                'url'   => route('admin.guests.show', $b),
             ]);
 
         $properties = \App\Models\Property::where('name', 'like', "%{$q}%")->take(4)->get()

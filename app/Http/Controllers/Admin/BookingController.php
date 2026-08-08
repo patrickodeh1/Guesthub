@@ -17,21 +17,35 @@ class BookingController extends Controller
 
     public function index(Request $request)
     {
+        $showArchived = $request->boolean('archived');
         $bookings = Booking::with('property')
             ->when($request->search, fn ($query, $search) => $query->where(fn ($inner) => $inner
                 ->where('guest_name', 'like', "%{$search}%")
                 ->orWhere('booking_id', 'like', "%{$search}%")
                 ->orWhere('email', 'like', "%{$search}%")
             ))
-            ->when($request->status, fn ($query, $status) => $query->where('status', $status))
+            ->when($request->status, fn ($query, $status) => $status === 'pending_check_in'
+                ? $query->where('status', 'guest_approved')->whereDate('check_in_date', '<=', today())
+                : $query->where('status', $status))
             ->when($request->property_id, fn ($query, $pid) => $query->where('property_id', $pid))
+            ->when($showArchived, fn ($query) => $query->archived(), fn ($query) => $query->notArchived())
             ->latest()
             ->paginate(15)
             ->withQueryString();
 
         $properties = Property::orderBy('name')->get();
 
-        return view('admin.bookings.index', compact('bookings', 'properties'));
+        $stats = [
+            'total_guests'     => Booking::notArchived()->count(),
+            'todays_arrivals'  => Booking::notArchived()->whereDate('check_in_date', today())->count(),
+            'waiting_approval' => Booking::notArchived()->where('status', 'pre_checkin_complete')->whereNull('approved_at')->count(),
+            'checked_in'       => Booking::notArchived()
+                ->where(fn ($q) => $q->where('manually_checked_in', true)->orWhere('status', 'currently_hosting'))
+                ->whereNull('checked_out_at')
+                ->count(),
+        ];
+
+        return view('admin.bookings.index', compact('bookings', 'properties', 'showArchived', 'stats'));
     }
 
     public function create()
@@ -50,7 +64,7 @@ class BookingController extends Controller
         $data['token']      = Str::random(40);
         $data['early_checkin'] = $request->boolean('early_checkin');
         $data['photo_id_received'] = $request->boolean('photo_id_received');
-        if (($data['status'] ?? null) === 'id_uploaded') {
+        if (($data['status'] ?? null) === 'pre_checkin_complete') {
             $data['photo_id_received'] = true;
         }
         if ($data['photo_id_received'] && empty($data['approved_at'])) {
@@ -71,7 +85,7 @@ class BookingController extends Controller
             ],
         ]);
 
-        return redirect()->route('admin.bookings.show', $booking)->with('success', 'Guest booking created successfully.');
+        return redirect()->route('admin.guests.show', $booking)->with('success', 'Guest booking created successfully.');
     }
 
     public function show(Booking $booking)
@@ -155,7 +169,7 @@ class BookingController extends Controller
         $data = $this->validated($request, $booking);
         $data['early_checkin'] = $request->boolean('early_checkin');
         $data['photo_id_received'] = $request->boolean('photo_id_received');
-        if (($data['status'] ?? null) === 'id_uploaded') {
+        if (($data['status'] ?? null) === 'pre_checkin_complete') {
             $data['photo_id_received'] = true;
         }
         if ($data['photo_id_received'] && empty($booking->approved_at) && empty($data['approved_at'])) {
@@ -171,7 +185,7 @@ class BookingController extends Controller
             'metadata'     => ['old_status' => $oldStatus, 'new_status' => $booking->status],
         ]);
 
-        return redirect()->route('admin.bookings.show', $booking)->with('success', 'Booking updated.');
+        return redirect()->route('admin.guests.show', $booking)->with('success', 'Booking updated.');
     }
 
     public function updateWelcomeMessage(Request $request, Booking $booking)
@@ -203,9 +217,27 @@ class BookingController extends Controller
 
         $booking->delete();
 
-        return redirect()->route('admin.bookings.index')->with('success', "Booking for {$name} deleted.");
+        return redirect()->route('admin.guests.index')->with('success', "Booking for {$name} deleted.");
     }
 
+    public function archive(Booking $booking)
+    {
+        $booking->update(['archived_at' => now()]);
+        ActivityLogService::admin('booking_archived', auth()->user()->name." archived booking for {$booking->guest_name} ({$booking->booking_id}).", 'guests', [
+            'severity' => 'info',
+            'metadata' => ['booking_id' => $booking->booking_id, 'guest_name' => $booking->guest_name],
+        ]);
+        return back()->with('success', "Booking for {$booking->guest_name} archived.");
+    }
+    public function unarchive(Booking $booking)
+    {
+        $booking->update(['archived_at' => null]);
+        ActivityLogService::admin('booking_unarchived', auth()->user()->name." unarchived booking for {$booking->guest_name} ({$booking->booking_id}).", 'guests', [
+            'severity' => 'info',
+            'metadata' => ['booking_id' => $booking->booking_id, 'guest_name' => $booking->guest_name],
+        ]);
+        return back()->with('success', "Booking for {$booking->guest_name} restored from archive.");
+    }
     public function overrideGps(Booking $booking)
     {
         $booking->update(['gps_verified' => true]);
@@ -225,7 +257,7 @@ class BookingController extends Controller
         $booking->update([
             'manually_checked_in' => true,
             'checked_in_at'       => now(),
-            'status'              => 'checked_in',
+            'status'              => 'currently_hosting',
         ]);
 
         ActivityLogService::security('manual_checkin_override', auth()->user()->name." manually checked in {$booking->guest_name} ({$booking->booking_id}).", [
@@ -237,14 +269,33 @@ class BookingController extends Controller
             'metadata'     => ['guest_name' => $booking->guest_name, 'override_by' => auth()->user()->name],
         ]);
 
-        return back()->with('success', 'Guest manually checked in.');
+        return back()->with('success', 'Guest manually marked as checked in.');
+    }
+
+    public function overrideCheckout(Booking $booking)
+    {
+        $booking->update([
+            'checked_out_at' => now(),
+            'status'         => 'checked_out',
+        ]);
+
+        ActivityLogService::security('manual_checkout_override', auth()->user()->name." manually checked out {$booking->guest_name} ({$booking->booking_id}).", [
+            'subject_type' => Booking::class,
+            'subject_id'   => $booking->id,
+            'booking_id'   => $booking->id,
+            'property_id'  => $booking->property_id,
+            'severity'     => 'warning',
+            'metadata'     => ['guest_name' => $booking->guest_name, 'override_by' => auth()->user()->name],
+        ]);
+
+        return back()->with('success', 'Guest manually marked as checked out.');
     }
 
     public function markIdReceived(Booking $booking)
     {
         $booking->update([
             'photo_id_received' => true,
-            'status' => in_array($booking->status, ['pending', 'waiting_checkin'], true) ? 'id_uploaded' : $booking->status,
+            'status' => $booking->status === 'pending' ? 'pre_checkin_complete' : $booking->status,
             'approved_at' => $booking->approved_at ?: now(),
         ]);
 
@@ -277,6 +328,69 @@ class BookingController extends Controller
         return back()->with('success', 'Guest approved for check-in.');
     }
 
+    public function markBackgroundCheckComplete(Booking $booking)
+    {
+        if (! $booking->isApproved()) {
+            return back()->with('error', 'Photo ID must be approved before marking the background check complete.');
+        }
+
+        $booking->update([
+            'background_check_completed_at' => now(),
+            'status' => 'awaiting_deposit',
+        ]);
+
+        ActivityLogService::admin('background_check_completed', auth()->user()->name." marked background check complete for {$booking->guest_name}.", 'guests', [
+            'subject_type' => Booking::class,
+            'subject_id'   => $booking->id,
+            'booking_id'   => $booking->id,
+            'property_id'  => $booking->property_id,
+            'severity'     => 'success',
+        ]);
+
+        return back()->with('success', 'Background check marked complete — guest is now awaiting deposit.');
+    }
+
+    public function updateStatus(Request $request, Booking $booking)
+    {
+        $data = $request->validate([
+            'status' => ['required', 'in:pending,pre_checkin_complete,awaiting_deposit,guest_approved,currently_hosting,checked_out'],
+        ]);
+
+        $booking->update(['status' => $data['status']]);
+
+        ActivityLogService::admin('status_manually_changed', auth()->user()->name." manually set status to \"".str($data['status'])->replace('_', ' ')->title()."\" for {$booking->guest_name}.", 'guests', [
+            'subject_type' => Booking::class,
+            'subject_id'   => $booking->id,
+            'booking_id'   => $booking->id,
+            'property_id'  => $booking->property_id,
+            'severity'     => 'warning',
+        ]);
+
+        return back()->with('success', 'Status updated.');
+    }
+
+    public function markDepositVerified(Booking $booking)
+    {
+        if (! $booking->isBackgroundCheckComplete()) {
+            return back()->with('error', 'Background check must be completed before verifying the deposit.');
+        }
+
+        $booking->update([
+            'deposit_verified_at' => now(),
+            'status' => 'guest_approved',
+        ]);
+
+        ActivityLogService::admin('deposit_verified', auth()->user()->name." verified the deposit for {$booking->guest_name}.", 'guests', [
+            'subject_type' => Booking::class,
+            'subject_id'   => $booking->id,
+            'booking_id'   => $booking->id,
+            'property_id'  => $booking->property_id,
+            'severity'     => 'success',
+        ]);
+
+        return back()->with('success', 'Deposit verified — guest is now approved.');
+    }
+
     public function declineBooking(Request $request, Booking $booking)
     {
         $data = $request->validate([
@@ -287,7 +401,7 @@ class BookingController extends Controller
             'approved_at' => null,
             'decline_reason' => $data['decline_reason'],
             'photo_id_received' => false,
-            'status' => 'waiting_checkin',
+            'status' => 'pending',
         ]);
 
         ActivityLogService::admin('booking_declined', auth()->user()->name." declined ID for {$booking->guest_name}: {$data['decline_reason']}", 'guests', [
@@ -370,7 +484,7 @@ class BookingController extends Controller
             'parking_needed' => ['nullable', 'boolean'],
             'early_checkin'  => ['nullable', 'boolean'],
             'photo_id_received' => ['nullable', 'boolean'],
-            'status'         => ['required', 'in:pending,id_uploaded,waiting_checkin,checked_in,checked_out'],
+            'status'         => ['required', 'in:pending,pre_checkin_complete,awaiting_deposit,guest_approved,currently_hosting,checked_out'],
             'notes'          => ['nullable', 'string'],
         ]);
     }

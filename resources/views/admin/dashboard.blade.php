@@ -9,7 +9,7 @@
             ['target' => 'needs-attention', 'title' => 'Needs attention panel',    'body' => 'Smart reminders for the highest-friction operations — missing IDs, GPS approvals, and today\'s movements.'],
             ['target' => 'today-checkins',  'title' => "Today's check-ins",        'body' => 'All guests arriving today with their current status. Click any guest to view their full profile and take action.'],
             ['target' => 'today-checkouts', 'title' => "Today's check-outs",       'body' => 'Guests departing today. Track their checkout status and access their booking details in one click.'],
-            ['target' => 'recent-guests',   'title' => 'Recent bookings table',    'body' => 'The eight most recent guest bookings with property, stay dates, and current status. Click View All to see everything.'],
+            ['target' => 'recent-guests',   'title' => 'Recent guests table',    'body' => 'The eight most recent guest bookings with property, stay dates, and current status. Click View All to see everything.'],
             ['target' => 'recent-activity', 'title' => 'Activity log widget',      'body' => 'A live feed of the most recent audit events. Every admin and guest action is captured. Click All Logs for the full audit trail.'],
         ];
     @endphp
@@ -23,7 +23,7 @@
                 <p class="mt-4 max-w-2xl text-slate-600">Review arrivals, pending approvals, setup progress, and recent activity from one clean workspace.</p>
             </div>
             <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-1">
-                <a href="{{ route('admin.bookings.create') }}" class="btn-primary">Add Guest Booking</a>
+                <a href="{{ route('admin.guests.create') }}" class="btn-primary">Add Guest</a>
                 <a href="{{ route('admin.guide') }}" class="btn-secondary">Open Admin Guide</a>
                 <button type="button" id="start-dashboard-tour" class="btn-secondary text-sm">
                     ✦ Start Dashboard Tour
@@ -93,11 +93,11 @@
             <p class="section-copy">Highest-friction operational reminders.</p>
             <div class="mt-5 grid gap-3">
                 @foreach([
-                    ['upload',                'Missing photo ID',       $pendingIds,         route('admin.bookings.index', ['status' => 'pending'])],
-                    ['calendar',              'Checking in today',      $todayCheckins,       route('admin.bookings.index')],
-                    ['map',                   'GPS approval needed',    $gpsApprovalNeeded,   route('admin.bookings.index')],
-                    ['parking',               'Parking info missing',   $missingParking,      route('admin.bookings.index')],
-                    ['checkout-instructions', 'Checking out today',     $todayCheckouts,      route('admin.bookings.index')],
+                    ['upload',                'Missing photo ID',       $pendingIds,         route('admin.guests.index', ['status' => 'pending'])],
+                    ['calendar',              'Checking in today',      $todayCheckins,       route('admin.guests.index')],
+                    ['map',                   'GPS approval needed',    $gpsApprovalNeeded,   route('admin.guests.index')],
+                    ['parking',               'Parking info missing',   $missingParking,      route('admin.guests.index')],
+                    ['checkout-instructions', 'Checking out today',     $todayCheckouts,      route('admin.guests.index')],
                 ] as [$icon, $label, $count, $url])
                     <a href="{{ $url }}"
                        class="flex items-center gap-3 rounded-xl border border-slate-200 p-4 transition hover:bg-slate-50 hover:shadow-sm">
@@ -121,7 +121,7 @@
             </div>
             <div class="divide-y divide-slate-100">
                 @forelse($todayArrivals as $guest)
-                    <a href="{{ route('admin.bookings.show', $guest) }}"
+                    <a href="{{ route('admin.guests.show', $guest) }}"
                        class="flex items-center gap-4 p-4 hover:bg-slate-50">
                         <span class="icon-chip"><x-icon name="guests" /></span>
                         <span class="flex-1">
@@ -146,7 +146,7 @@
             </div>
             <div class="divide-y divide-slate-100">
                 @forelse($todayDepartures as $guest)
-                    <a href="{{ route('admin.bookings.show', $guest) }}"
+                    <a href="{{ route('admin.guests.show', $guest) }}"
                        class="flex items-center gap-4 p-4 hover:bg-slate-50">
                         <span class="icon-chip"><x-icon name="checkout-instructions" /></span>
                         <span class="flex-1">
@@ -171,9 +171,9 @@
             <div class="flex items-center justify-between border-b border-slate-200 p-5">
                 <div>
                     <h2 class="section-title">Recent guests</h2>
-                    <p class="section-copy">Latest booking activity.</p>
+                    <p class="section-copy">Latest guest activity.</p>
                 </div>
-                <a href="{{ route('admin.bookings.index') }}" class="btn-secondary">View All</a>
+                <a href="{{ route('admin.guests.index') }}" class="btn-secondary">View All</a>
             </div>
             <div class="overflow-x-auto">
                 <table class="data-table">
@@ -183,7 +183,7 @@
                             <tr>
                                 <td>
                                     <a class="font-semibold text-slate-950 hover:text-[#102338]"
-                                       href="{{ route('admin.bookings.show', $guest) }}">{{ $guest->guest_name }}</a>
+                                       href="{{ route('admin.guests.show', $guest) }}">{{ $guest->guest_name }}</a>
                                     <div class="text-xs text-slate-500">{{ $guest->booking_id }}</div>
                                 </td>
                                 <td class="text-sm">{{ $guest->property->name }}</td>

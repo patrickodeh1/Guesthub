@@ -45,26 +45,26 @@ tasks touch the same templates first.
 29. ID display: modal popup instead of new tab — DONE
 30. ID display: zoom capability — DONE
 31. ID capture quality: blurry/excess background — DONE (guide-border crop-on-capture + Laplacian blur/text-density check, admin verification remains backstop)
-32. Full-size ID/guest-detail page redesign — deprioritized per client, not urgent — Not Started
+32. Full-size ID/guest-detail page redesign — deprioritized per client, not urgent — DONE
 
 ## PHASE 3 — BUGS
 
 33. Lock status desync: UI/Seam reports "locked" but door not physically locked, requiring repeated button presses — Not Started (new, found in chat log — needs investigation into whether GuestHub polls actual device state after sending a command, or trusts an optimistic response)
 34. Parking-needed toggle doesn't save on first attempt — **DONE**
-35. Booking status doesn't auto-update — guest-submitted check-in/out time, parking, ID status not reflecting in admin — Not Started, needs per-field investigation
-36. GPS location verification false negatives despite guest being on-site; review override logic for a more reliable primary check — Not Started (new, found in New_Text_Document.txt)
-37. "Try Again" button after GPS override doesn't work — guest must manually refresh browser; also make override auto-refresh the guest's browser — Not Started (new, found in New_Text_Document.txt)
-38. Email field (step 2 of 3) doesn't validate format — Not Started (new, found in New_Text_Document.txt)
-39. Time field (step 2 of 3) should be a selectable time picker in 30-min increments, required — currently a free-text field — Not Started (new, found in New_Text_Document.txt)
-40. Delete/archive guests from bookings; rename "Bookings" to "Guests" site-wide — Not Started (new, found in New_Text_Document.txt)
+35. Booking status doesn't auto-update — guest-submitted check-in/out time, parking, ID status not reflecting in admin — DONE , needs per-field investigation
+36. GPS location verification false negatives despite guest being on-site; review override logic for a more reliable primary check — DONE (new, found in New_Text_Document.txt)- DONE
+37. "Try Again" button after GPS override doesn't work — guest must manually refresh browser; also make override auto-refresh the guest's browser — DONE (new, found in New_Text_Document.txt)
+38. Email field (step 2 of 3) doesn't validate format — Done (already implemented: native type="email" validation + server-side rule + styled error block; confirmed via guest-flow test)
+39. Time field (step 2 of 3) should be a selectable time picker in 30-min increments, required — currently a free-text field — Done (replaced with required <select> dropdown, 30-min increments, 12h display/24h storage; selected time now also drives canViewAddress() and all guest-facing check-in-time displays, replacing hardcoded 3:00 PM; falls back to new default_checkin_time Setting for pre-existing bookings)
+40. Delete/archive guests from bookings; rename "Bookings" to "Guests" site-wide — DONE (new, found in New_Text_Document.txt)
 41. Image inserted via TinyMCE editor shows broken/404 to guest — **DONE**
 42. Clean up already-saved content with old broken relative image paths — **DONE** (no code fix needed; client re-inserts affected images post-deploy, must be noted in deployment instructions)
 72. Admin "mark photo ID as received" bypass didn't set approved_at, and the approved-state guest Continue button was a plain link that skipped form submission — edits to name/phone/email/parking/checkin-time during bypass flow were silently discarded — **DONE** (new, found in chat log)
 
 ## PHASE 4 — STATUS FLOW REBUILD (foundational — several later tasks depend on this)
 
-43. Reconcile and implement full status flow: Pending → Pre-Checkin Complete → Awaiting Deposit → Guest Approved → Pending Check In → Currently Hosting → Checked Out (exact spec + guest-facing copy in guest_hubu.txt) — Not Started, blocked on reconciling with existing approve/decline build first
-44. Deposit/incidentals-hold tracking — admin manually marks paid/verified — Not Started
+43. Reconcile and implement full status flow: Pending → Pre-Checkin Complete → Awaiting Deposit → Guest Approved → Pending Check In → Currently Hosting → Checked Out (exact spec + guest-facing copy in guest_hubu.txt) — DONE, blocked on reconciling with existing approve/decline build first
+44. Deposit/incidentals-hold tracking — admin manually marks paid/verified — DONE
 45. Guest-facing status messages per stage, exact copy from client, stored as static text for now (customizable layer later) — Not Started
 46. Guest status not auto-updating to "checked out" after checkout process completes — Not Started
 47. Checkout page needs to expire — currently guest can revisit indefinitely; must redirect to standalone "Thank You" post-stay page — Not Started

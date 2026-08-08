@@ -1,14 +1,14 @@
 <x-admin-layout :title="$booking->exists ? 'Edit Guest' : 'Add Guest'">
     <div class="page-header">
         <div>
-            <p class="eyebrow">Guest booking</p>
-            <h1 class="page-title">{{ $booking->exists ? 'Edit guest booking' : 'Add guest booking' }}</h1>
-            <p class="page-subtitle">Create a secure guest URL from booking details. Guests use it for ID upload, GPS arrival, and the welcome guide.</p>
+            <p class="eyebrow">Guest details</p>
+            <h1 class="page-title">{{ $booking->exists ? 'Edit guest' : 'Add guest' }}</h1>
+            <p class="page-subtitle">Create a secure guest URL from guest details. Guests use it for ID upload, GPS arrival, and the welcome guide.</p>
         </div>
-        <a href="{{ route('admin.bookings.index') }}" class="btn-secondary">Back to Guests</a>
+        <a href="{{ route('admin.guests.index') }}" class="btn-secondary">Back to Guests</a>
     </div>
 
-    <form method="post" action="{{ $booking->exists ? route('admin.bookings.update', $booking) : route('admin.bookings.store') }}" class="grid gap-6 xl:grid-cols-[1fr_360px]">
+    <form method="post" action="{{ $booking->exists ? route('admin.guests.update', $booking) : route('admin.guests.store') }}" class="grid gap-6 xl:grid-cols-[1fr_360px]">
         @csrf @if($booking->exists) @method('put') @endif
         <section class="card card-pad">
             <h2 class="section-title">Guest and stay details</h2>
@@ -39,10 +39,10 @@
                 <span>Photo ID Already Received</span>
             </label>
             <p class="field-help">If enabled, the guest will not be asked to upload a photo ID during check-in.</p>
-            <label class="field-label mt-5">Status<select name="status" class="input">@foreach(['pending','id_uploaded','waiting_checkin','checked_in','checked_out'] as $status)<option value="{{ $status }}" @selected(old('status', $booking->status ?: 'pending')===$status)>{{ str($status)->replace('_',' ')->title() }}</option>@endforeach</select></label>
+            <label class="field-label mt-5">Status<select name="status" class="input">@foreach(['pending','pre_checkin_complete','awaiting_deposit','guest_approved','currently_hosting','checked_out'] as $status)<option value="{{ $status }}" @selected(old('status', $booking->status ?: 'pending')===$status)>{{ str($status)->replace('_',' ')->title() }}</option>@endforeach</select></label>
             <button class="btn-primary mt-6 w-full">Save guest</button>
             @if($booking->exists)
-                <a href="{{ route('admin.bookings.show', $booking) }}" class="btn-secondary mt-3 w-full">View guest URL</a>
+                <a href="{{ route('admin.guests.show', $booking) }}" class="btn-secondary mt-3 w-full">View guest URL</a>
             @endif
         </aside>
 
