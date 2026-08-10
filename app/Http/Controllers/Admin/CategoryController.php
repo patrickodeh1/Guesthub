@@ -106,17 +106,22 @@ class CategoryController extends Controller
             : collect();
 
         $localEvents = collect();
+        $eventsTotal = 0;
+        $eventsHasMore = false;
         if ($category->action === 'local_events' && $property->latitude && $property->longitude) {
-            $localEvents = collect(app(\App\Services\TicketmasterService::class)->findNearbyEvents(
+            $eventsResult = app(\App\Services\TicketmasterService::class)->findNearbyEvents(
                 (float) $property->latitude,
                 (float) $property->longitude,
                 (int) ($property->events_radius_miles ?? 25)
-            ));
+            );
+            $localEvents = collect($eventsResult['events']);
+            $eventsTotal = $eventsResult['totalElements'];
+            $eventsHasMore = $eventsResult['hasMore'];
         }
 
         $state = 'guide';
 
-        return view('guest.category', compact('booking', 'category', 'page', 'categories', 'locks', 'localEvents', 'state'));
+        return view('guest.category', compact('booking', 'category', 'page', 'categories', 'locks', 'localEvents', 'eventsTotal', 'eventsHasMore', 'state'));
     }
 
     public function reorder(Request $request)

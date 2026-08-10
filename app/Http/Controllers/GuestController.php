@@ -266,14 +266,18 @@ class GuestController extends Controller
         $locks = $category->action === 'door_lock'
             ? $booking->property->locks->map(fn ($lock) => ['lock' => $lock, 'status' => $this->lockStatusFor($booking, $lock)])
             : collect();
-
         $localEvents = collect();
+        $eventsTotal = 0;
+        $eventsHasMore = false;
         if ($category->action === 'local_events' && $booking->property->latitude && $booking->property->longitude) {
-            $localEvents = collect(app(\App\Services\TicketmasterService::class)->findNearbyEvents(
+            $eventsResult = app(\App\Services\TicketmasterService::class)->findNearbyEvents(
                 (float) $booking->property->latitude,
                 (float) $booking->property->longitude,
                 (int) ($booking->property->events_radius_miles ?? 25)
-            ));
+            );
+            $localEvents = collect($eventsResult['events']);
+            $eventsTotal = $eventsResult['totalElements'];
+            $eventsHasMore = $eventsResult['hasMore'];
         }
 
         ActivityLogService::guest('category_viewed', "Guest {$booking->guest_name} viewed category: {$category->title}.", 'guest_portal', [
@@ -284,7 +288,7 @@ class GuestController extends Controller
             'metadata'    => ['category' => $category->title, 'category_id' => $category->id],
         ]);
 
-        return view('guest.category', compact('booking', 'category', 'page', 'categories', 'locks', 'localEvents', 'state'));
+        return view('guest.category', compact('booking', 'category', 'page', 'categories', 'locks', 'localEvents', 'eventsTotal', 'eventsHasMore', 'state'));
     }
 
     public function unlockDoor(string $bookingId, string $token, PropertyLock $lock)
