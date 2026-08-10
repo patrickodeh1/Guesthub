@@ -72,7 +72,7 @@
                                 </div>
                                 <p class="guest-stay-tile-label">Check-Out</p>
                                 <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }}</p>
-                                <p class="guest-stay-tile-time">11:00 AM</p>
+                                <p class="guest-stay-tile-time">{{ $booking->effectiveCheckoutTimeFormatted() }}</p>
                             </div>
                         </div>
                         <div class="px-0 pt-5 pb-2">
@@ -169,7 +169,7 @@
                         @if(is_null($booking->parking_needed))
                         <div class="mt-5">
                             <p class="text-sm font-bold">Will you be parking a vehicle at the property?</p>
-                            <div class="mt-3 grid grid-cols-2 gap-3">
+                            <div id="parking-question-block" class="mt-3 grid grid-cols-2 gap-3">
                                 <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 p-4 text-sm font-semibold hover:bg-slate-50">
                                     <input type="radio" name="parking_needed" value="1" class="accent-blue-600">
                                     Yes, I am parking
@@ -179,22 +179,23 @@
                                     No, not parking
                                 </label>
                             </div>
+                            <span id="parking-error" class="guest-field-error" style="display:none">Please let us know if you'll be parking.</span>
                         </div>
                         @endif
 
                         {{-- Check-in time --}}
                         <div class="mt-5">
-                            <label class="text-sm font-bold">What time are you planning to check in?
-                                <select name="checkin_time_preference" required class="guest-input mt-2 @error('checkin_time_preference') border-red-400 @enderror" aria-describedby="@error('checkin_time_preference') checkin-time-error @enderror">
+                            <label class="text-sm font-bold">What time are you planning to check in? <span class="text-red-600">*</span>
+                                <select name="checkin_time_preference" id="checkin_time_preference_select" class="guest-input mt-2 @error('checkin_time_preference') border-red-400 @enderror" aria-describedby="checkin-time-error">
                                     <option value="" disabled {{ old('checkin_time_preference', $booking->checkin_time_preference) ? '' : 'selected' }}>Select a time</option>
                                     @foreach($checkinTimeOptions as $value => $label)
                                         <option value="{{ $value }}" {{ old('checkin_time_preference', $booking->checkin_time_preference) === $value ? 'selected' : '' }}>{{ $label }}</option>
                                     @endforeach
                                 </select>
                             </label>
-                            @error('checkin_time_preference')
-                                <span id="checkin-time-error" class="guest-field-error">{{ $message }}</span>
-                            @enderror
+                            <span id="checkin-time-error" class="guest-field-error" style="display:@error('checkin_time_preference')block @else none @enderror">
+                                @error('checkin_time_preference'){{ $message }}@else Please select a check-in time. @enderror
+                            </span>
                             <p class="mt-1 text-xs text-slate-400">This helps us prepare for your arrival and unlocks your check-in details at the selected time.</p>
                         </div>
 
@@ -312,13 +313,54 @@
                     document.querySelectorAll("[data-next]").forEach(function(btn) {
                         btn.addEventListener("click", function() {
                             var step = btn.closest(".idw-step");
-                            if (step && !step.reportValidity) {
-                                // no-op, older browsers
-                            }
                             if (step && step.querySelector("input:invalid")) {
                                 var invalid = step.querySelector("input:invalid");
                                 invalid.reportValidity();
                                 return;
+                            }
+                            if (step) {
+                                var fieldChecks = [
+                                    { name: "guest_name", label: "your name" },
+                                    { name: "phone", label: "your phone number" },
+                                    { name: "email", label: "your email address" }
+                                ];
+                                for (var fc = 0; fc < fieldChecks.length; fc++) {
+                                    var visibleInputs = Array.prototype.filter.call(
+                                        step.querySelectorAll('input[name="' + fieldChecks[fc].name + '"]'),
+                                        function(el) { return el.offsetParent !== null; }
+                                    );
+                                    var activeInput = visibleInputs[0];
+                                    if (activeInput && !activeInput.value.trim()) {
+                                        activeInput.classList.add("border-red-400");
+                                        activeInput.scrollIntoView({ behavior: "smooth", block: "center" });
+                                        activeInput.focus();
+                                        return;
+                                    } else if (activeInput) {
+                                        activeInput.classList.remove("border-red-400");
+                                    }
+                                }
+                                var parkingGroup = step.querySelectorAll('input[name="parking_needed"]');
+                                var parkingError = document.getElementById("parking-error");
+                                if (parkingGroup.length) {
+                                    var parkingChecked = Array.prototype.some.call(parkingGroup, function(r) { return r.checked; });
+                                    if (!parkingChecked) {
+                                        if (parkingError) parkingError.style.display = "block";
+                                        var parkingBlock = document.getElementById("parking-question-block");
+                                        if (parkingBlock) parkingBlock.scrollIntoView({ behavior: "smooth", block: "center" });
+                                        return;
+                                    } else if (parkingError) {
+                                        parkingError.style.display = "none";
+                                    }
+                                }
+                                var timeSelect = step.querySelector('#checkin_time_preference_select');
+                                if (timeSelect && !timeSelect.value) {
+                                    timeSelect.classList.add("border-red-400");
+                                    var timeError = document.getElementById("checkin-time-error");
+                                    if (timeError) timeError.style.display = "block";
+                                    timeSelect.scrollIntoView({ behavior: "smooth", block: "center" });
+                                    timeSelect.focus();
+                                    return;
+                                }
                             }
                             goToStep(btn.getAttribute("data-next"));
                         });
@@ -594,6 +636,18 @@
                         if (!frontBlur.classList.contains("hidden")) { alert("Front ID photo is blurry. Please retake."); return; }
                         if (!isPassport && !backBlur.classList.contains("hidden")) { alert("Back ID photo is blurry. Please retake."); return; }
                     }
+                    var checkinTimeSelect = document.getElementById("checkin_time_preference_select");
+                    var checkinTimeError = document.getElementById("checkin-time-error");
+                    if (checkinTimeSelect && !checkinTimeSelect.value) {
+                        checkinTimeSelect.classList.add("border-red-400");
+                        if (checkinTimeError) checkinTimeError.style.display = "block";
+                        checkinTimeSelect.scrollIntoView({ behavior: "smooth", block: "center" });
+                        checkinTimeSelect.focus();
+                        return;
+                    } else if (checkinTimeSelect) {
+                        checkinTimeSelect.classList.remove("border-red-400");
+                        if (checkinTimeError) checkinTimeError.style.display = "none";
+                    }
 
                     function b64toBlob(b64) {
                         var arr = b64.split(","), mime = arr[0].match(/:(.*?);/)[1];
@@ -623,8 +677,19 @@
                         submitBtn.innerHTML = '<span class="ui-spinner"></span><span>Submitting…</span>';
                     }
 
-                    fetch(form.action, { method: "POST", body: fd })
+                    fetch(form.action, {
+                        method: "POST",
+                        body: fd,
+                        headers: { "Accept": "application/json" }
+                    })
                         .then(function(r) {
+                            if (r.status === 422) {
+                                return r.json().then(function(body) {
+                                    resetSubmitBtn();
+                                    var messages = body.errors ? Object.values(body.errors).flat().join("\n") : "Please check the form and try again.";
+                                    alert(messages);
+                                });
+                            }
                             if (r.ok || r.redirected) {
                                 window.location = r.url;
                             } else {
@@ -659,8 +724,8 @@
                     <div class="guest-big-check">
                         <x-icon name="check" class="h-8 w-8" />
                     </div>
-                    <h2 class="mt-4 text-xl font-extrabold text-slate-950">You're All Set{{ $booking->guest_first_name ? ', '.$booking->guest_first_name : '' }}!</h2>
-                    <p class="mt-2 text-sm leading-6 text-slate-600">We'll see you soon.</p>
+                    <h2 class="mt-4 text-xl font-extrabold text-slate-950">Approved for check in!</h2>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">Please check back here about an hour before your arrival time for check in and parking instructions.</p>
                 </div>
                 <div class="px-6 pb-6">
                     <div class="guest-stay-grid">
@@ -678,7 +743,7 @@
                             </div>
                             <p class="guest-stay-tile-label">Check-Out</p>
                             <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }}</p>
-                            <p class="guest-stay-tile-time">11:00 AM</p>
+                            <p class="guest-stay-tile-time">{{ $booking->effectiveCheckoutTimeFormatted() }}</p>
                         </div>
                     </div>
 
@@ -702,7 +767,11 @@
                     <div>
                         <p class="guest-status-kicker">{{ $property->name }}</p>
                         <h1 class="guest-status-title">Verify your location</h1>
-                        <p class="mt-2 text-sm leading-6 text-slate-600">You are not checked in yet. Verify that you are at the property to unlock the welcome guide.</p>
+                        @if($booking->canViewAddress())
+                            <p class="mt-2 text-sm leading-6 text-slate-600">It's go time! You can navigate to the property and on arrival you will be able to check in.</p>
+                        @else
+                            <p class="mt-2 text-sm leading-6 text-slate-600">Approved for check in! Please check back here about an hour before your arrival time for check in and parking instructions.</p>
+                        @endif
                     </div>
                     <span class="guest-status-pill">
                         <x-icon name="alert-triangle" class="h-4 w-4" />
@@ -725,7 +794,7 @@
                         </div>
                         <p class="guest-stay-tile-label">Check-Out</p>
                         <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }}</p>
-                        <p class="guest-stay-tile-time">11:00 AM</p>
+                        <p class="guest-stay-tile-time">{{ $booking->effectiveCheckoutTimeFormatted() }}</p>
                     </div>
                 </div>
 
@@ -770,8 +839,127 @@
                 </div>
             </div>
             </div>
-        @elseif($state === 'checkout')
-            @if(count($checkoutSteps) > 0)
+        @elseif($state === 'awaiting_deposit')
+            <div class="guest-portal-card">
+                <div class="guest-status-bar">
+                    <div>
+                        <p class="guest-status-kicker">{{ $property->name }}</p>
+                        <h1 class="guest-status-title">Almost there</h1>
+                    </div>
+                    <span class="guest-status-pill">
+                        <x-icon name="clock" class="h-4 w-4" />
+                        Awaiting deposit
+                    </span>
+                </div>
+                <div class="p-6 md:p-10 text-center">
+                    @if($booking->status === 'pre_checkin_complete')
+                        <h2 class="text-xl font-extrabold text-slate-950">Pre-check in completed!</h2>
+                        <p class="mt-3 text-sm leading-6 text-slate-600">Last step: Please submit your required incidentals hold payment on the booking platform. This hold is refundable after check out.</p>
+                    @else
+                        <h2 class="text-xl font-extrabold text-slate-950">Pending incidentals hold payment</h2>
+                        <p class="mt-3 text-sm leading-6 text-slate-600">If you have already submitted the payment, please send us a message so that we can expedite this for you. It usually doesn't take that long.</p>
+                    @endif
+                </div>
+            </div>
+        @elseif($state === 'checkout_notice')
+            <div class="guest-portal-card">
+                <div class="guest-status-bar">
+                    <div>
+                        <p class="guest-status-kicker">{{ $property->name }}</p>
+                        <h1 class="guest-status-title">Check-out is coming up</h1>
+                        <p class="mt-2 text-sm leading-6 text-slate-600">Your check-out time is {{ $booking->effectiveCheckoutTimeFormatted() }} tomorrow. You'll still have full access to the guide until then.</p>
+                    </div>
+                    <span class="guest-status-pill is-checked">
+                        <x-icon name="check" class="h-4 w-4" />
+                        Checked in
+                    </span>
+                </div>
+                <div class="p-6">
+                    <a href="#guide-grid" class="guest-primary-btn w-full">View Guide</a>
+                </div>
+                <div id="guide-grid" class="guest-guide-grid p-6 pt-0">
+                    @foreach($guideCats as $category)
+                        @php
+                            $colors = $categoryColor;
+                            $displayTitle = $category->pivot->custom_title ?: $category->title;
+                            $displayDescription = $category->pivot->custom_description ?: $category->description;
+                        @endphp
+                        <x-guide-panel
+                            :href="route('guest.category', [$booking->booking_id, $booking->token, $category])"
+                            :icon="$category->slug"
+                            :guest-icon="$category->guest_icon"
+                            :title="$displayTitle"
+                            :description="$displayDescription"
+                            :tone="$colors[0]"
+                            :accent="$colors[1]"
+                            :wide="$category->slug === 'checkout-instructions'"
+                        />
+                    @endforeach
+                </div>
+            </div>
+        @elseif($state === 'checkout_available')
+            <div class="guest-portal-card">
+                <div class="guest-status-bar">
+                    <div>
+                        <p class="guest-status-kicker">{{ $property->name }}</p>
+                        <h1 class="guest-status-title">Checking out today</h1>
+                        <p class="mt-2 text-sm leading-6 text-slate-600">Check-out time is {{ $booking->effectiveCheckoutTimeFormatted() }}. You can still use the guide until then.</p>
+                    </div>
+                    <span class="guest-status-pill is-checked">
+                        <x-icon name="check" class="h-4 w-4" />
+                        Checked in
+                    </span>
+                </div>
+                <div class="p-6">
+                    <a href="#checkout-begin" class="guest-primary-btn w-full is-go">Thanks for staying — time to check out. Click here to begin.</a>
+                </div>
+                <div id="guide-grid" class="guest-guide-grid p-6 pt-0">
+                    @foreach($guideCats as $category)
+                        @php
+                            $colors = $categoryColor;
+                            $displayTitle = $category->pivot->custom_title ?: $category->title;
+                            $displayDescription = $category->pivot->custom_description ?: $category->description;
+                        @endphp
+                        <x-guide-panel
+                            :href="route('guest.category', [$booking->booking_id, $booking->token, $category])"
+                            :icon="$category->slug"
+                            :guest-icon="$category->guest_icon"
+                            :title="$displayTitle"
+                            :description="$displayDescription"
+                            :tone="$colors[0]"
+                            :accent="$colors[1]"
+                            :wide="$category->slug === 'checkout-instructions'"
+                        />
+                    @endforeach
+                </div>
+                <div id="checkout-begin"></div>
+            </div>
+        @elseif($state === 'post_checkout')
+            <div class="guest-portal-card">
+                <div class="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center md:py-24">
+                    <span class="guest-status-pill is-checked">
+                        <x-icon name="check" class="h-4 w-4" />
+                        Checked out
+                    </span>
+                    <p class="guest-status-kicker">{{ $property->name }}</p>
+                    <h1 class="guest-status-title">Thank you for staying with us!</h1>
+                    <p class="max-w-md text-sm leading-6 text-slate-600">We appreciate it. If you'd like to stay with us again, please contact us directly for a discount.</p>
+                </div>
+            </div>
+        @elseif($state === 'checkout_locked')
+            @if($booking->status === 'checked_out')
+                <div class="guest-portal-card">
+                    <div class="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center md:py-24">
+                        <span class="guest-status-pill is-checked">
+                            <x-icon name="check" class="h-4 w-4" />
+                            Checked out
+                        </span>
+                        <p class="guest-status-kicker">{{ $property->name }}</p>
+                        <h1 class="guest-status-title">You're all checked out</h1>
+                        <p class="max-w-md text-sm leading-6 text-slate-600">We appreciate it. If you'd like to stay with us again, please contact us directly for a discount.</p>
+                    </div>
+                </div>
+            @elseif(count($checkoutSteps) > 0)
                 <x-step-wizard :steps="$checkoutSteps" type="checkout" next-section="checkout-complete" :booking-id="$booking->booking_id" :token="$booking->token" />
                 <div class="guest-portal-card" id="checkout-complete" style="display:none">
                     <div class="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center md:py-24">
@@ -781,7 +969,7 @@
                         </span>
                         <p class="guest-status-kicker">{{ $property->name }}</p>
                         <h1 class="guest-status-title">You're all checked out</h1>
-                        <p class="max-w-md text-sm leading-6 text-slate-600">Thanks so much for staying with us. Safe travels!</p>
+                        <p class="max-w-md text-sm leading-6 text-slate-600">We appreciate it. If you'd like to stay with us again, please contact us directly for a discount.</p>
                     </div>
                 </div>
             @else
@@ -801,7 +989,7 @@
                 <img src="https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=900&q=80" alt="Packed luggage in a clean room" class="h-48 w-full rounded-md object-cover md:h-72" loading="lazy">
                 <ul class="mt-6 grid gap-4 text-sm">
                     @foreach([
-                        'Check-out Time 11:00 AM',
+                        'Check-out Time '.$booking->effectiveCheckoutTimeFormatted(),
                         'Ensure all belongings are collected.',
                         'Turn off lights and AC.',
                         'Leave the keys on the table.',

@@ -12,9 +12,9 @@
         @csrf @if($booking->exists) @method('put') @endif
         <section class="card card-pad">
             <h2 class="section-title">Guest and stay details</h2>
-            <p class="section-copy">Booking ID may be left blank to generate one automatically.</p>
+            <p class="section-copy">Guest ID may be left blank to generate one automatically.</p>
             <div class="mt-6 grid gap-5 md:grid-cols-2">
-                <label class="field-label">Booking ID<input name="booking_id" value="{{ old('booking_id', $booking->booking_id) }}" placeholder="Auto-generated if blank" class="input"></label>
+                <label class="field-label">Guest ID<input name="booking_id" value="{{ old('booking_id', $booking->booking_id) }}" placeholder="Auto-generated if blank" class="input"></label>
                 <label class="field-label">Guest name <span class="text-red-600">*</span><input name="guest_name" value="{{ old('guest_name', $booking->guest_name) }}" required placeholder="Jordan Taylor" class="input"></label>
                 <label class="field-label">Phone<input name="phone" value="{{ old('phone', $booking->phone) }}" placeholder="+1 555 555 0199" class="input"></label>
                 <label class="field-label">Email<input name="email" value="{{ old('email', $booking->email) }}" placeholder="guest@example.com" class="input"></label>

@@ -22,7 +22,7 @@
     $tone = ['#eef2ff', '#3b65ce'];
 @endphp
 
-<x-guest-layout :booking="$booking" :property="$booking->property" :title="$displayTitle" state="guide">
+<x-guest-layout :booking="$booking" :property="$booking->property" :title="$displayTitle" :state="$state">
 <section class="guest-detail-shell">
     <header class="guest-detail-hero">
         @if($heroImage)

@@ -56,6 +56,41 @@
                     <span class="field-help">Auto-detected from coordinates. Override if needed.</span>
                 </label>
             </section>
+            <section class="card card-pad">
+                <h2 class="section-title">Check-out time</h2>
+                <p class="section-copy">Guests lose full menu access after this time on their check-out day. Saves independently of the form above.</p>
+                <form id="checkout-time-form" class="mt-4 flex items-end gap-3">
+                    <label class="field-label flex-1">
+                        Check-out time
+                        <input type="time" name="checkout_time" id="checkout_time_input" value="{{ $property->checkout_time ?? '11:00' }}" class="input mt-1">
+                    </label>
+                    <button type="submit" class="btn-secondary">Save</button>
+                    <span id="checkout-time-status" class="text-sm font-semibold"></span>
+                </form>
+                <script>
+                    document.getElementById('checkout-time-form').addEventListener('submit', function(e) {
+                        e.preventDefault();
+                        var statusEl = document.getElementById('checkout-time-status');
+                        var value = document.getElementById('checkout_time_input').value;
+                        statusEl.textContent = 'Saving...';
+                        statusEl.className = 'text-sm font-semibold text-slate-500';
+                        fetch("{{ route('admin.properties.checkout-time', $property) }}", {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ checkout_time: value }),
+                        }).then(function(response) {
+                            if (!response.ok) throw new Error('Save failed');
+                            statusEl.textContent = 'Saved';
+                            statusEl.className = 'text-sm font-semibold text-emerald-600';
+                        }).catch(function() {
+                            statusEl.textContent = 'Failed to save. Try again.';
+                            statusEl.className = 'text-sm font-semibold text-red-600';
+                        });
+                    });
+                </script>
         </aside>
 
         <input type="hidden" name="map_embed_url" id="map_embed_url_input" value="{{ old('map_embed_url', $property->map_embed_url) }}">

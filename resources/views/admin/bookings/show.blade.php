@@ -1,7 +1,7 @@
 <x-admin-layout title="Guest Details">
     <a href="{{ route('admin.guests.index') }}" class="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-800">
         <x-icon name="arrow-left" class="h-4 w-4" />
-        Back to Bookings
+        Back to Guests
     </a>
 
     <div class="grid grid-cols-1 gap-3 lg:grid-cols-4 lg:items-start">
@@ -18,7 +18,7 @@
                     <p class="text-xs text-slate-500">Current Status</p>
                     <span class="badge badge-{{ $booking->effectiveStatus() }} mt-1 px-3 py-1 text-sm">{{ $booking->statusLabel() }}</span>
                 </div>
-                <a href="{{ route('admin.guests.edit', $booking) }}" class="btn-primary">Edit Booking</a>
+                <a href="{{ route('admin.guests.edit', $booking) }}" class="btn-primary">Edit Guest</a>
             </div>
         </div>
     </section>
@@ -75,7 +75,7 @@
                                 <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">Approved {{ $booking->approved_at->format('M j, Y g:i A') }}</div>
                             @else
                                 <div class="flex gap-2">
-                                    <form method="post" action="{{ route('admin.guests.approve', $booking) }}" class="flex-1"><button class="btn-primary w-full gap-2"><x-icon name="check" class="h-4 w-4" />Approve</button></form>
+                                    <form method="post" action="{{ route('admin.guests.approve', $booking) }}" class="flex-1">@csrf<button class="btn-primary w-full gap-2"><x-icon name="check" class="h-4 w-4" />Approve</button></form>
                                     <button type="button" class="btn-danger flex-1 gap-2" onclick="document.getElementById('decline-form-{{ $booking->id }}').classList.toggle('hidden')"><x-icon name="x" class="h-4 w-4" />Decline</button>
                                 </div>
                                 <form id="decline-form-{{ $booking->id }}" method="post" action="{{ route('admin.guests.decline', $booking) }}" class="hidden mt-2 grid gap-2">
@@ -96,6 +96,8 @@
                     </div>
                     <dl class="mt-4 grid gap-0 text-sm">
                         @foreach([
+                            ['calendar', 'Check-in Date', $booking->check_in_date ? $booking->check_in_date->format('M j, Y') : 'Not set'],
+                            ['calendar', 'Check-out Date', $booking->check_out_date ? $booking->check_out_date->format('M j, Y') : 'Not set'],
                             ['mail', 'Email', $booking->email ?: 'No email yet'],
                             ['security', 'ID Type', $booking->id_type === 'passport' ? 'Passport' : 'State-issued ID'],
                             ['parking', 'Parking', is_null($booking->parking_needed) ? 'Unknown' : ($booking->parking_needed ? 'Needed' : 'Not needed')],
@@ -177,18 +179,6 @@
                 <h2 class="section-title">Quick Actions</h2>
                 <p class="section-copy">Take action on this booking.</p>
 
-                <div class="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3">
-                    <p class="text-sm font-semibold text-slate-800">Update guest status</p>
-                    <p class="text-xs text-slate-500">Change the booking's stage directly. Guest-facing pages update immediately.</p>
-                    <form method="post" action="{{ route('admin.guests.update-status', $booking) }}" class="mt-2">
-                        @csrf
-                        <select name="status" onchange="this.form.submit()" class="input mt-0 w-full text-sm">
-                            @foreach(['pending','pre_checkin_complete','awaiting_deposit','guest_approved','currently_hosting','checked_out'] as $status)
-                                <option value="{{ $status }}" @selected($booking->status===$status)>{{ str($status)->replace('_',' ')->title() }}</option>
-                            @endforeach
-                        </select>
-                    </form>
-                </div>
 
                 <div class="mt-5 grid gap-2.5">
                     @if($booking->isApproved())

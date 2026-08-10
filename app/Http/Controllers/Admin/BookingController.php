@@ -347,7 +347,7 @@ class BookingController extends Controller
             'severity'     => 'success',
         ]);
 
-        return back()->with('success', 'Background check marked complete — guest is now awaiting deposit.');
+        return back()->with('success', 'Background check marked complete, guest is now awaiting deposit.');
     }
 
     public function updateStatus(Request $request, Booking $booking)

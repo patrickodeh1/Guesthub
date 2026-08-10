@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 class Property extends Model
 {
     protected $fillable = [
-        'name', 'unit_number', 'slug', 'address', 'city', 'state', 'zip', 'latitude', 'longitude', 'timezone',
+        'name', 'unit_number', 'slug', 'address', 'city', 'state', 'zip', 'latitude', 'longitude', 'timezone', 'checkout_time',
         'map_embed_url', 'map_directions_url', 'contact_phone', 'contact_email',
         'welcome_intro', 'checkin_instructions', 'parking_instructions',
         'checkout_instructions', 'header_image', 'active',

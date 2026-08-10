@@ -65,13 +65,15 @@ tasks touch the same templates first.
 
 43. Reconcile and implement full status flow: Pending → Pre-Checkin Complete → Awaiting Deposit → Guest Approved → Pending Check In → Currently Hosting → Checked Out (exact spec + guest-facing copy in guest_hubu.txt) — DONE, blocked on reconciling with existing approve/decline build first
 44. Deposit/incidentals-hold tracking — admin manually marks paid/verified — DONE
-45. Guest-facing status messages per stage, exact copy from client, stored as static text for now (customizable layer later) — Not Started
-46. Guest status not auto-updating to "checked out" after checkout process completes — Not Started
-47. Checkout page needs to expire — currently guest can revisit indefinitely; must redirect to standalone "Thank You" post-stay page — Not Started
-48. Checkout day behavior: full menu access in morning; "Begin Checkout" button/popup appears at 6pm local property time; after checkout time fully passed, guest loses all access except checkout page — Not Started
-49. Text notification to admin/host: guest completes pre-checkin + ID upload — Not Started, needs SMS provider (e.g. Twilio) confirmed
-50. Text notification to admin/host: guest checks in — Not Started
-51. Text notification to admin/host: guest checks out — Not Started
+45. Guest-facing status messages per stage, exact copy from client, stored as static text for now (customizable layer later) — DONE (added awaiting_deposit/checkout_notice/checkout_available/post_checkout states with exact client copy in state() + show.blade.php; fixed waiting/arrival copy to match spec; tested and verified in browser)
+46. Guest status not auto-updating to "checked out" after checkout process completes — DONE (root cause: step-wizard fetch had no response.ok check, silently treated 419/failed requests as success; fixed with proper error handling + inline retry; also fixed reload-restarts-wizard bug by checking status===checked_out directly in state() and view; tested and verified)
+47. Checkout page needs to expire — currently guest can revisit indefinitely; must redirect to standalone "Thank You" post-stay page — DONE (added isPastCheckoutDay() to Booking model fixing the >= vs > bug that made checkout day and every day after indistinguishable; added post_checkout state with client's exact thank-you/discount copy; tested and verified)
+48. Checkout day behavior: full menu access in morning; "Begin Checkout" button/popup appears at 6pm local property time; after checkout time fully passed, guest loses all access except checkout page — DONE (added checkout_time field to properties with admin-editable standalone save; added checkout_notice/checkout_available/checkout_locked states with property-timezone-aware time gating; fixed inverted isCheckoutDayBeforeSixPM logic; fixed banner not propagating to guide sub-pages due to hardcoded state guide value and missing state prop on GuestLayout component; tested and verified)
+49. Text notification to admin/host: guest completes pre-checkin + ID upload — DONE, needs SMS provider (e.g. Twilio) confirmed
+50. Text notification to admin/host: guest checks in — DONE
+
+51. Text notification to admin/host: guest checks out — DONE
+
 
 ## PHASE 5 — DASHBOARD REBUILD
 
@@ -82,7 +84,7 @@ tasks touch the same templates first.
 56. Status progression on card: upcoming → currently hosting → checkout date (must align with Phase 4 status model) — Not Started
 57. Dashboard "at a glance" — open for suggestions, client's call — Not Started
 58. Smart lock status card per property: locked/unlocked + battery % (August locks) — Not Started, needs Seam API check for battery data availability
-59. August lock spelling/config note: confirm `august_lock` device-type string matches Seam exactly — resolved in chat, verify still correct
+59. August lock spelling/config note: confirm `august_lock` device-type string matches Seam exactly — resolved in chat, verify still correct -DONE
 
 ## PHASE 6 — CONTENT / MISC
 

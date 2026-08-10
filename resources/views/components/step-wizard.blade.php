@@ -94,16 +94,31 @@
             var confirmUrl = type === "checkin"
                 ? "{{ route('guest.confirm-checkin', [$bookingId, $token]) }}"
                 : "{{ route('guest.confirm-checkout', [$bookingId, $token]) }}";
+            var doneBtn = document.getElementById("wizard-done-" + type);
+            doneBtn.disabled = true;
             fetch(confirmUrl, {
                 method: "POST",
                 headers: { "X-CSRF-TOKEN": "{{ csrf_token() }}", "Content-Type": "application/json" }
-            }).then(function() {
+            }).then(function(response) {
+                if (!response.ok) {
+                    throw new Error("Request failed with status " + response.status);
+                }
                 document.getElementById("step-wizard-" + type).style.display = "none";
                 var wrapper = document.getElementById("step-wizard-" + type + "-wrapper");
                 if (wrapper) wrapper.style.display = "none";
                 var next = document.getElementById("{{ $nextSection }}-wrapper") || document.getElementById("{{ $nextSection }}");
                 if (next) next.style.display = "";
                 window.scrollTo({top: 0, behavior: "smooth"});
+            }).catch(function() {
+                doneBtn.disabled = false;
+                var errEl = document.getElementById("wizard-error-" + type);
+                if (!errEl) {
+                    errEl = document.createElement("p");
+                    errEl.id = "wizard-error-" + type;
+                    errEl.className = "mt-3 text-sm font-semibold text-red-600 text-center";
+                    doneBtn.insertAdjacentElement("afterend", errEl);
+                }
+                errEl.textContent = "Something went wrong. Please check your connection and try again, or refresh the page.";
             });
         } else {
             document.getElementById("step-wizard-" + type).style.display = "none";

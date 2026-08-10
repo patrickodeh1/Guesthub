@@ -8,7 +8,7 @@ use Illuminate\View\Component;
 
 class GuestLayout extends Component
 {
-    public function __construct(public mixed $booking, public mixed $property, public ?string $title = null)
+    public function __construct(public mixed $booking, public mixed $property, public ?string $title = null, public ?string $state = null)
     {
     }
 

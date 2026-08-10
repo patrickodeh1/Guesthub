@@ -32,6 +32,59 @@
         </div>
     </section>
 
+    {{-- Priority: next check-in per property --}}
+    <section class="mb-6" data-tour="priority-section">
+        <h2 class="mb-3 text-lg font-semibold text-slate-950">Priority</h2>
+        <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            @forelse($priorityBookings as $entry)
+                @php $booking = $entry['booking']; @endphp
+                <div class="card card-pad">
+                    <p class="text-sm font-semibold uppercase tracking-wide text-slate-500">{{ $entry['property']->name }}</p>
+                    @if(! $booking)
+                        <p class="mt-3 text-sm text-slate-500">No upcoming check-ins.</p>
+                    @else
+                        <p class="mt-2 {{ $entry['is_today'] ? 'font-bold text-slate-950' : 'text-slate-600' }}">
+                            @if($booking->status === 'currently_hosting')
+                                Currently hosting
+                            @elseif($entry['is_today'])
+                                Checking in today
+                            @else
+                                Checking in {{ now()->diffForHumans($booking->check_in_date, ['parts' => 1]) }}
+                            @endif
+                        </p>
+                        <p class="mt-3 font-semibold text-slate-950">{{ $booking->guest_name }}</p>
+                        <p class="text-sm text-slate-500">{{ $booking->phone }}</p>
+                        <span class="badge badge-{{ $booking->status }} mt-2 inline-block">
+                            @if($booking->status === 'currently_hosting')
+                                Checkout: {{ $booking->check_out_date->format('M j, Y') }}
+                            @else
+                                {{ $booking->statusLabel() }}
+                            @endif
+                        </span>
+                        @if(! $booking->isCheckedIn())
+                            <div class="mt-3 text-sm text-slate-600">
+                                @if(count($entry['requirements']))
+                                    <ul class="list-disc space-y-1 pl-4">
+                                        @foreach($entry['requirements'] as $req)
+                                            <li>{{ $req }}</li>
+                                        @endforeach
+                                    </ul>
+                                @else
+                                    <p>Guest is ready for check-in.</p>
+                                @endif
+                            </div>
+                        @endif
+                        <a href="{{ route('admin.guests.show', $booking) }}" class="mt-4 inline-block text-sm font-semibold text-teal-800">View details</a>
+                    @endif
+                </div>
+            @empty
+                <div class="card card-pad">
+                    <p class="text-sm text-slate-500">No properties configured yet.</p>
+                </div>
+            @endforelse
+        </div>
+    </section>
+
     {{-- Stats cards --}}
     <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-5" data-tour="dashboard-stats">
         @foreach([
@@ -164,6 +217,48 @@
             </div>
         </section>
     </div>
+    <section class="mt-6 card" data-tour="lock-status">
+        <div class="border-b border-slate-200 p-5">
+            <h2 class="section-title">Smart lock status</h2>
+            <p class="section-copy">Lock state and battery level for each property.</p>
+        </div>
+        <div class="divide-y divide-slate-100">
+            @forelse($propertyLocks as $propertyName => $locks)
+                <div class="p-4">
+                    <p class="mb-3 text-sm font-semibold text-slate-950">{{ $propertyName }}</p>
+                    <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        @foreach($locks as $lock)
+                            <div class="flex items-center gap-3 rounded-lg border border-slate-200 p-3">
+                                <span class="icon-chip"><x-icon name="lock" /></span>
+                                <span class="flex-1">
+                                    <span class="block font-semibold text-slate-950">{{ $lock->label }}</span>
+                                    <span class="block text-sm text-slate-500">
+                                        @if(is_null($lock->last_known_locked))
+                                            Status unknown
+                                        @else
+                                            {{ $lock->last_known_locked ? 'Locked' : 'Unlocked' }}
+                                        @endif
+                                        &middot;
+                                        @if(is_null($lock->battery_level))
+                                            Battery unknown
+                                        @else
+                                            {{ $lock->battery_level }}% battery
+                                        @endif
+                                    </span>
+                                </span>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            @empty
+                <div class="py-10 text-center">
+                    <x-icon name="lock" class="mx-auto mb-3 h-8 w-8 text-[#b08a45]" />
+                    <p class="text-sm text-slate-500">No smart locks configured yet.</p>
+                </div>
+            @endforelse
+        </div>
+    </section>
+
 
     {{-- Recent guests + activity --}}
     <div class="mt-6 grid gap-6 xl:grid-cols-[1fr_360px]">

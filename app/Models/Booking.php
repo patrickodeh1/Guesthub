@@ -147,6 +147,49 @@ class Booking extends Model
         return $date->toDateString() >= $this->check_out_date->toDateString();
     }
 
+    public function isPastCheckoutDay(?CarbonInterface $now = null): bool
+    {
+        $timezone = $this->property?->timezone ?? 'America/New_York';
+        $now = ($now ?? now())->setTimezone($timezone);
+
+        return $now->toDateString() > $this->check_out_date->toDateString();
+    }
+
+    public function isCheckoutDayBeforeSixPM(?CarbonInterface $now = null): bool
+    {
+        $timezone = $this->property?->timezone ?? 'America/New_York';
+        $now = ($now ?? now())->setTimezone($timezone);
+
+        if ($now->toDateString() !== $this->check_out_date->copy()->subDay()->toDateString()) {
+            return false;
+        }
+
+        return $now->hour >= 18;
+    }
+
+    public function effectiveCheckoutTime(): string
+    {
+        return $this->property?->checkout_time ?: '11:00';
+    }
+
+    public function effectiveCheckoutTimeFormatted(): string
+    {
+        return \Carbon\Carbon::createFromFormat('H:i', $this->effectiveCheckoutTime())->format('g:i A');
+    }
+
+    public function isPastCheckoutTime(?CarbonInterface $now = null): bool
+    {
+        $timezone = $this->property?->timezone ?? 'America/New_York';
+        $now = ($now ?? now())->setTimezone($timezone);
+
+        if ($now->toDateString() < $this->check_out_date->toDateString()) return false;
+        if ($now->toDateString() > $this->check_out_date->toDateString()) return true;
+
+        [$hour, $minute] = array_map('intval', explode(':', $this->effectiveCheckoutTime()));
+
+        return $now->hour > $hour || ($now->hour === $hour && $now->minute >= $minute);
+    }
+
     public function publicUrl(): string
     {
         return route('guest.show', [$this->booking_id, $this->token]);

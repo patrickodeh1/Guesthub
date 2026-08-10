@@ -40,6 +40,18 @@ class SeamService
         return $device->properties->locked ?? null;
     }
 
+    public function getBatteryLevel(string $deviceId): ?int
+    {
+        $device = $this->client->devices->get(device_id: $deviceId);
+        $level = $device->properties->battery->level ?? null;
+
+        if ($level === null) {
+            return null;
+        }
+
+        return (int) round($level * 100);
+    }
+
     public function createGuestAccessGrant(string $deviceId, string $guestName, string $guestEmail, \DateTime $startsAt, \DateTime $endsAt): array
     {
         $grant = $this->client->access_grants->create(

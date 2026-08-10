@@ -105,7 +105,9 @@ class CategoryController extends Controller
             ? $property->locks->map(fn ($lock) => ['lock' => $lock, 'status' => null])
             : collect();
 
-        return view('guest.category', compact('booking', 'category', 'page', 'categories', 'locks'));
+        $state = 'guide';
+
+        return view('guest.category', compact('booking', 'category', 'page', 'categories', 'locks', 'state'));
     }
 
     public function reorder(Request $request)

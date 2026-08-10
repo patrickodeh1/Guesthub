@@ -11,7 +11,8 @@
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
         "seamapi/seam": "^2.145",
-        "svix/svix": "^1.99"
+        "svix/svix": "^1.99",
+        "twilio/sdk": "^8.11"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

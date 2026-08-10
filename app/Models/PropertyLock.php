@@ -16,6 +16,7 @@ class PropertyLock extends Model
         'manufacturer',
         'last_known_locked',
         'last_status_at',
+        'battery_level',
     ];
 
     protected function casts(): array

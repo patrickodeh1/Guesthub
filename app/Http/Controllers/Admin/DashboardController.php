@@ -6,10 +6,64 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Booking;
 use App\Models\Property;
+use App\Models\PropertyLock;
 use App\Models\Setting;
+use App\Services\SeamService;
+use Illuminate\Support\Facades\Cache;
 
 class DashboardController extends Controller
 {
+    private function priorityBookings()
+    {
+        $today = now()->toDateString();
+
+        return Property::with(['bookings' => function ($q) {
+            $q->whereNotIn('status', ['checked_out'])->orderBy('check_in_date');
+        }])->get()->map(function (Property $property) use ($today) {
+            $booking = $property->bookings
+                ->filter(fn ($b) => $b->status === 'currently_hosting' || $b->check_in_date->toDateString() >= $today)
+                ->sortBy(fn ($b) => $b->status === 'currently_hosting' ? '0' : $b->check_in_date->toDateString())
+                ->first();
+
+            $requirements = [];
+            if ($booking && ! $booking->isCheckedIn()) {
+                if (! $booking->photo_id_received) $requirements[] = 'Needs to upload photo ID';
+                if ($booking->needsIdApproval()) $requirements[] = 'ID pending admin approval';
+                if (! $booking->isIdentityComplete()) $requirements[] = 'Identity verification incomplete';
+                if (is_null($booking->parking_needed)) $requirements[] = 'Parking preference not specified';
+                if (! $booking->gps_verified) $requirements[] = 'GPS location not verified';
+            }
+
+            return [
+                'property' => $property,
+                'booking' => $booking,
+                'is_today' => $booking && $booking->status !== 'currently_hosting' && $booking->check_in_date->toDateString() === $today,
+                'requirements' => $requirements,
+            ];
+        });
+    }
+
+    private function lockStatuses()
+    {
+        $seam = app(SeamService::class);
+
+        return PropertyLock::with('property')->get()->map(function (PropertyLock $lock) use ($seam) {
+            $cacheKey = "lock_battery_fetched:{$lock->id}";
+
+            if (! Cache::has($cacheKey)) {
+                try {
+                    $level = $seam->getBatteryLevel($lock->seam_device_id);
+                    $lock->update(['battery_level' => $level]);
+                } catch (\Throwable $e) {
+                    report($e);
+                }
+                Cache::put($cacheKey, true, now()->addMinutes(10));
+            }
+
+            return $lock;
+        })->groupBy('property.name');
+    }
+
     public function __invoke()
     {
         $today = now()->toDateString();
@@ -45,6 +99,8 @@ class DashboardController extends Controller
             'recentActivity' => ActivityLog::with('user')->latest()->take(8)->get(),
             'checklist' => $checklist,
             'checklistPercent' => $checklistPercent,
+            'propertyLocks' => $this->lockStatuses(),
+            'priorityBookings' => $this->priorityBookings(),
         ]);
     }
 }

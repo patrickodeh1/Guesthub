@@ -99,6 +99,19 @@ class PropertyController extends Controller
         return redirect()->to($destination)->with('success', 'Property updated.');
     }
 
+    public function updateCheckoutTime(Request $request, Property $property)
+    {
+        $data = $request->validate([
+            'checkout_time' => ['required', 'date_format:H:i'],
+        ]);
+
+        $property->update(['checkout_time' => $data['checkout_time']]);
+
+        ActivityLog::record('property_updated', "{$property->name} check-out time was updated.", 'edit', $property);
+
+        return response()->json(['ok' => true, 'checkout_time' => $property->checkout_time]);
+    }
+
     public function destroy(Property $property)
     {
         $property->delete();
@@ -197,6 +210,7 @@ class PropertyController extends Controller
             'existing_header_image' => ['nullable', 'string'],
             'active' => ['nullable', 'boolean'],
             'timezone' => ['nullable', 'string', 'max:100'],
+            'checkout_time' => ['nullable', 'date_format:H:i'],
         ]);
 
         $data['slug'] = $data['slug'] ?: Str::slug($data['name']);

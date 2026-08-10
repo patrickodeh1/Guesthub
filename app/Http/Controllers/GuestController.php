@@ -49,6 +49,7 @@ class GuestController extends Controller
             'status'        => 'currently_hosting',
             'checked_in_at' => now(),
         ]);
+        \App\Services\SmsNotificationService::guestCheckedIn($booking);
         ActivityLogService::guest('guest_confirmed_checkin', "Guest {$booking->guest_name} confirmed check-in.", 'check', [
             'booking_id'  => $booking->id,
             'property_id' => $booking->property_id,
@@ -66,6 +67,7 @@ class GuestController extends Controller
             'status'         => 'checked_out',
             'checked_out_at' => now(),
         ]);
+        \App\Services\SmsNotificationService::guestCheckedOut($booking);
         ActivityLogService::guest('guest_confirmed_checkout', "Guest {$booking->guest_name} confirmed check-out.", 'check', [
             'booking_id'  => $booking->id,
             'property_id' => $booking->property_id,
@@ -124,7 +126,13 @@ class GuestController extends Controller
             $updates['photo_id_back_path'] = $request->file('photo_id_back')->store('photo-ids');
         }
 
+        $isFirstCompletion = $booking->status === 'pending';
+
         $booking->update($updates);
+
+        if ($isFirstCompletion) {
+            \App\Services\SmsNotificationService::preCheckinComplete($booking);
+        }
 
         ActivityLogService::guest('photo_id_uploaded', "Guest {$booking->guest_name} submitted photo ID and pre-arrival details.", 'photo_id', [
             'booking_id'  => $booking->id,
@@ -242,7 +250,10 @@ class GuestController extends Controller
     {
         $booking = $this->booking($bookingId, $token);
         $booking->load(['property.categories', 'property.amenities']);
-        abort_unless($booking->isCheckedIn() || $booking->isCheckoutDay(), 403);
+        $state = $this->state($booking);
+        if (! in_array($state, ['checkout_notice', 'checkout_available', 'guide'], true)) {
+            return redirect()->route('guest.show', [$booking->booking_id, $booking->token]);
+        }
 
         $categories = $this->availableCategories($booking);
         abort_unless($categories->contains('id', $category->id), 404);
@@ -264,7 +275,7 @@ class GuestController extends Controller
             'metadata'    => ['category' => $category->title, 'category_id' => $category->id],
         ]);
 
-        return view('guest.category', compact('booking', 'category', 'page', 'categories', 'locks'));
+        return view('guest.category', compact('booking', 'category', 'page', 'categories', 'locks', 'state'));
     }
 
     public function unlockDoor(string $bookingId, string $token, PropertyLock $lock)
@@ -386,8 +397,16 @@ class GuestController extends Controller
             return 'identity';
         }
 
-        if ($booking->isCheckoutDay()) {
-            return 'checkout';
+        if (in_array($booking->status, ['pre_checkin_complete', 'awaiting_deposit'], true)) {
+            return 'awaiting_deposit';
+        }
+
+        if ($booking->status === 'checked_out') {
+            return $booking->isPastCheckoutDay() ? 'post_checkout' : 'checkout_locked';
+        }
+
+        if ($booking->isPastCheckoutDay()) {
+            return 'post_checkout';
         }
 
         if (! $booking->isCheckinDay()) {
@@ -396,6 +415,18 @@ class GuestController extends Controller
 
         if (! $booking->gps_verified) {
             return 'arrival';
+        }
+
+        if (! $booking->isCheckedIn()) {
+            return 'guide';
+        }
+
+        if ($booking->isCheckoutDay()) {
+            return $booking->isPastCheckoutTime() ? 'checkout_locked' : 'checkout_available';
+        }
+
+        if ($booking->isCheckoutDayBeforeSixPM()) {
+            return 'checkout_notice';
         }
 
         return 'guide';

@@ -34,6 +34,17 @@
         @endif
     </div>
 @endif
+@if(in_array($state, ['checkout_notice', 'checkout_available'], true))
+    <div class="mx-auto mt-4 w-full max-w-[390px] px-4">
+        <div class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
+            @if($state === 'checkout_notice')
+                Check-out is coming up. Your check-out time is {{ $booking->effectiveCheckoutTimeFormatted() }} tomorrow.
+            @else
+                You're checking out today. Check-out time is {{ $booking->effectiveCheckoutTimeFormatted() }}.
+            @endif
+        </div>
+    </div>
+@endif
 
 <main class="guest-stage">
     {{ $slot }}

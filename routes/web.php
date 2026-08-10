@@ -74,6 +74,7 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
 
     // ─── Properties ──────────────────────────────────────────────────────────
     Route::resource('properties', PropertyController::class)->except(['show']);
+    Route::post('properties/{property}/checkout-time', [PropertyController::class, 'updateCheckoutTime'])->name('properties.checkout-time');
 
     // ─── Guests / Bookings ────────────────────────────────────────────────────
     Route::resource('guests', BookingController::class)->parameters(['guests' => 'booking']);

@@ -40,6 +40,13 @@ return [
         'webhook_secret' => env('SEAM_WEBHOOK_SECRET'),
     ],
 
+    'twilio' => [
+        'sid' => env('TWILIO_SID'),
+        'auth_token' => env('TWILIO_AUTH_TOKEN'),
+        'from_number' => env('TWILIO_FROM_NUMBER'),
+        'admin_notify_number' => env('TWILIO_ADMIN_NOTIFY_NUMBER'),
+    ],
+
     'google_maps' => [
         'key' => env('GOOGLE_MAPS_API_KEY'),
     ],
