@@ -49,6 +49,19 @@
         </div>
     </div>
 
+    {{-- Page Link Picker Modal --}}
+    <div id="page-link-modal" class="fixed inset-0 hidden items-center justify-center bg-slate-950/40 p-4" style="z-index:2147483000;">
+        <div class="w-full max-w-md rounded-xl bg-white p-5 shadow-xl">
+            <div class="mb-3 flex items-center justify-between">
+                <p class="text-sm font-bold text-slate-700">Link to a page</p>
+                <button type="button" onclick="closePageLinkModal()" class="text-slate-400 hover:text-slate-700">
+                    <x-icon name="x" class="h-5 w-5" />
+                </button>
+            </div>
+            <div id="page-link-list" class="grid max-h-96 gap-2 overflow-y-auto"></div>
+        </div>
+    </div>
+
     {{-- Force TinyMCE's floating menus/dropdowns/overflow drawer below our modal --}}
     <style>
     .tox-tinymce-aux,
@@ -60,6 +73,17 @@
         max-height: 320px !important;
         overflow-y: auto !important;
     }
+    .tox.tox-tinymce.tox-fullscreen,
+    body.tox-fullscreen-body .tox.tox-tinymce.tox-fullscreen {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        z-index: 2147483001 !important;
+    }
     </style>
 
     {{-- Google Fonts loaded on the PAGE so toolbar dropdown labels render correctly --}}
@@ -69,6 +93,43 @@
 
     <script>
     let __mediaPickerCurrentFolder = null;
+
+    const __guidePages = @json($property->categories->map(fn($c) => ['id' => $c->id, 'title' => $c->title]));
+
+    function openPageLinkModal() {
+        const modal = document.getElementById('page-link-modal');
+        const list = document.getElementById('page-link-list');
+        list.innerHTML = '';
+        if (!__guidePages.length) {
+            list.innerHTML = '<p class="text-center text-sm text-slate-400">No guide pages available.</p>';
+        }
+        __guidePages.forEach(function(pageItem) {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'w-full rounded-lg border border-slate-200 p-3 text-left text-sm font-semibold hover:bg-slate-50';
+            btn.textContent = pageItem.title;
+            btn.onclick = function() { insertPageLink(pageItem); };
+            list.appendChild(btn);
+        });
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function closePageLinkModal() {
+        const modal = document.getElementById('page-link-modal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    function insertPageLink(pageItem) {
+        if (window.tinymce && tinymce.activeEditor) {
+            const editor = tinymce.activeEditor;
+            const selectedText = editor.selection.getContent({ format: 'text' });
+            const label = selectedText && selectedText.trim() ? selectedText : pageItem.title;
+            editor.insertContent('<a href="internal://category/' + pageItem.id + '">' + label + '</a>');
+        }
+        closePageLinkModal();
+    }
 
     function closeMediaPickerForEditor() {
         const modal = document.getElementById('media-picker-modal');
@@ -150,8 +211,8 @@
         relative_urls: false,
         remove_script_host: false,
         selector: '#page-content-editor',
-        plugins: 'lists link code table',
-        toolbar: 'undo redo | bold italic underline forecolor backcolor | alignleft aligncenter alignright | bullist numlist | customlineheight | link insertimage table | removeformat code | fontfamily fontsize',
+        plugins: 'lists advlist link code table searchreplace wordcount visualblocks charmap emoticons preview anchor fullscreen nonbreaking',
+        toolbar: 'undo redo | bold italic underline forecolor backcolor | alignleft aligncenter alignright | bullist numlist | customlineheight | link insertimage table anchor charmap emoticons | insertpagelink | searchreplace preview fullscreen | removeformat code | fontfamily fontsize',
         browser_spellcheck: true,
         contextmenu: false,
         font_size_formats: '8px 10px 12px 14px 16px 18px 20px 24px 28px 32px 36px 42px 48px 60px 72px',
@@ -183,6 +244,7 @@
             '*': 'font-size,font-family,color,background-color,text-align,text-decoration,line-height'
         },
         menubar: false,
+        toolbar_mode: 'wrap',
         height: 480,
         ui_mode: 'split',
         promotion: false,
@@ -248,6 +310,15 @@
                 tooltip: 'Insert image from library',
                 onAction: function() {
                     openMediaPickerForEditor();
+                }
+            });
+            editor.ui.registry.addIcon('pagelink', '<svg width="24" height="24" viewBox="0 0 24 24"><path d="M9 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M14 3l5 5h-5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8 14.5l2-2a2.1 2.1 0 0 1 3 3l-1 1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M13 14.5l-2 2a2.1 2.1 0 0 1-3-3l1-1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>');
+
+            editor.ui.registry.addButton('insertpagelink', {
+                icon: 'pagelink',
+                tooltip: 'Link to a guide page',
+                onAction: function() {
+                    openPageLinkModal();
                 }
             });
         }

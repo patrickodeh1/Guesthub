@@ -222,6 +222,14 @@
     .prose-welcome p {
         margin: 0;
     }
+    .prose-welcome a {
+        color: var(--color-blue-600);
+        text-decoration: underline;
+        font-weight: 600;
+    }
+    .prose-welcome a:hover {
+        color: var(--color-blue-700);
+    }
 
     .prose-welcome ul {
         margin-top: 1rem;
@@ -571,6 +579,15 @@
     .guest-amenity-card {
         display: flex;
         gap: 14px;
+        border: 1px solid #e8edf4;
+        border-radius: 10px;
+        background: #fff;
+        padding: 16px;
+        box-shadow: 0 8px 20px rgb(15 23 42 / .04);
+    }
+    .guest-event-card {
+        display: flex;
+        flex-direction: column;
         border: 1px solid #e8edf4;
         border-radius: 10px;
         background: #fff;
@@ -1394,7 +1411,7 @@
     padding: 12px 2px 16px;
     margin-bottom: 18px;
     -webkit-overflow-scrolling: touch;
-    scrollbar-width: none;
+    scrollbar-width: thin;
     justify-content: safe center;
     cursor: grab;
     user-select: none;
@@ -1403,7 +1420,18 @@
     cursor: grabbing;
 }
 .guest-category-scroll::-webkit-scrollbar {
-    display: none;
+    height: 6px;
+    display: block;
+}
+.guest-category-scroll::-webkit-scrollbar-track {
+    background: transparent;
+}
+.guest-category-scroll::-webkit-scrollbar-thumb {
+    background: var(--color-slate-300);
+    border-radius: 999px;
+}
+.guest-category-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--color-slate-400);
 }
 .guest-category-scroll-item {
     display: flex;

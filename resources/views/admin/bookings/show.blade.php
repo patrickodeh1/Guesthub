@@ -99,6 +99,7 @@
                             ['calendar', 'Check-in Date', $booking->check_in_date ? $booking->check_in_date->format('M j, Y') : 'Not set'],
                             ['calendar', 'Check-out Date', $booking->check_out_date ? $booking->check_out_date->format('M j, Y') : 'Not set'],
                             ['mail', 'Email', $booking->email ?: 'No email yet'],
+                            ['contact-guest-services', 'Phone', $booking->phone ?: 'No phone on file'],
                             ['security', 'ID Type', $booking->id_type === 'passport' ? 'Passport' : 'State-issued ID'],
                             ['parking', 'Parking', is_null($booking->parking_needed) ? 'Unknown' : ($booking->parking_needed ? 'Needed' : 'Not needed')],
                             ['calendar', 'Early Check-in', $booking->early_checkin ? 'Enabled' : 'Disabled'],
@@ -331,6 +332,17 @@
     .tox-menu.tox-collection.tox-collection--list {
         max-height: 320px !important;
         overflow-y: auto !important;
+    }
+    .tox.tox-tinymce.tox-fullscreen,
+    body.tox-fullscreen-body .tox.tox-tinymce.tox-fullscreen {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        z-index: 2147483001 !important;
     }
     </style>
 
@@ -584,8 +596,8 @@
         relative_urls: false,
         remove_script_host: false,
         selector: '#welcome-message-editor',
-        plugins: 'lists link code table',
-        toolbar: 'undo redo | bold italic underline forecolor backcolor | alignleft aligncenter alignright | bullist numlist | customlineheight | link insertimage table | removeformat code | fontfamily fontsize',
+        plugins: 'lists advlist link code table searchreplace wordcount visualblocks charmap emoticons preview anchor fullscreen nonbreaking',
+        toolbar: 'undo redo | bold italic underline forecolor backcolor | alignleft aligncenter alignright | bullist numlist | customlineheight | link insertimage table anchor charmap emoticons | searchreplace preview fullscreen | removeformat code | fontfamily fontsize',
         browser_spellcheck: true,
         contextmenu: false,
         font_size_formats: '8px 10px 12px 14px 16px 18px 20px 24px 28px 32px 36px 42px 48px 60px 72px',
@@ -617,6 +629,7 @@
             '*': 'font-size,font-family,color,background-color,text-align,text-decoration,line-height'
         },
         menubar: false,
+        toolbar_mode: 'wrap',
         height: 320,
         ui_mode: 'split',
         promotion: false,

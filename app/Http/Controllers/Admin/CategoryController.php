@@ -105,9 +105,18 @@ class CategoryController extends Controller
             ? $property->locks->map(fn ($lock) => ['lock' => $lock, 'status' => null])
             : collect();
 
+        $localEvents = collect();
+        if ($category->action === 'local_events' && $property->latitude && $property->longitude) {
+            $localEvents = collect(app(\App\Services\TicketmasterService::class)->findNearbyEvents(
+                (float) $property->latitude,
+                (float) $property->longitude,
+                (int) ($property->events_radius_miles ?? 25)
+            ));
+        }
+
         $state = 'guide';
 
-        return view('guest.category', compact('booking', 'category', 'page', 'categories', 'locks', 'state'));
+        return view('guest.category', compact('booking', 'category', 'page', 'categories', 'locks', 'localEvents', 'state'));
     }
 
     public function reorder(Request $request)

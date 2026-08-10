@@ -30,6 +30,11 @@ class CategoryPage extends Model
     public function renderContent(Booking $booking): string
     {
         if (!$this->content) return '';
+        $content = preg_replace_callback('#internal://category/(\d+)#', function ($matches) use ($booking) {
+            $linkedCategory = \App\Models\Category::find((int) $matches[1]);
+            if (!$linkedCategory) return '#';
+            return route('guest.category', [$booking->booking_id, $booking->token, $linkedCategory->slug]);
+        }, $this->content);
 
         return str_replace(
             [
@@ -54,7 +59,7 @@ class CategoryPage extends Model
                 $booking->property->name,
                 $booking->property->address,
             ],
-            $this->content
+            $content
         );
     }
 

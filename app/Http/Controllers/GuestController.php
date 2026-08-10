@@ -267,6 +267,15 @@ class GuestController extends Controller
             ? $booking->property->locks->map(fn ($lock) => ['lock' => $lock, 'status' => $this->lockStatusFor($booking, $lock)])
             : collect();
 
+        $localEvents = collect();
+        if ($category->action === 'local_events' && $booking->property->latitude && $booking->property->longitude) {
+            $localEvents = collect(app(\App\Services\TicketmasterService::class)->findNearbyEvents(
+                (float) $booking->property->latitude,
+                (float) $booking->property->longitude,
+                (int) ($booking->property->events_radius_miles ?? 25)
+            ));
+        }
+
         ActivityLogService::guest('category_viewed', "Guest {$booking->guest_name} viewed category: {$category->title}.", 'guest_portal', [
             'booking_id'  => $booking->id,
             'property_id' => $booking->property_id,
@@ -275,7 +284,7 @@ class GuestController extends Controller
             'metadata'    => ['category' => $category->title, 'category_id' => $category->id],
         ]);
 
-        return view('guest.category', compact('booking', 'category', 'page', 'categories', 'locks', 'state'));
+        return view('guest.category', compact('booking', 'category', 'page', 'categories', 'locks', 'localEvents', 'state'));
     }
 
     public function unlockDoor(string $bookingId, string $token, PropertyLock $lock)

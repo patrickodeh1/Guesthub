@@ -13,6 +13,22 @@ use Illuminate\Support\Facades\Cache;
 
 class DashboardController extends Controller
 {
+    private function bookingRequirements(Booking $booking): array
+    {
+        if ($booking->isCheckedIn()) {
+            return [];
+        }
+
+        $requirements = [];
+        if (! $booking->photo_id_received) $requirements[] = 'Needs to upload photo ID';
+        if ($booking->needsIdApproval()) $requirements[] = 'ID pending admin approval';
+        if (! $booking->isIdentityComplete()) $requirements[] = 'Identity verification incomplete';
+        if (is_null($booking->parking_needed)) $requirements[] = 'Parking preference not specified';
+        if (! $booking->gps_verified) $requirements[] = 'GPS location not verified';
+
+        return $requirements;
+    }
+
     private function priorityBookings()
     {
         $today = now()->toDateString();
@@ -20,25 +36,36 @@ class DashboardController extends Controller
         return Property::with(['bookings' => function ($q) {
             $q->whereNotIn('status', ['checked_out'])->orderBy('check_in_date');
         }])->get()->map(function (Property $property) use ($today) {
-            $booking = $property->bookings
-                ->filter(fn ($b) => $b->status === 'currently_hosting' || $b->check_in_date->toDateString() >= $today)
-                ->sortBy(fn ($b) => $b->status === 'currently_hosting' ? '0' : $b->check_in_date->toDateString())
+            $current = $property->bookings->firstWhere('status', 'currently_hosting');
+
+            $next = $property->bookings
+                ->filter(fn ($b) => $b->status !== 'currently_hosting' && $b->check_in_date->toDateString() >= $today)
+                ->sortBy(fn ($b) => $b->check_in_date->toDateString())
                 ->first();
 
-            $requirements = [];
-            if ($booking && ! $booking->isCheckedIn()) {
-                if (! $booking->photo_id_received) $requirements[] = 'Needs to upload photo ID';
-                if ($booking->needsIdApproval()) $requirements[] = 'ID pending admin approval';
-                if (! $booking->isIdentityComplete()) $requirements[] = 'Identity verification incomplete';
-                if (is_null($booking->parking_needed)) $requirements[] = 'Parking preference not specified';
-                if (! $booking->gps_verified) $requirements[] = 'GPS location not verified';
+            $entries = collect();
+
+            if ($current) {
+                $entries->push([
+                    'booking' => $current,
+                    'kind' => 'current',
+                    'is_today' => false,
+                    'requirements' => [],
+                ]);
+            }
+
+            if ($next) {
+                $entries->push([
+                    'booking' => $next,
+                    'kind' => 'upcoming',
+                    'is_today' => $next->check_in_date->toDateString() === $today,
+                    'requirements' => $this->bookingRequirements($next),
+                ]);
             }
 
             return [
                 'property' => $property,
-                'booking' => $booking,
-                'is_today' => $booking && $booking->status !== 'currently_hosting' && $booking->check_in_date->toDateString() === $today,
-                'requirements' => $requirements,
+                'entries' => $entries,
             ];
         });
     }
@@ -67,6 +94,8 @@ class DashboardController extends Controller
     public function __invoke()
     {
         $today = now()->toDateString();
+        $activeStatuses = ['pre_checkin_complete', 'awaiting_deposit', 'guest_approved', 'currently_hosting'];
+
         $properties = Property::count();
         $guests = Booking::count();
         $brandReady = filled(Setting::getValue('site_logo')) || filled(Setting::getValue('brand_color'));
@@ -87,12 +116,13 @@ class DashboardController extends Controller
 
         return view('admin.dashboard', [
             'totalProperties' => $properties,
-            'activeGuests' => Booking::whereIn('status', ['id_uploaded', 'waiting_checkin', 'checked_in'])->count(),
-            'pendingIds' => Booking::whereNull('photo_id_path')->count(),
+            'activeGuests' => Booking::where('status', 'currently_hosting')->count(),
+            'pendingIds' => Booking::whereNull('photo_id_path')->whereNotIn('status', ['checked_out'])->count(),
+            'idsPendingApproval' => Booking::whereNotNull('photo_id_path')->whereNull('approved_at')->whereNotIn('status', ['checked_out'])->count(),
             'todayCheckins' => Booking::whereDate('check_in_date', $today)->count(),
             'todayCheckouts' => Booking::whereDate('check_out_date', $today)->count(),
-            'missingParking' => Booking::whereNull('parking_needed')->count(),
-            'gpsApprovalNeeded' => Booking::whereDate('check_in_date', '<=', $today)->whereNotIn('status', ['checked_in', 'checked_out'])->where('gps_verified', false)->where('manually_checked_in', false)->count(),
+            'missingParking' => Booking::whereNull('parking_needed')->whereNotIn('status', ['checked_out'])->count(),
+            'gpsApprovalNeeded' => Booking::whereDate('check_in_date', '<=', $today)->whereIn('status', $activeStatuses)->where('gps_verified', false)->count(),
             'todayArrivals' => Booking::with('property')->whereDate('check_in_date', $today)->latest()->take(5)->get(),
             'todayDepartures' => Booking::with('property')->whereDate('check_out_date', $today)->latest()->take(5)->get(),
             'recentGuests' => Booking::with('property')->latest()->take(8)->get(),

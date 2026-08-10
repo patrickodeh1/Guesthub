@@ -77,19 +77,19 @@ tasks touch the same templates first.
 
 ## PHASE 5 — DASHBOARD REBUILD
 
-52. Priority section: today's check-in or next upcoming, one per property, own card — Not Started
-53. Copy logic: "Checking in today" (bold) vs "in X days" (normal) vs nothing if already checked in — Not Started
-54. Card shows guest name, phone, status (focal point), property name — Not Started
-55. Outstanding requirements as bullet points, or "ready for check-in" if none; nothing shown if already checked in — Not Started
-56. Status progression on card: upcoming → currently hosting → checkout date (must align with Phase 4 status model) — Not Started
-57. Dashboard "at a glance" — open for suggestions, client's call — Not Started
-58. Smart lock status card per property: locked/unlocked + battery % (August locks) — Not Started, needs Seam API check for battery data availability
+52. Priority section: today's check-in or next upcoming, one per property, own card — DONE
+53. Copy logic: "Checking in today" (bold) vs "in X days" (normal) vs nothing if already checked in — DONE
+54. Card shows guest name, phone, status (focal point), property name — DONE
+55. Outstanding requirements as bullet points, or "ready for check-in" if none; nothing shown if already checked in — DONE
+56. Status progression on card: upcoming → currently hosting → checkout date (must align with Phase 4 status model) — DONE
+57. Dashboard "at a glance" — open for suggestions, client's call — DONE
+58. Smart lock status card per property: locked/unlocked + battery % (August locks) — DONE
 59. August lock spelling/config note: confirm `august_lock` device-type string matches Seam exactly — resolved in chat, verify still correct -DONE
 
 ## PHASE 6 — CONTENT / MISC
 
-60. Internal page link picker in editor (this site vs external URL, select page by name not raw URL) — Not Started; note client also wants shorter guest-facing slugs (e.g. `guesthub.us/checkin/pool`) instead of full booking-ID-carrying URLs — routing architecture question to resolve before or alongside this
-61. WYSIWYG editor: expand toward full-featured editor (client: "every editor I've ever used already has these") — Not Started, scope needs definition — what specific features are missing?
+60. Internal page link picker in editor (this site vs external URL, select page by name not raw URL) — Done; adds separate toolbar button in category content editor, picker lists property's guide category pages, inserts stable ID-based internal reference (survives category rename), resolves to real guest booking URL at render time. Shorter guest-facing slugs (e.g. `guesthub.us/checkin/pool`) deferred to auth rework phase — current long booking-ID-carrying URLs unchanged for now.
+61. WYSIWYG editor: expand toward full-featured editor (client: "every editor I've ever used already has these") — Done
 62. Local events category — ZIP or lat/long + radius API integration — Not Started, needs API research
 63. Live temperature + weather condition in guest page header, all pages — Not Started, needs API research
 64. Date range display: abbreviated month, no repeat if same month (e.g. "July 1–4") — **DONE for admin views**; guest-facing tiles still show as two separate labels, deferred to combine with Phase 1 layout work

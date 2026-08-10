@@ -62,6 +62,7 @@
 
     @php
         $hasArticleContent = $category->action === 'door_lock'
+            || $category->action === 'local_events'
             || optional($page)->content
             || ($category->slug === 'amenities' && $booking->property->amenities->where('active', true)->count());
     @endphp
@@ -80,6 +81,27 @@
                         />
                     @endforeach
                 </div>
+            @elseif($category->action === 'local_events')
+                @if($localEvents->isNotEmpty())
+                    <div class="grid gap-4 sm:grid-cols-2">
+                        @foreach($localEvents as $event)
+                            <a href="{{ $event['url'] }}" target="_blank" rel="noopener" class="guest-event-card">
+                                @if($event['image'])
+                                    <img src="{{ $event['image'] }}" alt="" class="mb-3 h-32 w-full rounded-lg object-cover">
+                                @endif
+                                <p class="font-semibold text-slate-950">{{ $event['name'] }}</p>
+                                @if($event['venue'])
+                                    <p class="text-sm text-slate-500">{{ $event['venue'] }}</p>
+                                @endif
+                                @if($event['date'])
+                                    <p class="text-sm text-slate-500">{{ \Carbon\Carbon::parse($event['date'])->format('M d, Y') }}{{ $event['time'] ? ' at '.\Carbon\Carbon::parse($event['time'])->format('g:i A') : '' }}</p>
+                                @endif
+                            </a>
+                        @endforeach
+                    </div>
+                @else
+                    <p class="text-sm text-slate-500">No local events found right now. Check back soon.</p>
+                @endif
             @elseif(optional($page)->content)
                 <div class="prose-welcome text-base {{ $category->slug === 'wifi' ? 'wifi-cards' : '' }}">{!! $page->renderContent($booking) !!}</div>
             @endif
