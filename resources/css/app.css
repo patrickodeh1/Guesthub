@@ -594,6 +594,26 @@
         padding: 16px;
         box-shadow: 0 8px 20px rgb(15 23 42 / .04);
     }
+    .guest-event-filter-chip {
+        border: 1px solid #e2e8f0;
+        border-radius: 999px;
+        background: #fff;
+        padding: 6px 14px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #475569;
+        cursor: pointer;
+        transition: background .15s ease, color .15s ease, border-color .15s ease;
+    }
+    .guest-event-filter-chip:hover {
+        border-color: #cbd5e1;
+        background: #f8fafc;
+    }
+    .guest-event-filter-chip.is-active {
+        background: #0f172a;
+        border-color: #0f172a;
+        color: #fff;
+    }
 
     .guest-status-bar {
         display: flex;

@@ -83,9 +83,20 @@
                 </div>
             @elseif($category->action === 'local_events')
                 @if($localEvents->isNotEmpty())
-                    <div class="grid gap-4 sm:grid-cols-2">
+                    @php
+                        $eventCategories = $localEvents->pluck('category')->unique()->sort()->values();
+                    @endphp
+                    @if($eventCategories->count() > 1)
+                        <div class="guest-event-filters mb-4 flex flex-wrap gap-2">
+                            <button type="button" class="guest-event-filter-chip is-active" data-filter="all">All</button>
+                            @foreach($eventCategories as $cat)
+                                <button type="button" class="guest-event-filter-chip" data-filter="{{ $cat }}">{{ $cat }}</button>
+                            @endforeach
+                        </div>
+                    @endif
+                    <div class="grid gap-4 sm:grid-cols-2" id="guest-events-grid">
                         @foreach($localEvents as $event)
-                            <a href="{{ $event['url'] }}" target="_blank" rel="noopener" class="guest-event-card">
+                            <a href="{{ $event['url'] }}" target="_blank" rel="noopener" class="guest-event-card" data-category="{{ $event['category'] }}">
                                 @if($event['image'])
                                     <img src="{{ $event['image'] }}" alt="" class="mb-3 h-32 w-full rounded-lg object-cover">
                                 @endif
@@ -180,6 +191,22 @@
             var x = e.pageX - scroller.offsetLeft;
             var walk = (x - startX) * 1.5;
             scroller.scrollLeft = scrollLeftStart - walk;
+        });
+    }
+
+    var filterChips = document.querySelectorAll('.guest-event-filter-chip');
+    var eventCards = document.querySelectorAll('#guest-events-grid .guest-event-card');
+    if (filterChips.length && eventCards.length) {
+        filterChips.forEach(function(chip) {
+            chip.addEventListener('click', function() {
+                filterChips.forEach(function(c) { c.classList.remove('is-active'); });
+                chip.classList.add('is-active');
+                var filter = chip.getAttribute('data-filter');
+                eventCards.forEach(function(card) {
+                    var show = filter === 'all' || card.getAttribute('data-category') === filter;
+                    card.style.display = show ? '' : 'none';
+                });
+            });
         });
     }
 })();
