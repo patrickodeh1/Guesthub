@@ -38,6 +38,7 @@ class GuestController extends Controller
             'property'      => $booking->property,
             'state'         => $state,
             'categories'    => $this->availableCategories($booking),
+            'locks'         => $this->resolveLocks($booking),
             'welcomeMessage' => $booking->welcome_message ?: \App\Models\Setting::getValue('default_intro', 'We are glad to have you. Please complete the following details prior to check-in.'),
             'gpsRadius'     => (int) Setting::getValue('gps_radius_meters', 150),
             'gpsVerifyMessage' => Setting::getValue('gps_verify_message', 'We need to verify that you are at the property location.'),
@@ -375,7 +376,7 @@ class GuestController extends Controller
             ->where('active', true)
             ->first();
         $locks = $category->action === 'door_lock'
-            ? $booking->property->locks->map(fn ($lock) => ['lock' => $lock, 'status' => $this->lockStatusFor($booking, $lock)])
+            ? $this->resolveLocks($booking)
             : collect();
         $localEvents = collect();
         $eventsTotal = 0;
@@ -447,7 +448,7 @@ class GuestController extends Controller
             return response()->json(['ok' => false, 'error' => 'Could not reach the door. Please try again in a moment.'], 502);
         }
         if (! empty($attempt['action_attempt_id'])) {
-            \Illuminate\Support\Facades\Cache::put('seam_attempt_lock:'.$attempt['action_attempt_id'], $lock->id, now()->addMinutes(10));
+            \Illuminate\Support\Facades\Cache::put('seam_attempt_lock:'.$attempt['action_attempt_id'], ['lock_id' => $lock->id, 'guest_name' => $booking->guest_name, 'booking_id' => $booking->id], now()->addMinutes(10));
         }
         ActivityLogService::guest('door_unlock_attempted', "Guest {$booking->guest_name} sent unlock command for {$lock->label}.", 'guest_portal', [
             'booking_id'  => $booking->id,
@@ -485,7 +486,7 @@ class GuestController extends Controller
             return response()->json(['ok' => false, 'error' => 'Could not reach the door. Please try again in a moment.'], 502);
         }
         if (! empty($attempt['action_attempt_id'])) {
-            \Illuminate\Support\Facades\Cache::put('seam_attempt_lock:'.$attempt['action_attempt_id'], $lock->id, now()->addMinutes(10));
+            \Illuminate\Support\Facades\Cache::put('seam_attempt_lock:'.$attempt['action_attempt_id'], ['lock_id' => $lock->id, 'guest_name' => $booking->guest_name, 'booking_id' => $booking->id], now()->addMinutes(10));
         }
         ActivityLogService::guest('door_lock_attempted', "Guest {$booking->guest_name} sent lock command for {$lock->label}.", 'guest_portal', [
             'booking_id'  => $booking->id,
@@ -498,6 +499,14 @@ class GuestController extends Controller
 
 
     private array $lockStatusCache = [];
+
+    private function resolveLocks(Booking $booking)
+    {
+        return $booking->property->locks->map(fn ($lock) => [
+            'lock'   => $lock,
+            'status' => $this->lockStatusFor($booking, $lock),
+        ]);
+    }
 
     private function lockStatusFor(Booking $booking, ?PropertyLock $lock = null): ?bool
     {

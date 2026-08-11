@@ -1005,6 +1005,21 @@
                 <div class="p-6">
                     <a href="#guide-grid" class="guest-primary-btn w-full">View Guide</a>
                 </div>
+                @if($locks->isNotEmpty())
+                    <div class="px-6 pb-2">
+                        <div class="grid gap-6 {{ $locks->count() > 1 ? 'sm:grid-cols-2' : '' }}">
+                            @foreach($locks as $entry)
+                                <x-lock-card
+                                    :booking-id="$booking->booking_id"
+                                    :token="$booking->token"
+                                    :lock-id="$entry['lock']->id"
+                                    :lock-label="$locks->count() > 1 ? $entry['lock']->label : null"
+                                    :lock-status="$entry['status']"
+                                />
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
                 <div id="guide-grid" class="guest-guide-grid p-6 pt-0">
                     @foreach($guideCats as $category)
                         @php
@@ -1056,6 +1071,21 @@
                 <div class="guest-guide-body px-6 pb-6">
                     <x-weather-badge :property="$property" class="guest-weather-card" />
                 </div>
+                @if($locks->isNotEmpty())
+                    <div class="px-6 pb-2">
+                        <div class="grid gap-6 {{ $locks->count() > 1 ? 'sm:grid-cols-2' : '' }}">
+                            @foreach($locks as $entry)
+                                <x-lock-card
+                                    :booking-id="$booking->booking_id"
+                                    :token="$booking->token"
+                                    :lock-id="$entry['lock']->id"
+                                    :lock-label="$locks->count() > 1 ? $entry['lock']->label : null"
+                                    :lock-status="$entry['status']"
+                                />
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
                 <div id="guide-grid" class="guest-guide-grid p-6 pt-0">
                     @foreach($guideCats as $category)
                         @php
@@ -1194,6 +1224,21 @@
                 <div class="mx-auto max-w-2xl text-center">
                     <p class="text-sm leading-6 text-slate-500">Explore information about your stay.</p>
                 </div>
+                @if($locks->isNotEmpty())
+                    <div class="mt-8">
+                        <div class="grid gap-6 {{ $locks->count() > 1 ? 'sm:grid-cols-2' : '' }}">
+                            @foreach($locks as $entry)
+                                <x-lock-card
+                                    :booking-id="$booking->booking_id"
+                                    :token="$booking->token"
+                                    :lock-id="$entry['lock']->id"
+                                    :lock-label="$locks->count() > 1 ? $entry['lock']->label : null"
+                                    :lock-status="$entry['status']"
+                                />
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
                 <div id="guide-grid" class="guest-guide-grid mt-10">
                     @foreach($guideCats as $category)
                         @php

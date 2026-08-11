@@ -63,22 +63,26 @@ class SeamWebhookController extends Controller
 
         if (isset($actionAttemptEvents[$eventType])) {
             $actionAttemptId = $event['action_attempt_id'] ?? null;
-            $lockId = $actionAttemptId ? \Illuminate\Support\Facades\Cache::get('seam_attempt_lock:'.$actionAttemptId) : null;
+            $attemptMeta = $actionAttemptId ? \Illuminate\Support\Facades\Cache::get('seam_attempt_lock:'.$actionAttemptId) : null;
+            $lockId = is_array($attemptMeta) ? ($attemptMeta['lock_id'] ?? null) : $attemptMeta;
+            $guestName = is_array($attemptMeta) ? ($attemptMeta['guest_name'] ?? null) : null;
+            $bookingId = is_array($attemptMeta) ? ($attemptMeta['booking_id'] ?? null) : null;
             $lock = $lockId ? PropertyLock::find($lockId) : null;
 
             if ($lock) {
                 $meta = $actionAttemptEvents[$eventType];
                 $verb = str_contains($eventType, 'lock_door') ? 'lock' : 'unlock';
+                $actor = $guestName ? "Guest {$guestName}" : 'Door';
 
                 if ($meta['failed']) {
                     \Illuminate\Support\Facades\Cache::put('seam_attempt_result:'.$actionAttemptId, [
                         'failed' => true,
                         'locked' => null,
                     ], now()->addMinutes(10));
-                    ActivityLogService::guest('door_'.$verb.'_failed', "Door {$verb} command failed for {$lock->label} (confirmed by Seam webhook).", 'guest_portal', [
+                    ActivityLogService::guest('door_'.$verb.'_failed', "{$actor} {$verb} command failed for {$lock->label} (confirmed by Seam webhook).", 'guest_portal', [
                         'property_id' => $lock->property_id,
                         'severity'    => 'warning',
-                        'metadata'    => ['lock_id' => $lock->id, 'seam_device_id' => $lock->seam_device_id, 'action_attempt_id' => $actionAttemptId],
+                        'metadata'    => ['lock_id' => $lock->id, 'seam_device_id' => $lock->seam_device_id, 'action_attempt_id' => $actionAttemptId, 'booking_id' => $bookingId],
                     ]);
                 } else {
                     $lock->update([
@@ -89,9 +93,9 @@ class SeamWebhookController extends Controller
                         'failed' => false,
                         'locked' => $meta['locked'],
                     ], now()->addMinutes(10));
-                    ActivityLogService::guest('door_'.($verb === 'lock' ? 'locked' : 'unlocked'), "Door {$verb}ed successfully for {$lock->label} (confirmed by Seam webhook).", 'guest_portal', [
+                    ActivityLogService::guest('door_'.($verb === 'lock' ? 'locked' : 'unlocked'), ($guestName ? "{$actor} {$verb}ed" : "Door {$verb}ed") . " successfully for {$lock->label} (confirmed by Seam webhook).", 'guest_portal', [
                         'property_id' => $lock->property_id,
-                        'metadata'    => ['lock_id' => $lock->id, 'seam_device_id' => $lock->seam_device_id, 'action_attempt_id' => $actionAttemptId],
+                        'metadata'    => ['lock_id' => $lock->id, 'seam_device_id' => $lock->seam_device_id, 'action_attempt_id' => $actionAttemptId, 'booking_id' => $bookingId],
                     ]);
                 }
             }
