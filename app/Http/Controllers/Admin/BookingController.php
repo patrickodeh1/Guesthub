@@ -413,6 +413,48 @@ class BookingController extends Controller
             'severity'     => 'warning',
         ]);
 
+        return back();
+    }
+
+    public function blockAccess(Request $request, Booking $booking)
+    {
+        $data = $request->validate([
+            'access_blocked_reason' => ['required', 'string', 'max:1000'],
+        ]);
+
+        $booking->update([
+            'access_blocked_at' => now(),
+            'access_blocked_reason' => $data['access_blocked_reason'],
+        ]);
+
+        ActivityLogService::admin('booking_access_blocked', auth()->user()->name." blocked access for {$booking->guest_name}: {$data['access_blocked_reason']}", 'guests', [
+            'subject_type' => Booking::class,
+            'subject_id'   => $booking->id,
+            'booking_id'   => $booking->id,
+            'property_id'  => $booking->property_id,
+            'severity'     => 'warning',
+        ]);
+
+        return back()->with('success', 'Guest access blocked.');
+    }
+
+    public function unblockAccess(Booking $booking)
+    {
+        $booking->update([
+            'access_blocked_at' => null,
+            'access_blocked_reason' => null,
+        ]);
+
+        ActivityLogService::admin('booking_access_unblocked', auth()->user()->name." restored access for {$booking->guest_name}", 'guests', [
+            'subject_type' => Booking::class,
+            'subject_id'   => $booking->id,
+            'booking_id'   => $booking->id,
+            'property_id'  => $booking->property_id,
+            'severity'     => 'info',
+        ]);
+
+        return back()->with('success', 'Guest access restored.');
+
         return back()->with('success', 'Guest declined — they will be asked to re-upload their ID.');
     }
 

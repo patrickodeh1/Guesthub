@@ -30,7 +30,19 @@
             <span class="ios-signal">cell wifi battery</span>
         </div>
 
-        @if($state === 'identity')
+        @if($state === 'access_blocked')
+            <div class="guest-portal-card">
+                <div class="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center md:py-24">
+                    <span class="guest-status-pill" style="background:#fef2f2;color:#991b1b;">
+                        <x-icon name="alert-triangle" class="h-4 w-4" />
+                        Access blocked
+                    </span>
+                    <p class="guest-status-kicker">{{ $property->name }}</p>
+                    <h1 class="guest-status-title">Access unavailable</h1>
+                    <p class="max-w-md text-sm leading-6 text-slate-600">{{ $booking->access_blocked_reason }}</p>
+                </div>
+            </div>
+        @elseif($state === 'identity')
             <div class="guest-portal-card">
                 <div class="guest-status-bar">
                     <div>
@@ -942,15 +954,8 @@
                 @if($booking->canViewAddress())
                 <div class="mx-auto mt-8 max-w-md text-center text-sm font-semibold leading-6">{!! $gpsVerifyMessage !!}</div>
                 <div class="mx-auto mt-8 grid h-28 w-28 place-items-center rounded-full bg-blue-50 text-[#082b49]">
-                    <x-icon name="map" class="h-12 w-12" />
+                    <x-icon name="map-pin" class="h-12 w-12" />
                 </div>
-                @if($property->latitude && $property->longitude)
-                    <div class="mx-auto mt-6 max-w-md overflow-hidden rounded-lg border border-slate-200">
-                        <iframe title="Map"
-                            src="https://www.google.com/maps?q={{ $property->latitude }},{{ $property->longitude }}&output=embed"
-                            class="h-56 w-full border-0"></iframe>
-                    </div>
-                @endif
                 <p class="mt-8 text-center text-sm font-semibold">Getting your location...</p>
                 <p class="mx-auto mt-8 max-w-md text-center text-sm leading-6 text-slate-600">This helps us ensure a smooth and secure check-in process.</p>
                 <div id="gps-ajax-message" class="hidden"></div>

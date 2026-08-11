@@ -13,6 +13,7 @@ class Booking extends Model
         'property_id', 'id_type', 'token', 'photo_id_path', 'photo_id_back_path', 'photo_id_received', 'parking_needed', 'early_checkin', 'checkin_time_preference', 'checkout_time_preference', 'gps_verified', 'guest_authenticated_at',
         'manually_checked_in', 'checked_in_at', 'checked_out_at', 'gps_overridden', 'status', 'notes', 'welcome_message', 'identity_confirmed_at',
         'approved_at', 'decline_reason', 'archived_at', 'background_check_completed_at', 'deposit_verified_at',
+        'access_blocked_at', 'access_blocked_reason',
     ];
 
     protected function casts(): array
@@ -32,6 +33,7 @@ class Booking extends Model
             'archived_at' => 'datetime',
             'background_check_completed_at' => 'datetime',
             'deposit_verified_at' => 'datetime',
+            'access_blocked_at' => 'datetime',
                     ];
     }
 

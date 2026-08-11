@@ -201,6 +201,23 @@
                     <form method="post" action="{{ route('admin.guests.override', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="contact-guest-services" class="h-4 w-4" />Manually Mark Checked In</button></form>
                     <form method="post" action="{{ route('admin.guests.override-checkout', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="contact-guest-services" class="h-4 w-4" />Manually Mark Checked Out</button></form>
                     <form method="post" action="{{ route('admin.guests.mark-id', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="upload" class="h-4 w-4" />Mark Photo ID Received</button></form>
+
+                    @if($booking->access_blocked_at)
+                        <div class="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-800">
+                            <span class="font-semibold">Access blocked</span> since {{ $booking->access_blocked_at->format('M j, Y g:i A') }}
+                            <p class="mt-1">{{ $booking->access_blocked_reason }}</p>
+                        </div>
+                        <form method="post" action="{{ route('admin.guests.unblock-access', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="unlock" class="h-4 w-4" />Restore Access</button></form>
+                    @else
+                        <button type="button" class="btn-danger w-full gap-2" onclick="document.getElementById('block-form-{{ $booking->id }}').classList.toggle('hidden')">
+                            <x-icon name="alert-triangle" class="h-4 w-4" />Block Access
+                        </button>
+                        <form id="block-form-{{ $booking->id }}" method="post" action="{{ route('admin.guests.block-access', $booking) }}" class="hidden grid gap-2">
+                            @csrf
+                            <textarea name="access_blocked_reason" class="input" rows="3" placeholder="Reason (shown to guest)" required>{{ old('access_blocked_reason') }}</textarea>
+                            <button class="btn-secondary w-full">Submit Block</button>
+                        </form>
+                    @endif
                 </div>
             </section>
 

@@ -549,6 +549,17 @@ class GuestController extends Controller
 
     private function state(Booking $booking): string
     {
+        if ($booking->access_blocked_at) {
+            return 'access_blocked';
+        }
+
+        if ($booking->status !== 'checked_out' && $booking->isPastCheckoutTime()) {
+            $booking->update([
+                'status' => 'checked_out',
+                'checked_out_at' => now(),
+            ]);
+        }
+
         if (! $booking->isIdentityComplete()) {
             return 'identity';
         }
