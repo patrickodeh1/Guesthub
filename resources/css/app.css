@@ -848,10 +848,15 @@
         box-shadow: 0 12px 22px rgb(21 128 61 / .22);
     }
     .guest-primary-btn-lg {
-        min-height: 52px;
-        padding: 14px 20px;
-        font-size: 15px;
-        border-radius: 8px;
+        min-height: 64px;
+        padding: 18px 28px;
+        font-size: 17px;
+        border-radius: 14px;
+        letter-spacing: .01em;
+    }
+    .guest-primary-btn-lg .lucide,
+    .guest-primary-btn-lg svg {
+        margin-left: 8px;
     }
     .step-indicator {
         display: flex;
