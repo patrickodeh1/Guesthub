@@ -56,6 +56,7 @@
                     <span class="field-help">Auto-detected from coordinates. Override if needed.</span>
                 </label>
             </section>
+@if(isset($property) && $property->exists)
             <section class="card card-pad">
                 <h2 class="section-title">Check-out time</h2>
                 <p class="section-copy">Guests lose full menu access after this time on their check-out day. Saves independently of the form above.</p>
@@ -91,6 +92,7 @@
                         });
                     });
                 </script>
+@endif
         </aside>
 
         <input type="hidden" name="map_embed_url" id="map_embed_url_input" value="{{ old('map_embed_url', $property->map_embed_url) }}">
