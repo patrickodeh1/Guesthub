@@ -978,6 +978,7 @@
                         Awaiting deposit
                     </span>
                 </div>
+                <img src="{{ $displayHeroImg }}" alt="{{ $property->name }}" class="w-full block rounded-xl mt-4">
                 <div class="p-6 md:p-10 text-center">
                     @if($booking->status === 'pre_checkin_complete')
                         <h2 class="text-xl font-extrabold text-slate-950">Pre-check in completed!</h2>
