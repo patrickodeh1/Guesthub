@@ -142,6 +142,7 @@ class BookingController extends Controller
             'gpsRadius'      => (int) Setting::getValue('gps_radius_meters', 150),
             'previewMode'    => true,
             'welcomeMessage' => $booking->welcome_message ?: Setting::getValue('default_intro', 'We are glad to have you. Please complete the following details prior to check-in.'),
+            'gpsVerifyMessage' => Setting::getValue('gps_verify_message', 'We need to verify that you are at the property location.'),
             'checkinSteps'   => $checkinSteps,
             'parkingSteps'   => $parkingSteps,
             'checkoutSteps'  => $checkoutSteps,
@@ -474,6 +475,7 @@ class BookingController extends Controller
     {
         return $request->validate([
             'booking_id'     => ['nullable', 'string', 'max:255', 'unique:bookings,booking_id,'.($booking?->id ?? 'NULL')],
+            'reservation_id' => ['required', 'string', 'max:255', 'unique:bookings,reservation_id,'.($booking?->id ?? 'NULL')],
             'guest_name'     => ['required', 'string', 'max:255'],
             'phone'          => ['nullable', 'string', 'max:255'],
             'email'          => ['nullable', 'email', 'max:255'],

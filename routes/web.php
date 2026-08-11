@@ -22,9 +22,13 @@ Route::post('/login', [AuthController::class, 'login'])->name('login.store');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::post('/webhooks/seam', [App\Http\Controllers\SeamWebhookController::class, 'handle'])->name('webhooks.seam');
 
+Route::get('/checkin', [GuestController::class, 'checkinByReservation'])->name('checkin.rid');
+Route::post('/checkin/verify', [GuestController::class, 'verifyReservationLogin'])->name('checkin.verify');
+
 Route::prefix('guest/{booking_id}/{token}')->name('guest.')->group(function () {
     Route::get('/', [GuestController::class, 'show'])->name('show');
     Route::post('/identity', [GuestController::class, 'submitIdentity'])->name('identity');
+    Route::post('/login', [GuestController::class, 'login'])->name('login');
     Route::post('/parking', [GuestController::class, 'parking'])->name('parking');
     Route::post('/verify-gps', [GuestController::class, 'verifyGps'])->name('gps');
     Route::post('/confirm-checkin', [GuestController::class, 'confirmCheckin'])->name('confirm-checkin');
@@ -34,6 +38,7 @@ Route::prefix('guest/{booking_id}/{token}')->name('guest.')->group(function () {
     Route::get('/lock-status/{lock}', [GuestController::class, 'lockStatus'])->name('lock-status');
     Route::get('/gps-status', [GuestController::class, 'gpsStatus'])->name('gps-status');
     Route::get('/guide/{category:slug}', [GuestController::class, 'category'])->name('category');
+    Route::get('/guide/{category:slug}/events', [GuestController::class, 'moreEvents'])->name('category.events');
 });
 
 Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(function () {

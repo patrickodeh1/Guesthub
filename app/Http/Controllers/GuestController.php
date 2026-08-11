@@ -17,6 +17,11 @@ class GuestController extends Controller
     public function show(string $bookingId, string $token)
     {
         $booking = $this->booking($bookingId, $token);
+        return $this->renderPortal($booking);
+    }
+
+    private function renderPortal(Booking $booking)
+    {
         $booking->load(['property.categories', 'property.amenities', 'property.instructionSteps']);
         $state = $this->state($booking);
 
@@ -35,13 +40,129 @@ class GuestController extends Controller
             'categories'    => $this->availableCategories($booking),
             'welcomeMessage' => $booking->welcome_message ?: \App\Models\Setting::getValue('default_intro', 'We are glad to have you. Please complete the following details prior to check-in.'),
             'gpsRadius'     => (int) Setting::getValue('gps_radius_meters', 150),
+            'gpsVerifyMessage' => Setting::getValue('gps_verify_message', 'We need to verify that you are at the property location.'),
             'checkinSteps'  => ($state === 'guide' && ! $booking->instructionsCompleted()) ? $this->checkinSteps($booking) : [],
             'checkoutSteps' => $this->checkoutSteps($booking),
             'parkingSteps'  => ($state === 'guide' && ! $booking->instructionsCompleted()) ? $this->parkingSteps($booking) : [],
             'checkinTimeOptions' => $this->checkinTimeOptions(),
+            'checkoutTimeOptions' => $this->checkinTimeOptions(),
         ]);
     }
 
+    public function checkinByReservation(Request $request)
+    {
+        $rid = $request->query('RID');
+        abort_unless($rid, 404);
+
+        $booking = Booking::where('reservation_id', $rid)->firstOrFail();
+
+        return $this->renderPortal($booking);
+    }
+
+    public function verifyReservationLogin(Request $request)
+    {
+        $rid = $request->input('RID');
+        $booking = Booking::where('reservation_id', $rid)->firstOrFail();
+
+        $data = $request->validate([
+            'phone' => ['required', 'string'],
+            'email' => ['required', 'email'],
+        ]);
+
+        $emailMatch = strtolower(trim($data['email'])) === strtolower(trim($booking->email));
+        $phoneMatch = preg_replace('/\\D/', '', $data['phone']) === preg_replace('/\\D/', '', $booking->phone);
+
+        if (! $emailMatch || ! $phoneMatch) {
+            ActivityLogService::security('guest_login_failed', "Failed RID login attempt for reservation: {$rid}.", [
+                'actor_type' => 'guest',
+                'severity'   => 'warning',
+                'metadata'   => ['reservation_id' => $rid],
+            ]);
+            return back()->withInput()->with('error', 'Phone and email do not match our records.');
+        }
+
+        $booking->update(['guest_authenticated_at' => now()]);
+        \App\Services\GuestSessionService::refreshCookie($booking);
+
+        ActivityLogService::guest('guest_login_verified', "Guest {$booking->guest_name} logged in via reservation ID.", 'guest_portal', [
+            'booking_id'  => $booking->id,
+            'property_id' => $booking->property_id,
+            'actor_name'  => $booking->guest_name,
+            'actor_email' => $booking->email,
+            'severity'    => 'success',
+        ]);
+
+        return redirect()->route('checkin.rid', ['RID' => $rid]);
+    }
+
+    public function login(Request $request, string $bookingId, string $token)
+    {
+        $booking = $this->booking($bookingId, $token);
+
+        $data = $request->validate([
+            'guest_name' => ['required', 'string', 'max:255'],
+            'phone' => ['required', 'string', 'max:50'],
+            'email' => ['required', 'email', 'max:255'],
+            'parking_needed' => [is_null($booking->parking_needed) ? 'required' : 'nullable'],
+            'checkin_time_preference' => ['required', 'string'],
+            'checkout_time_preference' => ['nullable', 'string'],
+        ]);
+
+        $booking->update([
+            'guest_name' => $data['guest_name'],
+            'phone' => $data['phone'],
+            'email' => $data['email'],
+            'parking_needed' => array_key_exists('parking_needed', $data) && $data['parking_needed'] !== null
+                ? filter_var($data['parking_needed'], FILTER_VALIDATE_BOOLEAN)
+                : $booking->parking_needed,
+            'checkin_time_preference' => $data['checkin_time_preference'],
+            'checkout_time_preference' => $data['checkout_time_preference'] ?? null,
+            'guest_authenticated_at' => now(),
+        ]);
+
+        \App\Services\GuestSessionService::refreshCookie($booking);
+
+        ActivityLogService::guest('guest_login_verified', "Guest {$booking->guest_name} completed login step.", 'guest_portal', [
+            'booking_id'  => $booking->id,
+            'property_id' => $booking->property_id,
+            'actor_name'  => $booking->guest_name,
+            'actor_email' => $booking->email,
+            'severity'    => 'success',
+        ]);
+
+        return response()->json(['ok' => true]);
+    }
+
+    public function verifyLogin(string $bookingId, string $token, \Illuminate\Http\Request $request)
+    {
+        $booking = Booking::where('booking_id', $bookingId)->first();
+        if (! $booking) {
+            abort(404);
+        }
+        $data = $request->validate([
+            'phone' => ['required', 'string'],
+            'email' => ['required', 'email'],
+        ]);
+        $emailMatch = strtolower(trim($data['email'])) === strtolower(trim($booking->email));
+        $phoneMatch = preg_replace('/\\D/', '', $data['phone']) === preg_replace('/\\D/', '', $booking->phone);
+        if (! $emailMatch || ! $phoneMatch) {
+            ActivityLogService::security('guest_login_failed', "Failed guest login attempt for booking: {$bookingId}.", [
+                'actor_type' => 'guest',
+                'severity'   => 'warning',
+                'metadata'   => ['booking_id' => $bookingId],
+            ]);
+            return back()->withInput()->with('error', 'Phone and email do not match our records.');
+        }
+        \App\Services\GuestSessionService::refreshCookie($booking);
+        ActivityLogService::guest('guest_login_verified', "Guest {$booking->guest_name} verified login.", 'guest_portal', [
+            'booking_id'  => $booking->id,
+            'property_id' => $booking->property_id,
+            'actor_name'  => $booking->guest_name,
+            'actor_email' => $booking->email,
+            'severity'    => 'success',
+        ]);
+        return redirect()->route('guest.show', [$bookingId, $token]);
+    }
     public function confirmCheckin(string $bookingId, string $token)
     {
         $booking = $this->booking($bookingId, $token);
@@ -84,21 +205,11 @@ class GuestController extends Controller
         $photoRequired = ! $booking->photo_id_received;
 
         $data = $request->validate([
-            'guest_name' => ['nullable', 'string', 'max:255'],
-            'email'    => ['required', 'email', 'max:255'],
-            'phone'    => ['nullable', 'string', 'max:50'],
             'photo_id' => [$photoRequired ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
             'photo_id_back' => [($photoRequired && $booking->id_type !== 'passport') ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
-            'parking_needed' => ['nullable', 'boolean'],
-            'checkin_time_preference' => ['required', 'regex:/^([01][0-9]|2[0-3]):(00|30)$/'],
         ]);
 
         $updates = [
-            'guest_name'   => ($data['guest_name'] ?? null) ?: $booking->guest_name,
-            'email'        => $data['email'],
-            'phone'        => ($data['phone'] ?? null) ?: $booking->phone,
-            'parking_needed' => is_null($booking->parking_needed) ? $request->boolean('parking_needed') : $booking->parking_needed,
-            'checkin_time_preference' => $data['checkin_time_preference'],
             'status'       => 'pre_checkin_complete',
             'identity_confirmed_at' => now(),
             'decline_reason' => null,
@@ -138,9 +249,9 @@ class GuestController extends Controller
             'booking_id'  => $booking->id,
             'property_id' => $booking->property_id,
             'actor_name'  => $booking->guest_name,
-            'actor_email' => $data['email'],
+            'actor_email' => $booking->email,
             'severity'    => 'success',
-            'metadata'    => ['email' => $data['email'], 'booking_ref' => $booking->booking_id],
+            'metadata'    => ['email' => $booking->email, 'booking_ref' => $booking->booking_id],
         ]);
 
         return back()
@@ -291,6 +402,34 @@ class GuestController extends Controller
         return view('guest.category', compact('booking', 'category', 'page', 'categories', 'locks', 'localEvents', 'eventsTotal', 'eventsHasMore', 'state'));
     }
 
+    public function moreEvents(Request $request, string $bookingId, string $token, Category $category)
+    {
+        $booking = $this->booking($bookingId, $token);
+        $state = $this->state($booking);
+        if (! in_array($state, ['checkout_notice', 'checkout_available', 'guide'], true)) {
+            abort(403);
+        }
+        $categories = $this->availableCategories($booking);
+        abort_unless($categories->contains('id', $category->id), 404);
+        $category = $categories->firstWhere('id', $category->id);
+        abort_unless($category->action === 'local_events', 404);
+
+        $page = max(0, (int) $request->query('page', 0));
+
+        $eventsResult = ['events' => [], 'totalElements' => 0, 'hasMore' => false];
+        if ($booking->property->latitude && $booking->property->longitude) {
+            $eventsResult = app(\App\Services\TicketmasterService::class)->findNearbyEvents(
+                (float) $booking->property->latitude,
+                (float) $booking->property->longitude,
+                (int) ($booking->property->events_radius_miles ?? 25),
+                20,
+                $page
+            );
+        }
+
+        return response()->json($eventsResult);
+    }
+
     public function unlockDoor(string $bookingId, string $token, PropertyLock $lock)
     {
         $booking = $this->booking($bookingId, $token);
@@ -376,15 +515,23 @@ class GuestController extends Controller
         }
         return $this->lockStatusCache[$lock->id] = $status;
     }
-
     private function booking(string $bookingId, string $token): Booking
     {
         $booking = Booking::with('property')
             ->where('booking_id', $bookingId)
             ->where('token', $token)
             ->first();
-
-        if (! $booking) {
+        if ($booking) {
+            \App\Services\GuestSessionService::refreshCookie($booking);
+            return $booking;
+        }
+        $cookieToken = request()->cookie(\App\Services\GuestSessionService::COOKIE_NAME);
+        $sessionBooking = \App\Services\GuestSessionService::resolve($cookieToken);
+        if ($sessionBooking && $sessionBooking->booking_id === $bookingId) {
+            return $sessionBooking;
+        }
+        $fallbackBooking = Booking::with('property')->where('booking_id', $bookingId)->first();
+        if (! $fallbackBooking) {
             ActivityLogService::security('invalid_token_access', "Invalid guest token access attempt for booking: {$bookingId}.", [
                 'actor_type' => 'guest',
                 'severity'   => 'warning',
@@ -392,8 +539,12 @@ class GuestController extends Controller
             ]);
             abort(404);
         }
-
-        return $booking;
+        ActivityLogService::security('invalid_token_access', "Token mismatch for booking: {$bookingId}, guest routed to login.", [
+            'actor_type' => 'guest',
+            'severity'   => 'warning',
+            'metadata'   => ['booking_id' => $bookingId],
+        ]);
+        return $fallbackBooking;
     }
 
     private function state(Booking $booking): string

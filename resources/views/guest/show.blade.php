@@ -199,9 +199,22 @@
                             <p class="mt-1 text-xs text-slate-400">This helps us prepare for your arrival and unlocks your check-in details at the selected time.</p>
                         </div>
 
+                        {{-- Check-out time --}}
+                        <div class="mt-5">
+                            <label class="text-sm font-bold">What time are you planning to check out?
+                                <select name="checkout_time_preference" id="checkout_time_preference_select" class="guest-input mt-2">
+                                    <option value="" {{ old('checkout_time_preference', $booking->checkout_time_preference) ? '' : 'selected' }}>Select a time (optional)</option>
+                                    @foreach($checkoutTimeOptions as $value => $label)
+                                        <option value="{{ $value }}" {{ old('checkout_time_preference', $booking->checkout_time_preference) === $value ? 'selected' : '' }}>{{ $label }}</option>
+                                    @endforeach
+                                </select>
+                            </label>
+                            <p class="mt-1 text-xs text-slate-400">Let us know your planned check-out time so we can prepare accordingly.</p>
+                        </div>
+
                         <div class="mt-6 grid grid-cols-2 gap-3">
                             <button type="button" class="guest-outline-btn w-full" data-prev="1">Back</button>
-                            <button type="button" class="guest-primary-btn w-full" data-next="3">Continue</button>
+                            <button type="button" id="step2-login-btn" class="guest-primary-btn w-full" data-login-next="3">Login</button>
                         </div>
                     </div>
 
@@ -306,9 +319,109 @@
                         });
                     }
 
-                    @if($booking->needsIdApproval())
+                    @if($booking->needsIdApproval() || $booking->guest_authenticated_at)
                         goToStep(3);
                     @endif
+
+                    var step2LoginBtn = document.getElementById("step2-login-btn");
+                    if (step2LoginBtn) {
+                        step2LoginBtn.addEventListener("click", function() {
+                            var step = step2LoginBtn.closest(".idw-step");
+                            if (step && step.querySelector("input:invalid")) {
+                                var invalid = step.querySelector("input:invalid");
+                                invalid.reportValidity();
+                                return;
+                            }
+                            var fieldChecks = [
+                                { name: "guest_name", label: "your name" },
+                                { name: "phone", label: "your phone number" },
+                                { name: "email", label: "your email address" }
+                            ];
+                            for (var fc = 0; fc < fieldChecks.length; fc++) {
+                                var visibleInputs = Array.prototype.filter.call(
+                                    step.querySelectorAll('input[name="' + fieldChecks[fc].name + '"]'),
+                                    function(el) { return el.offsetParent !== null; }
+                                );
+                                var activeInput = visibleInputs[0];
+                                if (activeInput && !activeInput.value.trim()) {
+                                    activeInput.classList.add("border-red-400");
+                                    activeInput.scrollIntoView({ behavior: "smooth", block: "center" });
+                                    activeInput.focus();
+                                    return;
+                                } else if (activeInput) {
+                                    activeInput.classList.remove("border-red-400");
+                                }
+                            }
+                            var parkingGroup = step.querySelectorAll('input[name="parking_needed"]');
+                            var parkingError = document.getElementById("parking-error");
+                            if (parkingGroup.length) {
+                                var parkingChecked = Array.prototype.some.call(parkingGroup, function(r) { return r.checked; });
+                                if (!parkingChecked) {
+                                    if (parkingError) parkingError.style.display = "block";
+                                    var parkingBlock = document.getElementById("parking-question-block");
+                                    if (parkingBlock) parkingBlock.scrollIntoView({ behavior: "smooth", block: "center" });
+                                    return;
+                                } else if (parkingError) {
+                                    parkingError.style.display = "none";
+                                }
+                            }
+                            var timeSelect = step.querySelector('#checkin_time_preference_select');
+                            if (timeSelect && !timeSelect.value) {
+                                timeSelect.classList.add("border-red-400");
+                                var timeError = document.getElementById("checkin-time-error");
+                                if (timeError) timeError.style.display = "block";
+                                timeSelect.scrollIntoView({ behavior: "smooth", block: "center" });
+                                timeSelect.focus();
+                                return;
+                            }
+
+                            var loginFd = new FormData();
+                            loginFd.append("_token", document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : "");
+                            ["guest_name", "phone", "email", "checkin_time_preference", "checkout_time_preference"].forEach(function(name) {
+                                var input = step.querySelector('[name="' + name + '"]');
+                                if (input) loginFd.append(name, input.value);
+                            });
+                            var parkingChecked2 = step.querySelector('input[name="parking_needed"]:checked');
+                            if (parkingChecked2) loginFd.append("parking_needed", parkingChecked2.value);
+
+                            var origHtml = step2LoginBtn.innerHTML;
+                            step2LoginBtn.disabled = true;
+                            step2LoginBtn.innerHTML = '<span class="ui-spinner"></span><span>Logging in…</span>';
+
+                            fetch("{{ route('guest.login', [$booking->booking_id, $booking->token]) }}", {
+                                method: "POST",
+                                body: loginFd,
+                                headers: { "Accept": "application/json" }
+                            })
+                                .then(function(r) {
+                                    if (r.status === 422) {
+                                        return r.json().then(function(body) {
+                                            step2LoginBtn.disabled = false;
+                                            step2LoginBtn.innerHTML = origHtml;
+                                            var messages = body.errors ? Object.values(body.errors).flat().join("\n") : "Please check the form and try again.";
+                                            alert(messages);
+                                        });
+                                    }
+                                    if (!r.ok) {
+                                        step2LoginBtn.disabled = false;
+                                        step2LoginBtn.innerHTML = origHtml;
+                                        alert("Something went wrong. Please try again.");
+                                        return;
+                                    }
+                                    step2LoginBtn.innerHTML = '<span>Logged in ✓</span>';
+                                    setTimeout(function() {
+                                        goToStep(3);
+                                        step2LoginBtn.disabled = false;
+                                        step2LoginBtn.innerHTML = origHtml;
+                                    }, 600);
+                                })
+                                .catch(function() {
+                                    step2LoginBtn.disabled = false;
+                                    step2LoginBtn.innerHTML = origHtml;
+                                    alert("Network error. Please try again.");
+                                });
+                        });
+                    }
 
                     document.querySelectorAll("[data-next]").forEach(function(btn) {
                         btn.addEventListener("click", function() {
@@ -822,14 +935,22 @@
                         </span>
                         <div>
                             <p class="guest-detail-banner-title">Check-In Details Available</p>
-                            <p class="guest-detail-banner-sub">{{ $booking->check_in_date->format('M d, Y') }} at {{ $booking->effectiveCheckinTimeFormatted() }}</p>
+                            <p class="guest-detail-banner-sub">{{ $booking->check_in_date->format('M d, Y') }} at {{ $booking->addressAvailableAtFormatted() }}</p>
                         </div>
                     </div>
                 @endif
-                <p class="mx-auto mt-8 max-w-md text-center text-sm font-semibold leading-6">We need to verify that you are at the property location.</p>
+                @if($booking->canViewAddress())
+                <div class="mx-auto mt-8 max-w-md text-center text-sm font-semibold leading-6">{!! $gpsVerifyMessage !!}</div>
                 <div class="mx-auto mt-8 grid h-28 w-28 place-items-center rounded-full bg-blue-50 text-[#082b49]">
                     <x-icon name="map" class="h-12 w-12" />
                 </div>
+                @if($property->latitude && $property->longitude)
+                    <div class="mx-auto mt-6 max-w-md overflow-hidden rounded-lg border border-slate-200">
+                        <iframe title="Map"
+                            src="https://www.google.com/maps?q={{ $property->latitude }},{{ $property->longitude }}&output=embed"
+                            class="h-56 w-full border-0"></iframe>
+                    </div>
+                @endif
                 <p class="mt-8 text-center text-sm font-semibold">Getting your location...</p>
                 <p class="mx-auto mt-8 max-w-md text-center text-sm leading-6 text-slate-600">This helps us ensure a smooth and secure check-in process.</p>
                 <div id="gps-ajax-message" class="hidden"></div>
@@ -837,6 +958,7 @@
                     <button id="gps-ajax-verify-btn" type="button" data-url="{{ route('guest.gps', [$booking->booking_id, $booking->token]) }}" data-csrf="{{ csrf_token() }}" class="guest-primary-btn is-go w-full">Verify Location</button>
                     <a href="{{ route('guest.show', [$booking->booking_id, $booking->token]) }}" class="guest-outline-btn w-full">Cancel</a>
                 </div>
+                @endif
             </div>
             </div>
         @elseif($state === 'awaiting_deposit')
@@ -898,7 +1020,12 @@
                 </div>
             </div>
         @elseif($state === 'checkout_available')
-            <div class="guest-portal-card">
+            @if(count($checkoutSteps) > 0)
+                <div id="checkout-wizard-wrapper" style="display:none">
+                    <x-step-wizard :steps="$checkoutSteps" type="checkout" next-section="checkout-guide-section" :booking-id="$booking->booking_id" :token="$booking->token" />
+                </div>
+            @endif
+            <div class="guest-portal-card" id="checkout-guide-section">
                 <div class="guest-status-bar">
                     <div>
                         <p class="guest-status-kicker">{{ $property->name }}</p>
@@ -911,7 +1038,17 @@
                     </span>
                 </div>
                 <div class="p-6">
-                    <a href="#checkout-begin" class="guest-primary-btn w-full is-go">Thanks for staying — time to check out. Click here to begin.</a>
+                    @if(count($checkoutSteps) > 0)
+                        <button type="button" onclick="document.getElementById('checkout-guide-section').style.display='none';document.getElementById('checkout-wizard-wrapper').style.display='';" class="guest-primary-btn w-full is-go">Thanks for staying. Time to check out. Click here to begin.</button>
+                    @else
+                        <form method="POST" action="{{ route('guest.confirm-checkout', [$booking->booking_id, $booking->token]) }}">
+                            @csrf
+                            <button type="submit" class="guest-primary-btn w-full is-go">Thanks for staying. Time to check out. Click here to begin.</button>
+                        </form>
+                    @endif
+                </div>
+                <div class="guest-guide-body px-6 pb-6">
+                    <x-weather-badge :property="$property" class="guest-weather-card" />
                 </div>
                 <div id="guide-grid" class="guest-guide-grid p-6 pt-0">
                     @foreach($guideCats as $category)
@@ -932,7 +1069,6 @@
                         />
                     @endforeach
                 </div>
-                <div id="checkout-begin"></div>
             </div>
         @elseif($state === 'post_checkout')
             <div class="guest-portal-card">
@@ -1048,6 +1184,7 @@
                     </span>
                 </div>
             <div class="guest-guide-body">
+                <x-weather-badge :property="$property" class="guest-weather-card" />
                 <div class="mx-auto max-w-2xl text-center">
                     <p class="text-sm leading-6 text-slate-500">Explore information about your stay.</p>
                 </div>

@@ -18,6 +18,7 @@
                 <label class="field-label">Contact phone<input name="contact_phone" value="{{ old('contact_phone', $settings['contact_phone']) }}" class="input"></label>
                 <label class="field-label">Contact email<input name="contact_email" value="{{ old('contact_email', $settings['contact_email']) }}" class="input"></label>
                 <label class="field-label md:col-span-2">Default intro<textarea id="default-intro-editor" name="default_intro" rows="5" class="textarea">{{ old('default_intro', $settings['default_intro']) }}</textarea></label>
+                <label class="field-label md:col-span-2">GPS verify message<textarea id="gps-verify-message-editor" name="gps_verify_message" rows="3" class="textarea">{{ old('gps_verify_message', $settings['gps_verify_message']) }}</textarea><span class="field-help">Shown above the map on the location verification step.</span></label>
             </div>
         </section>
 
@@ -174,7 +175,7 @@
     tinymce.init({
         relative_urls: false,
         remove_script_host: false,
-        selector: '#default-intro-editor',
+        selector: '#default-intro-editor, #gps-verify-message-editor',
         plugins: 'lists advlist link code table searchreplace wordcount visualblocks charmap emoticons preview anchor fullscreen nonbreaking',
         toolbar: 'undo redo | bold italic underline forecolor backcolor | alignleft aligncenter alignright | bullist numlist | customlineheight | link insertimage table anchor charmap emoticons | searchreplace preview fullscreen | removeformat code | fontfamily fontsize',
         browser_spellcheck: true,

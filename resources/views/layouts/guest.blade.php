@@ -3,6 +3,9 @@
 @php
     $brandColor = \App\Models\Setting::getValue('brand_color', '#082b49');
     $favicon = \App\Models\Setting::getValue('favicon');
+    $weather = ($property->latitude && $property->longitude)
+        ? app(\App\Services\WeatherService::class)->getCurrent((float) $property->latitude, (float) $property->longitude)
+        : null;
 @endphp
 
 <!doctype html>

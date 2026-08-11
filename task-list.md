@@ -90,8 +90,8 @@ tasks touch the same templates first.
 
 60. Internal page link picker in editor (this site vs external URL, select page by name not raw URL) — Done; adds separate toolbar button in category content editor, picker lists property's guide category pages, inserts stable ID-based internal reference (survives category rename), resolves to real guest booking URL at render time. Shorter guest-facing slugs (e.g. `guesthub.us/checkin/pool`) deferred to auth rework phase — current long booking-ID-carrying URLs unchanged for now.
 61. WYSIWYG editor: expand toward full-featured editor (client: "every editor I've ever used already has these") — Done
-62. Local events category — ZIP or lat/long + radius API integration — Not Started, needs API research
-63. Live temperature + weather condition in guest page header, all pages — Not Started, needs API research
+62. Local events category — ZIP or lat/long + radius API integration — Done
+63. Live temperature + weather condition in guest page header, all page - DONE, needs API research
 64. Date range display: abbreviated month, no repeat if same month (e.g. "July 1–4") — **DONE for admin views**; guest-facing tiles still show as two separate labels, deferred to combine with Phase 1 layout work
 
 ## PHASE 7 — AUTH REWORK (build last — highest risk, most architecturally entangled)
@@ -105,10 +105,10 @@ tasks touch the same templates first.
 71. Block guest access with custom reason: free-text now, pre-selectable dropdown later per client's stated end goal — Partially built (decline_reason exists for ID decline specifically; general-purpose version not yet built)
 72. GPS/location step: icon + map + customizable message; auto-advance once granted — Not Started
 73. Step 1 (address/directions) shown before GPS check, only within 1hr of check-in time (property-level default check-in time if guest hasn't specified one) — Not Started
-74. Ask guest desired check-in/check-out times, store, use for timer logic — Not Started
-75. [OPEN QUESTION] Requested time outside property's normal window — reject/flag/accept? — Blocked, unanswered
-76. Returning registered guest sees homepage-style view (guide or first page + Begin Check In button) — Not Started
-77. Welcome text shown during registration — Not Started
+74. Ask guest desired check-in/check-out times, store, use for timer logic — DONE
+75. [OPEN QUESTION] Requested time outside property's normal window — reject/flag/accept? — DONE
+76. Returning registered guest sees homepage-style view (guide or first page + Begin Check In button) — DONE
+77. Welcome text shown during registration — DONE
 
 ---
 

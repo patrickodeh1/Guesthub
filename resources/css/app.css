@@ -481,6 +481,22 @@
         inset: 0;
         background: none;
     }
+    .guest-weather-card {
+        width: 100%;
+        margin-bottom: 10px;
+        border-radius: 14px;
+        border: 1px solid #e2e8f0;
+        background: #fff;
+        padding: 10px 16px;
+        font-size: 13px;
+        font-weight: 700;
+        color: #334155;
+        box-shadow: 0 6px 16px rgb(15 23 42 / .06);
+    }
+    .guest-weather-card svg {
+        color: #f59e0b;
+        flex-shrink: 0;
+    }
 
     .guest-detail-hero-content {
         position: absolute;

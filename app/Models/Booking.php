@@ -9,8 +9,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Booking extends Model
 {
     protected $fillable = [
-        'booking_id', 'guest_name', 'phone', 'email', 'check_in_date', 'check_out_date',
-        'property_id', 'id_type', 'token', 'photo_id_path', 'photo_id_back_path', 'photo_id_received', 'parking_needed', 'early_checkin', 'checkin_time_preference', 'gps_verified',
+        'booking_id', 'reservation_id', 'guest_name', 'phone', 'email', 'check_in_date', 'check_out_date',
+        'property_id', 'id_type', 'token', 'photo_id_path', 'photo_id_back_path', 'photo_id_received', 'parking_needed', 'early_checkin', 'checkin_time_preference', 'checkout_time_preference', 'gps_verified', 'guest_authenticated_at',
         'manually_checked_in', 'checked_in_at', 'checked_out_at', 'gps_overridden', 'status', 'notes', 'welcome_message', 'identity_confirmed_at',
         'approved_at', 'decline_reason', 'archived_at', 'background_check_completed_at', 'deposit_verified_at',
     ];
@@ -26,6 +26,7 @@ class Booking extends Model
             'manually_checked_in' => 'boolean',
             'checked_in_at' => 'datetime',
             'checked_out_at' => 'datetime',
+            'guest_authenticated_at' => 'datetime',
             'approved_at' => 'datetime',
             'identity_confirmed_at' => 'datetime',
             'archived_at' => 'datetime',
@@ -124,6 +125,11 @@ class Booking extends Model
         return \Carbon\Carbon::createFromFormat('H:i', $this->effectiveCheckinTime())->format('g:i A');
     }
 
+    public function addressAvailableAtFormatted(): string
+    {
+        return \Carbon\Carbon::createFromFormat('H:i', $this->effectiveCheckinTime())->subHour()->format('g:i A');
+    }
+
     public function canViewAddress(?CarbonInterface $now = null): bool
     {
         $timezone = $this->property?->timezone ?? 'America/New_York';
@@ -137,7 +143,9 @@ class Booking extends Model
         if ($now->toDateString() > $checkinDate) return true;
 
         [$hour, $minute] = array_map('intval', explode(':', $this->effectiveCheckinTime()));
-        return $now->hour > $hour || ($now->hour === $hour && $now->minute >= $minute);
+        $threshold = \Carbon\Carbon::parse($checkinDate, $timezone)->setTime($hour, $minute)->subHour();
+
+        return $now->greaterThanOrEqualTo($threshold);
     }
 
     public function isCheckoutDay(?CarbonInterface $date = null): bool
@@ -169,7 +177,7 @@ class Booking extends Model
 
     public function effectiveCheckoutTime(): string
     {
-        return $this->property?->checkout_time ?: '11:00';
+        return $this->checkout_time_preference ?: ($this->property?->checkout_time ?: '11:00');
     }
 
     public function effectiveCheckoutTimeFormatted(): string
@@ -192,6 +200,9 @@ class Booking extends Model
 
     public function publicUrl(): string
     {
+        if ($this->reservation_id) {
+            return route('checkin.rid', ['RID' => $this->reservation_id]);
+        }
         return route('guest.show', [$this->booking_id, $this->token]);
     }
 

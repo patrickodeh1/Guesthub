@@ -24,6 +24,7 @@
 
 <x-guest-layout :booking="$booking" :property="$booking->property" :title="$displayTitle" :state="$state">
 <section class="guest-detail-shell">
+    <x-weather-badge :property="$booking->property" class="guest-weather-card" />
     <header class="guest-detail-hero">
         @if($heroImage)
             <img src="{{ $heroImage }}" alt="{{ $displayTitle }}" loading="eager">
@@ -94,9 +95,19 @@
                             @endforeach
                         </div>
                     @endif
-                    <div class="grid gap-4 sm:grid-cols-2" id="guest-events-grid">
+                    <div class="guest-event-filters mb-4 flex flex-wrap gap-2" id="guest-date-filters">
+                        <button type="button" class="guest-event-filter-chip is-active" data-date-filter="all">All dates</button>
+                        <button type="button" class="guest-event-filter-chip" data-date-filter="today">Today</button>
+                        <button type="button" class="guest-event-filter-chip" data-date-filter="week">This week</button>
+                        <button type="button" class="guest-event-filter-chip" data-date-filter="month">This month</button>
+                    </div>
+                    <div class="grid gap-4 sm:grid-cols-2" id="guest-events-grid"
+                         data-booking-id="{{ $booking->booking_id }}"
+                         data-token="{{ $booking->token }}"
+                         data-category-slug="{{ $category->slug }}"
+                         data-page="0">
                         @foreach($localEvents as $event)
-                            <a href="{{ $event['url'] }}" target="_blank" rel="noopener" class="guest-event-card" data-category="{{ $event['category'] }}">
+                            <a href="{{ $event['url'] }}" target="_blank" rel="noopener" class="guest-event-card" data-category="{{ $event['category'] }}" data-date="{{ $event['date'] }}">
                                 @if($event['image'])
                                     <img src="{{ $event['image'] }}" alt="" class="mb-3 h-32 w-full rounded-lg object-cover">
                                 @endif
@@ -105,11 +116,21 @@
                                     <p class="text-sm text-slate-500">{{ $event['venue'] }}</p>
                                 @endif
                                 @if($event['date'])
-                                    <p class="text-sm text-slate-500">{{ \Carbon\Carbon::parse($event['date'])->format('M d, Y') }}{{ $event['time'] ? ' at '.\Carbon\Carbon::parse($event['time'])->format('g:i A') : '' }}</p>
+                                    <p class="text-sm text-slate-500">
+                                        {{ \Carbon\Carbon::parse($event['date'])->format('M d, Y') }}{{ $event['time'] ? ' at '.\Carbon\Carbon::parse($event['time'])->format('g:i A') : '' }}
+                                        @if(count($event['dates'] ?? []) > 1)
+                                            <span class="text-slate-400">+ {{ count($event['dates']) - 1 }} more date{{ count($event['dates']) - 1 > 1 ? 's' : '' }}</span>
+                                        @endif
+                                    </p>
                                 @endif
                             </a>
                         @endforeach
                     </div>
+                    @if($eventsHasMore)
+                        <button type="button" id="guest-events-load-more" class="mt-4 w-full rounded-md border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm hover:bg-slate-50">
+                            Load more events
+                        </button>
+                    @endif
                 @else
                     <p class="text-sm text-slate-500">No local events found right now. Check back soon.</p>
                 @endif
@@ -194,19 +215,138 @@
         });
     }
 
-    var filterChips = document.querySelectorAll('.guest-event-filter-chip');
-    var eventCards = document.querySelectorAll('#guest-events-grid .guest-event-card');
-    if (filterChips.length && eventCards.length) {
-        filterChips.forEach(function(chip) {
+    var categoryChips = document.querySelectorAll('.guest-event-filter-chip[data-filter]');
+    var dateChips = document.querySelectorAll('.guest-event-filter-chip[data-date-filter]');
+    var eventsGrid = document.getElementById('guest-events-grid');
+
+    var activeCategory = 'all';
+    var activeDateFilter = 'all';
+
+    function parseLocalDate(dateStr) {
+        if (!dateStr) return null;
+        var parts = dateStr.split('-');
+        return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+    }
+
+    function matchesDateFilter(cardDate, filter) {
+        if (filter === 'all') return true;
+        var d = parseLocalDate(cardDate);
+        if (!d) return false;
+        var now = new Date();
+        var startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        if (filter === 'today') {
+            return d.getTime() === startOfToday.getTime();
+        }
+        if (filter === 'week') {
+            var weekEnd = new Date(startOfToday);
+            weekEnd.setDate(weekEnd.getDate() + 7);
+            return d >= startOfToday && d < weekEnd;
+        }
+        if (filter === 'month') {
+            var monthEnd = new Date(startOfToday);
+            monthEnd.setMonth(monthEnd.getMonth() + 1);
+            return d >= startOfToday && d < monthEnd;
+        }
+        return true;
+    }
+
+    function applyFilters() {
+        if (!eventsGrid) return;
+        var cards = eventsGrid.querySelectorAll('.guest-event-card');
+        cards.forEach(function(card) {
+            var catMatch = activeCategory === 'all' || card.getAttribute('data-category') === activeCategory;
+            var dateMatch = matchesDateFilter(card.getAttribute('data-date'), activeDateFilter);
+            card.style.display = (catMatch && dateMatch) ? '' : 'none';
+        });
+    }
+
+    if (categoryChips.length) {
+        categoryChips.forEach(function(chip) {
             chip.addEventListener('click', function() {
-                filterChips.forEach(function(c) { c.classList.remove('is-active'); });
+                categoryChips.forEach(function(c) { c.classList.remove('is-active'); });
                 chip.classList.add('is-active');
-                var filter = chip.getAttribute('data-filter');
-                eventCards.forEach(function(card) {
-                    var show = filter === 'all' || card.getAttribute('data-category') === filter;
-                    card.style.display = show ? '' : 'none';
-                });
+                activeCategory = chip.getAttribute('data-filter');
+                applyFilters();
             });
+        });
+    }
+
+    if (dateChips.length) {
+        dateChips.forEach(function(chip) {
+            chip.addEventListener('click', function() {
+                dateChips.forEach(function(c) { c.classList.remove('is-active'); });
+                chip.classList.add('is-active');
+                activeDateFilter = chip.getAttribute('data-date-filter');
+                applyFilters();
+            });
+        });
+    }
+
+    var loadMoreBtn = document.getElementById('guest-events-load-more');
+    if (loadMoreBtn && eventsGrid) {
+        loadMoreBtn.addEventListener('click', function() {
+            var bookingId = eventsGrid.getAttribute('data-booking-id');
+            var token = eventsGrid.getAttribute('data-token');
+            var categorySlug = eventsGrid.getAttribute('data-category-slug');
+            var nextPage = parseInt(eventsGrid.getAttribute('data-page'), 10) + 1;
+
+            loadMoreBtn.disabled = true;
+            loadMoreBtn.textContent = 'Loading...';
+
+            fetch('/guest/' + bookingId + '/' + token + '/guide/' + categorySlug + '/events?page=' + nextPage)
+                .then(function(res) { return res.json(); })
+                .then(function(data) {
+                    (data.events || []).forEach(function(event) {
+                        var card = document.createElement('a');
+                        card.href = event.url || '#';
+                        card.target = '_blank';
+                        card.rel = 'noopener';
+                        card.className = 'guest-event-card';
+                        card.setAttribute('data-category', event.category || 'Other');
+                        card.setAttribute('data-date', event.date || '');
+
+                        var html = '';
+                        if (event.image) {
+                            html += '<img src="' + event.image + '" alt="" class="mb-3 h-32 w-full rounded-lg object-cover">';
+                        }
+                        html += '<p class="font-semibold text-slate-950"></p>';
+                        if (event.venue) {
+                            html += '<p class="text-sm text-slate-500"></p>';
+                        }
+                        if (event.date) {
+                            html += '<p class="text-sm text-slate-500"></p>';
+                        }
+                        card.innerHTML = html;
+
+                        var paragraphs = card.querySelectorAll('p');
+                        var pIndex = 0;
+                        paragraphs[pIndex++].textContent = event.name || 'Untitled event';
+                        if (event.venue) {
+                            paragraphs[pIndex++].textContent = event.venue;
+                        }
+                        if (event.date) {
+                            var d = parseLocalDate(event.date);
+                            var dateLabel = d ? d.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }) : event.date;
+                            paragraphs[pIndex].textContent = dateLabel + (event.time ? ' at ' + event.time : '');
+                        }
+
+                        eventsGrid.appendChild(card);
+                    });
+
+                    eventsGrid.setAttribute('data-page', nextPage);
+                    applyFilters();
+
+                    if (!data.hasMore) {
+                        loadMoreBtn.remove();
+                    } else {
+                        loadMoreBtn.disabled = false;
+                        loadMoreBtn.textContent = 'Load more events';
+                    }
+                })
+                .catch(function() {
+                    loadMoreBtn.disabled = false;
+                    loadMoreBtn.textContent = 'Load more events';
+                });
         });
     }
 })();

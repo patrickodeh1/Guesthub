@@ -9,7 +9,7 @@
     <section class="card card-pad mb-6">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
-                <p class="eyebrow">Guest {{ $booking->booking_id }}</p>
+                <p class="eyebrow">Guest {{ $booking->booking_id }} &middot; RID: {{ $booking->reservation_id ?: 'Not set' }}</p>
                 <h1 class="page-title !mt-0.5">{{ $booking->guest_name }}</h1>
                 <p class="page-subtitle !mt-1">{{ $booking->property->name }} · {{ $booking->stayRangeLabel() }}</p>
             </div>
@@ -104,6 +104,7 @@
                             ['parking', 'Parking', is_null($booking->parking_needed) ? 'Unknown' : ($booking->parking_needed ? 'Needed' : 'Not needed')],
                             ['calendar', 'Early Check-in', $booking->early_checkin ? 'Enabled' : 'Disabled'],
                             ['clock', 'Requested Check-in Time', $booking->checkin_time_preference ?: 'Not specified'],
+                            ['clock', 'Requested Check-out Time', $booking->checkout_time_preference ?: 'Not specified'],
                             ['upload', 'Photo ID Already Received', $booking->photo_id_received ? 'Yes' : 'No'],
                             ['map', 'GPS', $booking->gps_verified ? 'Verified' : 'Not verified'],
                             ['contact-guest-services', 'Checked In At', $booking->checked_in_at ? $booking->checked_in_at->format('M j, Y g:i A') : 'Not yet'],

@@ -46,7 +46,7 @@
                 <tbody>
                     @forelse($bookings as $booking)
                         <tr>
-                            <td><a class="font-semibold text-slate-950 hover:text-teal-800" href="{{ route('admin.guests.show', $booking) }}">{{ $booking->guest_name }}</a><div class="text-slate-500">{{ $booking->booking_id }}</div></td>
+                            <td><a class="font-semibold text-slate-950 hover:text-teal-800" href="{{ route('admin.guests.show', $booking) }}">{{ $booking->guest_name }}</a><div class="text-slate-500">{{ $booking->booking_id }}</div><div class="text-slate-400 text-xs">RID: {{ $booking->reservation_id ?: '—' }}</div></td>
                             <td>{{ $booking->property->name }}</td>
                             <td>{{ $booking->stayRangeLabel() }}</td>
                             <td><span class="badge badge-{{ $booking->effectiveStatus() }}">{{ $booking->statusLabel() }}</span></td>
