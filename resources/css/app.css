@@ -435,6 +435,26 @@
             border-radius: 14px;
             display: block;
         }
+        .wizard-scroll .wizard-image-card {
+            display: flex;
+            justify-content: center;
+            width: fit-content;
+            max-width: 100%;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .wizard-scroll .wizard-image-card img {
+            width: auto;
+            height: auto;
+            max-width: 100%;
+            max-height: 62vh;
+            object-fit: contain;
+            display: block;
+            background: #fff;
+            border-radius: 10px;
+            border: 1px solid #eef1f5;
+            box-shadow: 0 1px 3px rgb(15 23 42 / .04);
+        }
     }
 
     .guest-guide-open {
@@ -857,6 +877,29 @@
     .guest-primary-btn-lg .lucide,
     .guest-primary-btn-lg svg {
         margin-left: 8px;
+    }
+    .wizard-text-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 16px 18px;
+        box-shadow: 0 4px 10px rgb(15 23 42 / .04);
+    }
+    .wizard-image-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 10px;
+        box-shadow: 0 4px 10px rgb(15 23 42 / .04);
+        width: fit-content;
+        max-width: 100%;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    .wizard-image-card img {
+        display: block;
+        max-width: 100%;
+        height: auto;
     }
     .step-indicator {
         display: flex;

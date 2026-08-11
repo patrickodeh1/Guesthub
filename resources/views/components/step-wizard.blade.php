@@ -17,21 +17,25 @@
             @foreach($steps as $i => $step)
             @php $allImages = array_values(array_filter(array_merge([$step['image'] ?? null], $step['images'] ?? []))); @endphp
             <div class="wizard-step" id="wizard-{{ $type }}-step-{{ $i }}" @if($i > 0) style="display:none" @endif>
-                @if(count($allImages))
-                    <img id="wizard-main-img-{{ $type }}-{{ $i }}" src="{{ $allImages[0] }}" alt="{{ $step['title'] }}" class="mb-3 w-full rounded-xl shadow-sm">
-                    @if(count($allImages) > 1)
-                        <div class="mb-4 flex gap-2 overflow-x-auto pb-1">
-                            @foreach(array_slice($allImages, 1) as $img)
-                                <img src="{{ $img }}" alt="{{ $step['title'] }}" loading="lazy" decoding="async" class="wizard-gallery-thumb h-20 w-20 shrink-0 cursor-pointer rounded-lg object-cover shadow-sm" data-type="{{ $type }}" data-step="{{ $i }}">
-                            @endforeach
-                        </div>
+                <div class="wizard-text-card mb-4">
+                    <div class="prose-welcome text-base text-slate-700">{!! $step['content'] !!}</div>
+                    @if(($step['action'] ?? 'content') === 'door_lock' && ($step['lock_id'] ?? null))
+                        <x-lock-card class="mt-5" :booking-id="$bookingId" :token="$token" :lock-id="$step['lock_id']" :lock-status="$step['lock_status'] ?? null" />
+                    @elseif(($step['action'] ?? 'content') === 'door_lock')
+                        <p class="mt-5 text-sm font-bold text-slate-500 text-center">No lock is configured for this property yet.</p>
                     @endif
-                @endif
-                <div class="prose-welcome text-base text-slate-700">{!! $step['content'] !!}</div>
-                @if(($step['action'] ?? 'content') === 'door_lock' && ($step['lock_id'] ?? null))
-                    <x-lock-card class="mt-5" :booking-id="$bookingId" :token="$token" :lock-id="$step['lock_id']" :lock-status="$step['lock_status'] ?? null" />
-                @elseif(($step['action'] ?? 'content') === 'door_lock')
-                    <p class="mt-5 text-sm font-bold text-slate-500 text-center">No lock is configured for this property yet.</p>
+                </div>
+                @if(count($allImages))
+                    <div class="wizard-image-card">
+                        <img id="wizard-main-img-{{ $type }}-{{ $i }}" src="{{ $allImages[0] }}" alt="{{ $step['title'] }}" class="w-full rounded-xl shadow-sm">
+                        @if(count($allImages) > 1)
+                            <div class="mt-3 flex gap-2 overflow-x-auto pb-1">
+                                @foreach(array_slice($allImages, 1) as $img)
+                                    <img src="{{ $img }}" alt="{{ $step['title'] }}" loading="lazy" decoding="async" class="wizard-gallery-thumb h-20 w-20 shrink-0 cursor-pointer rounded-lg object-cover shadow-sm" data-type="{{ $type }}" data-step="{{ $i }}">
+                                @endforeach
+                            </div>
+                        @endif
+                    </div>
                 @endif
             </div>
             @endforeach
