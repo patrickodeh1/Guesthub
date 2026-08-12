@@ -568,6 +568,7 @@ class GuestController extends Controller
                 'checked_out_at' => now(),
             ]);
         }
+        if (! $booking->isCheckedIn()) {
 
         if (! $booking->isIdentityComplete()) {
             return 'identity';
@@ -579,6 +580,7 @@ class GuestController extends Controller
 
         if ($booking->needsIdApproval()) {
             return 'identity';
+        }
         }
 
         if (in_array($booking->status, ['pre_checkin_complete', 'awaiting_deposit'], true)) {

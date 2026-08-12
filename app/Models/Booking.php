@@ -124,12 +124,45 @@ class Booking extends Model
 
     public function effectiveCheckinTimeFormatted(): string
     {
-        return \Carbon\Carbon::createFromFormat('H:i', $this->effectiveCheckinTime())->format('g:i A');
+        return $this->safeFormatTime($this->effectiveCheckinTime());
     }
 
     public function addressAvailableAtFormatted(): string
     {
-        return \Carbon\Carbon::createFromFormat('H:i', $this->effectiveCheckinTime())->subHour()->format('g:i A');
+        return $this->safeFormatTime($this->effectiveCheckinTime(), subHour: true);
+    }
+
+    private function safeParseTime(string $value): \Carbon\Carbon
+    {
+        try {
+            return \Carbon\Carbon::createFromFormat('H:i', trim($value));
+        } catch (\Exception $e) {
+            try {
+                return \Carbon\Carbon::parse(trim($value));
+            } catch (\Exception $e) {
+                return \Carbon\Carbon::createFromFormat('H:i', '15:00');
+            }
+        }
+    }
+    private function safeFormatTime(string $value, bool $subHour = false): string
+    {
+        $time = null;
+
+        try {
+            $time = \Carbon\Carbon::createFromFormat('H:i', trim($value));
+        } catch (\Exception $e) {
+            try {
+                $time = \Carbon\Carbon::parse(trim($value));
+            } catch (\Exception $e) {
+                $time = \Carbon\Carbon::createFromFormat('H:i', '15:00');
+            }
+        }
+
+        if ($subHour) {
+            $time = $time->subHour();
+        }
+
+        return $time->format('g:i A');
     }
 
     public function canViewAddress(?CarbonInterface $now = null): bool
@@ -144,8 +177,8 @@ class Booking extends Model
         if ($now->toDateString() < $checkinDate) return false;
         if ($now->toDateString() > $checkinDate) return true;
 
-        [$hour, $minute] = array_map('intval', explode(':', $this->effectiveCheckinTime()));
-        $threshold = \Carbon\Carbon::parse($checkinDate, $timezone)->setTime($hour, $minute)->subHour();
+        $parsedTime = $this->safeParseTime($this->effectiveCheckinTime());
+        $threshold = \Carbon\Carbon::parse($checkinDate, $timezone)->setTime($parsedTime->hour, $parsedTime->minute)->subHour();
 
         return $now->greaterThanOrEqualTo($threshold);
     }
@@ -184,7 +217,7 @@ class Booking extends Model
 
     public function effectiveCheckoutTimeFormatted(): string
     {
-        return \Carbon\Carbon::createFromFormat('H:i', $this->effectiveCheckoutTime())->format('g:i A');
+        return $this->safeFormatTime($this->effectiveCheckoutTime());
     }
 
     public function isPastCheckoutTime(?CarbonInterface $now = null): bool
