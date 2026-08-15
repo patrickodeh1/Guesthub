@@ -1125,8 +1125,12 @@
         overflow: hidden;
     }
     .guest-upload-id {
-        min-height: 260px;
         padding: 0;
+        width: 324px;
+        height: 204px;
+        max-width: 100%;
+        margin-left: auto;
+        margin-right: auto;
     }
     .guest-upload-id img {
         width: 100%;
@@ -1389,7 +1393,7 @@
         }
 
         .guest-status-bar {
-            align-items: flex-start;
+            align-items: center;
         }
 
         .guest-booking-card {

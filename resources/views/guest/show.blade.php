@@ -5,13 +5,8 @@
     $checkoutSteps = isset($checkoutSteps) ? $checkoutSteps : [];
     $parkingSteps = isset($parkingSteps) ? $parkingSteps : [];
     $heroImg = $property->heroImageUrl();
-    $welcomeBannerImg = null;
     $welcomeMessageClean = $welcomeMessage ?? '';
-    if (!empty($welcomeMessageClean) && preg_match('/<img[^>]+src=["\']([^"\']+)["\']/i', $welcomeMessageClean, $m)) {
-        $welcomeBannerImg = $m[1];
-        $welcomeMessageClean = preg_replace('/<img[^>]*>/i', '', $welcomeMessageClean, 1);
-    }
-    $displayHeroImg = $welcomeBannerImg ?: $heroImg;
+    $siteLogo = \App\Models\Setting::getValue('site_logo');
     $categoryColor = ['#eef2ff', '#3b65ce'];
     $guideCats = $categories;
 @endphp
@@ -32,12 +27,18 @@
 
         @if($state === 'access_blocked')
             <div class="guest-portal-card">
-                <div class="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center md:py-24">
+                <div class="guest-status-bar">
+                    <div>
+                        @if($siteLogo)
+                            <img src="{{ url('/img/'.$siteLogo) }}" alt="" class="h-8 max-w-[140px] w-auto object-contain">
+                        @endif
+                    </div>
                     <span class="guest-status-pill" style="background:#fef2f2;color:#991b1b;">
                         <x-icon name="alert-triangle" class="h-4 w-4" />
                         Access blocked
                     </span>
-                    <p class="guest-status-kicker">{{ $property->name }}</p>
+                </div>
+                <div class="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center md:py-24">
                     <h1 class="guest-status-title">Access unavailable</h1>
                     <p class="max-w-md text-sm leading-6 text-slate-600">{{ $booking->access_blocked_reason }}</p>
                 </div>
@@ -46,7 +47,9 @@
             <div class="guest-portal-card">
                 <div class="guest-status-bar">
                     <div>
-                        <p class="guest-status-kicker">{{ $property->name }}</p>
+                        @if($siteLogo)
+                            <img src="{{ url('/img/'.$siteLogo) }}" alt="" class="h-8 max-w-[140px] w-auto object-contain">
+                        @endif
                     </div>
                     <span class="guest-status-pill">
                         <x-icon name="alert-triangle" class="h-4 w-4" />
@@ -61,14 +64,21 @@
                     <span class="step-dash">&mdash;</span>
                     <span class="step-num" data-num="3" id="step-num-3">3</span>
                 </div>
-                {{-- Hero image: persistent/static across all check-in steps --}}
-                <img src="{{ $displayHeroImg }}" alt="{{ $property->name }}" class="w-full block rounded-xl mt-4">
+            </div>
 
+            <div class="guest-portal-card mt-4">
+                <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="w-full block rounded-xl">
+            </div>
+
+            <div class="guest-portal-card mt-4">
                 <form id="guest-booking-form" method="post" data-skip-loading enctype="multipart/form-data" action="{{ route('guest.identity', [$booking->booking_id, $booking->token]) }}" class="guest-booking-card">
                     @csrf
 
                     {{-- ══════════════════ STEP 1 — Welcome + Booking details (read-only) ══════════════════ --}}
                     <div class="idw-step" data-step="1">
+                        <div class="px-0 pb-2">
+                            <h2 class="text-xl font-extrabold text-slate-950">Welcome, {{ $booking->guest_first_name ?: explode(' ', trim($booking->guest_name))[0] }}!</h2>
+                        </div>
                         <div class="guest-stay-grid mt-5">
                             <div class="guest-stay-tile">
                                 <div class="guest-stay-tile-icon">
@@ -76,7 +86,6 @@
                                 </div>
                                 <p class="guest-stay-tile-label">Check-In</p>
                                 <p class="guest-stay-tile-date">{{ $booking->check_in_date->format('M d, Y') }}</p>
-                                <p class="guest-stay-tile-time">{{ $booking->effectiveCheckinTimeFormatted() }}</p>
                             </div>
                             <div class="guest-stay-tile">
                                 <div class="guest-stay-tile-icon">
@@ -84,12 +93,7 @@
                                 </div>
                                 <p class="guest-stay-tile-label">Check-Out</p>
                                 <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }}</p>
-                                <p class="guest-stay-tile-time">{{ $booking->effectiveCheckoutTimeFormatted() }}</p>
                             </div>
-                        </div>
-                        <div class="px-0 pt-5 pb-2">
-                            <h2 class="text-xl font-extrabold text-slate-950">Welcome, {{ $booking->guest_first_name ?? $booking->guest_name }}!</h2>
-                            <div class="mt-2 text-sm leading-6 text-slate-600">{!! $welcomeMessageClean !!}</div>
                         </div>
                         @php
                             $isRegistrationComplete = filled($booking->guest_name)
@@ -99,16 +103,26 @@
                                 && $booking->photo_id_received;
                         @endphp
                         @if($isRegistrationComplete)
-                            <button type="button" class="guest-primary-btn guest-primary-btn-lg is-go mt-6 w-full" data-next="2">
+                            <button type="button" class="guest-primary-btn guest-primary-btn-lg is-go mt-6 w-full" onclick="document.getElementById('welcome-modal').classList.remove('hidden')">
                                 Begin Check In
                                 <x-icon name="arrow-right" class="h-5 w-5 ml-1 inline-block align-middle" />
                             </button>
                         @else
-                            <button type="button" class="guest-primary-btn guest-primary-btn-lg mt-6 w-full" data-next="2">
-                                Begin Registration
+                            <button type="button" class="guest-primary-btn guest-primary-btn-lg mt-6 w-full" onclick="document.getElementById('welcome-modal').classList.remove('hidden')">
+                                Begin Pre-Checkin
                                 <x-icon name="arrow-right" class="h-5 w-5 ml-1 inline-block align-middle" />
                             </button>
                         @endif
+
+                        {{-- Welcome message modal --}}
+                        <div id="welcome-modal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
+                            <div class="bg-white rounded-2xl max-w-md w-full max-h-[80vh] overflow-y-auto p-6">
+                                <div class="text-sm leading-6 text-slate-600">{!! $welcomeMessageClean !!}</div>
+                                <button type="button" class="guest-primary-btn guest-primary-btn-lg mt-6 w-full" data-next="2" onclick="document.getElementById('welcome-modal').classList.add('hidden')">
+                                    I Agree
+                                </button>
+                            </div>
+                        </div>
                     </div>
 
                     {{-- ══════════════════ STEP 2 — Phone, Email, Parking, Check-in time ══════════════════ --}}
@@ -279,7 +293,7 @@
                                 <p id="back-blur-warning" class="mt-1 hidden text-xs font-semibold text-red-500">Image is blurry. Please retake.</p>
                                 <button type="button" id="retake-back-btn" class="mt-2 text-xs font-semibold text-blue-600 underline">Retake back</button>
                             </div>
-                            <div id="upload-zone-trigger" class="guest-upload guest-upload-id mt-3 cursor-pointer" onclick="startCamera('front')">
+                            <div id="upload-zone-trigger" class="guest-upload guest-upload-id mt-3 cursor-pointer{{ $booking->id_type === 'passport' ? ' is-passport' : '' }}" onclick="startCamera('front')">
                                 @if($booking->id_type === 'passport')
                                 <img src="{{ asset('id_icons/passportID.png') }}" alt="Passport example">
                                 @else
@@ -837,14 +851,16 @@
             <div class="guest-portal-card">
                 <div class="guest-status-bar">
                     <div>
-                        <p class="guest-status-kicker">{{ $property->name }}</p>
+                        @if($siteLogo)
+                            <img src="{{ url('/img/'.$siteLogo) }}" alt="" class="h-8 max-w-[140px] w-auto object-contain">
+                        @endif
                     </div>
                     <span class="guest-status-pill is-ready">
                         <x-icon name="calendar" class="h-4 w-4" />
                         Not checked in
                     </span>
                 </div>
-                <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="w-full block" style="height:auto">
+                <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="w-full block mt-4" style="height:auto">
                 <div class="px-6 pt-8 pb-2 text-center">
                     <div class="guest-big-check">
                         <x-icon name="check" class="h-8 w-8" />
@@ -890,12 +906,8 @@
             <div class="guest-portal-card">
                 <div class="guest-status-bar">
                     <div>
-                        <p class="guest-status-kicker">{{ $property->name }}</p>
-                        <h1 class="guest-status-title">Verify your location</h1>
-                        @if($booking->canViewAddress())
-                            <p class="mt-2 text-sm leading-6 text-slate-600">It's go time! You can navigate to the property and on arrival you will be able to check in.</p>
-                        @else
-                            <p class="mt-2 text-sm leading-6 text-slate-600">Approved for check in! Please check back here about an hour before your arrival time for check in and parking instructions.</p>
+                        @if($siteLogo)
+                            <img src="{{ url('/img/'.$siteLogo) }}" alt="" class="h-8 max-w-[140px] w-auto object-contain">
                         @endif
                     </div>
                     <span class="guest-status-pill">
@@ -904,6 +916,12 @@
                     </span>
                 </div>
             <div class="p-6 md:p-10">
+                <h1 class="guest-status-title">Verify your location</h1>
+                @if($booking->canViewAddress())
+                    <p class="mt-2 text-sm leading-6 text-slate-600">It's go time! You can navigate to the property and on arrival you will be able to check in.</p>
+                @else
+                    <p class="mt-2 text-sm leading-6 text-slate-600">Approved for check in! Please check back here about an hour before your arrival time for check in and parking instructions.</p>
+                @endif
                 <div class="guest-stay-grid">
                     <div class="guest-stay-tile">
                         <div class="guest-stay-tile-icon">
@@ -970,15 +988,19 @@
             <div class="guest-portal-card">
                 <div class="guest-status-bar">
                     <div>
-                        <p class="guest-status-kicker">{{ $property->name }}</p>
-                        <h1 class="guest-status-title">Almost there</h1>
+                        @if($siteLogo)
+                            <img src="{{ url('/img/'.$siteLogo) }}" alt="" class="h-8 max-w-[140px] w-auto object-contain">
+                        @endif
                     </div>
                     <span class="guest-status-pill">
                         <x-icon name="clock" class="h-4 w-4" />
                         Awaiting deposit
                     </span>
                 </div>
-                <img src="{{ $displayHeroImg }}" alt="{{ $property->name }}" class="w-full block rounded-xl mt-4">
+                <div class="px-6 pt-5">
+                    <h1 class="guest-status-title">Almost there</h1>
+                </div>
+                <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="w-full block rounded-xl mt-4">
                 <div class="p-6 md:p-10 text-center">
                     @if($booking->status === 'pre_checkin_complete')
                         <h2 class="text-xl font-extrabold text-slate-950">Pre-check in completed!</h2>
@@ -993,9 +1015,9 @@
             <div class="guest-portal-card">
                 <div class="guest-status-bar">
                     <div>
-                        <p class="guest-status-kicker">{{ $property->name }}</p>
-                        <h1 class="guest-status-title">Check-out is coming up</h1>
-                        <p class="mt-2 text-sm leading-6 text-slate-600">Your check-out time is {{ $booking->effectiveCheckoutTimeFormatted() }} tomorrow. You'll still have full access to the guide until then.</p>
+                        @if($siteLogo)
+                            <img src="{{ url('/img/'.$siteLogo) }}" alt="" class="h-8 max-w-[140px] w-auto object-contain">
+                        @endif
                     </div>
                     <span class="guest-status-pill is-checked">
                         <x-icon name="check" class="h-4 w-4" />
@@ -1003,7 +1025,9 @@
                     </span>
                 </div>
                 <div class="p-6">
-                    <a href="#guide-grid" class="guest-primary-btn w-full">View Guide</a>
+                    <h1 class="guest-status-title">Check-out is coming up</h1>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">Your check-out time is {{ $booking->effectiveCheckoutTimeFormatted() }} tomorrow. You'll still have full access to the guide until then.</p>
+                    <a href="#guide-grid" class="guest-primary-btn w-full mt-4">View Guide</a>
                 </div>
                 @if($locks->isNotEmpty())
                     <div class="px-6 pb-2">
@@ -1049,9 +1073,9 @@
             <div class="guest-portal-card" id="checkout-guide-section">
                 <div class="guest-status-bar">
                     <div>
-                        <p class="guest-status-kicker">{{ $property->name }}</p>
-                        <h1 class="guest-status-title">Checking out today</h1>
-                        <p class="mt-2 text-sm leading-6 text-slate-600">Check-out time is {{ $booking->effectiveCheckoutTimeFormatted() }}. You can still use the guide until then.</p>
+                        @if($siteLogo)
+                            <img src="{{ url('/img/'.$siteLogo) }}" alt="" class="h-8 max-w-[140px] w-auto object-contain">
+                        @endif
                     </div>
                     <span class="guest-status-pill is-checked">
                         <x-icon name="check" class="h-4 w-4" />
@@ -1059,6 +1083,8 @@
                     </span>
                 </div>
                 <div class="p-6">
+                    <h1 class="guest-status-title">Checking out today</h1>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">Check-out time is {{ $booking->effectiveCheckoutTimeFormatted() }}. You can still use the guide until then.</p>
                     @if(count($checkoutSteps) > 0)
                         <button type="button" onclick="document.getElementById('checkout-guide-section').style.display='none';document.getElementById('checkout-wizard-wrapper').style.display='';" class="guest-primary-btn w-full is-go">Thanks for staying. Time to check out. Click here to begin.</button>
                     @else
@@ -1108,12 +1134,18 @@
             </div>
         @elseif($state === 'post_checkout')
             <div class="guest-portal-card">
-                <div class="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center md:py-24">
+                <div class="guest-status-bar">
+                    <div>
+                        @if($siteLogo)
+                            <img src="{{ url('/img/'.$siteLogo) }}" alt="" class="h-8 max-w-[140px] w-auto object-contain">
+                        @endif
+                    </div>
                     <span class="guest-status-pill is-checked">
                         <x-icon name="check" class="h-4 w-4" />
                         Checked out
                     </span>
-                    <p class="guest-status-kicker">{{ $property->name }}</p>
+                </div>
+                <div class="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center md:py-24">
                     <h1 class="guest-status-title">Thank you for staying with us!</h1>
                     <p class="max-w-md text-sm leading-6 text-slate-600">We appreciate it. If you'd like to stay with us again, please contact us directly for a discount.</p>
                 </div>
@@ -1121,12 +1153,18 @@
         @elseif($state === 'checkout_locked')
             @if($booking->status === 'checked_out')
                 <div class="guest-portal-card">
-                    <div class="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center md:py-24">
+                    <div class="guest-status-bar">
+                        <div>
+                            @if($siteLogo)
+                                <img src="{{ url('/img/'.$siteLogo) }}" alt="" class="h-8 max-w-[140px] w-auto object-contain">
+                            @endif
+                        </div>
                         <span class="guest-status-pill is-checked">
                             <x-icon name="check" class="h-4 w-4" />
                             Checked out
                         </span>
-                        <p class="guest-status-kicker">{{ $property->name }}</p>
+                    </div>
+                    <div class="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center md:py-24">
                         <h1 class="guest-status-title">You're all checked out</h1>
                         <p class="max-w-md text-sm leading-6 text-slate-600">We appreciate it. If you'd like to stay with us again, please contact us directly for a discount.</p>
                     </div>
@@ -1134,12 +1172,18 @@
             @elseif(count($checkoutSteps) > 0)
                 <x-step-wizard :steps="$checkoutSteps" type="checkout" next-section="checkout-complete" :booking-id="$booking->booking_id" :token="$booking->token" />
                 <div class="guest-portal-card" id="checkout-complete" style="display:none">
-                    <div class="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center md:py-24">
+                    <div class="guest-status-bar">
+                        <div>
+                            @if($siteLogo)
+                                <img src="{{ url('/img/'.$siteLogo) }}" alt="" class="h-8 max-w-[140px] w-auto object-contain">
+                            @endif
+                        </div>
                         <span class="guest-status-pill is-checked">
                             <x-icon name="check" class="h-4 w-4" />
                             Checked out
                         </span>
-                        <p class="guest-status-kicker">{{ $property->name }}</p>
+                    </div>
+                    <div class="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center md:py-24">
                         <h1 class="guest-status-title">You're all checked out</h1>
                         <p class="max-w-md text-sm leading-6 text-slate-600">We appreciate it. If you'd like to stay with us again, please contact us directly for a discount.</p>
                     </div>
@@ -1148,9 +1192,9 @@
             <div class="guest-guide-open">
                 <div class="guest-status-bar">
                     <div>
-                        <p class="guest-status-kicker">{{ $property->name }}</p>
-                        <h1 class="guest-status-title">Check-out instructions</h1>
-                        <p class="mt-2 text-sm leading-6 text-slate-600">Thank you for staying with us. Please review these steps before you leave.</p>
+                        @if($siteLogo)
+                            <img src="{{ url('/img/'.$siteLogo) }}" alt="" class="h-8 max-w-[140px] w-auto object-contain">
+                        @endif
                     </div>
                     <span class="guest-status-pill is-checked">
                         <x-icon name="check" class="h-4 w-4" />
@@ -1158,6 +1202,10 @@
                     </span>
                 </div>
             <div class="guest-guide-body">
+                <div class="px-6 pt-6">
+                    <h1 class="guest-status-title">Check-out instructions</h1>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">Thank you for staying with us. Please review these steps before you leave.</p>
+                </div>
                 <img src="https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?auto=format&fit=crop&w=900&q=80" alt="Packed luggage in a clean room" class="h-48 w-full rounded-md object-cover md:h-72" loading="lazy">
                 <ul class="mt-6 grid gap-4 text-sm">
                     @foreach([
@@ -1210,9 +1258,9 @@
             <div class="guest-guide-open" id="guest-guide-section" {{ (count($checkinSteps) > 0 || count($parkingSteps) > 0) && $booking->status !== 'checked_in' ? 'style=display:none' : '' }}>
                 <div class="guest-status-bar">
                     <div>
-                        <p class="guest-status-kicker">{{ $property->name }}</p>
-                        <h1 class="guest-status-title">Welcome Guide</h1>
-                        <p class="mt-2 text-sm leading-6 text-slate-600">Everything you need during your stay is ready below.</p>
+                        @if($siteLogo)
+                            <img src="{{ url('/img/'.$siteLogo) }}" alt="" class="h-8 max-w-[140px] w-auto object-contain">
+                        @endif
                     </div>
                     <span class="guest-status-pill is-checked">
                         <x-icon name="check" class="h-4 w-4" />
@@ -1220,6 +1268,10 @@
                     </span>
                 </div>
             <div class="guest-guide-body">
+                <div class="px-6 pt-6">
+                    <h1 class="guest-status-title">Welcome Guide</h1>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">Everything you need during your stay is ready below.</p>
+                </div>
                 <x-weather-badge :property="$property" class="guest-weather-card" />
                 <div class="mx-auto max-w-2xl text-center">
                     <p class="text-sm leading-6 text-slate-500">Explore information about your stay.</p>

@@ -210,8 +210,9 @@ class GuestController extends Controller
             'photo_id_back' => [($photoRequired && $booking->id_type !== 'passport') ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
         ]);
 
+        $advancedStatuses = ['guest_approved', 'awaiting_deposit', 'currently_hosting', 'checked_out'];
         $updates = [
-            'status'       => 'pre_checkin_complete',
+            'status'       => in_array($booking->status, $advancedStatuses, true) ? $booking->status : 'pre_checkin_complete',
             'identity_confirmed_at' => now(),
             'decline_reason' => null,
             'photo_id_received' => true,
@@ -583,7 +584,7 @@ class GuestController extends Controller
         }
         }
 
-        if (in_array($booking->status, ['pre_checkin_complete', 'awaiting_deposit'], true)) {
+        if (in_array($booking->status, ['pre_checkin_complete', 'awaiting_deposit'], true) && ! $booking->deposit_verified_at) {
             return 'awaiting_deposit';
         }
 

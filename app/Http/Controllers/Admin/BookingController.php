@@ -13,6 +13,7 @@ use Illuminate\Support\Str;
 
 class BookingController extends Controller
 {
+    use \App\Traits\BuildsGuestPortalData;
     // Re-verified 2026-08-02: parking_needed save logic confirmed correct on create + update
 
     public function index(Request $request)
@@ -139,6 +140,7 @@ class BookingController extends Controller
             'property'       => $booking->property,
             'state'          => $state,
             'categories'     => $booking->property->categories->filter(fn ($c) => $c->active && $c->pivot->active)->values(),
+            'locks'          => $this->resolveLocks($booking),
             'gpsRadius'      => (int) Setting::getValue('gps_radius_meters', 150),
             'previewMode'    => true,
             'welcomeMessage' => $booking->welcome_message ?: Setting::getValue('default_intro', 'We are glad to have you. Please complete the following details prior to check-in.'),
@@ -146,6 +148,8 @@ class BookingController extends Controller
             'checkinSteps'   => $checkinSteps,
             'parkingSteps'   => $parkingSteps,
             'checkoutSteps'  => $checkoutSteps,
+            'checkinTimeOptions' => $this->checkinTimeOptions(),
+            'checkoutTimeOptions' => $this->checkinTimeOptions(),
         ]);
     }
 
