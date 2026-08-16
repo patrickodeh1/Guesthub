@@ -43,6 +43,22 @@
                     <p class="max-w-md text-sm leading-6 text-slate-600">{{ $booking->access_blocked_reason }}</p>
                 </div>
             </div>
+        @elseif($state === 'identity' && $booking->isIdentityComplete() && $booking->photo_id_received && ($booking->needsIdApproval() || ! $booking->isBackgroundCheckComplete()))
+            <div data-poll-id-status="{{ route('guest.id-status', [$booking->booking_id, $booking->token]) }}" data-poll-fields="id_approved,background_check_complete"></div>
+            <div class="guest-portal-card">
+                <div class="guest-status-bar">
+                    <div>
+                        @if($siteLogo)
+                            <img src="{{ url('/img/'.$siteLogo) }}" alt="" class="h-8 max-w-[140px] w-auto object-contain">
+                        @endif
+                    </div>
+                </div>
+                <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="w-full block rounded-xl mt-4">
+                <div class="p-6 md:p-10 text-center">
+                    <h1 class="guest-status-title">That's all for now!</h1>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">Please be on the lookout for an email from Airbnb so that you can submit the required hold for incidentals. This hold is refunded after checkout.</p>
+                </div>
+            </div>
         @elseif($state === 'identity')
             <div class="guest-portal-card">
                 <div class="guest-status-bar">
@@ -56,9 +72,9 @@
                         Not checked in
                     </span>
                 </div>
-                {{-- Step indicator: big circled current step, dash-separated others (persistent across all steps, top of card) --}}
-                <div class="px-6 pt-5 step-indicator">
-                    <span class="step-num is-current" data-num="1" id="step-num-1">1</span>
+                {{-- Step indicator: big circled current step, dash-separated others. Hidden on welcome (step 0). --}}
+                <div class="px-6 pt-5 step-indicator hidden" id="step-indicator-wrapper">
+                    <span class="step-num" data-num="1" id="step-num-1">1</span>
                     <span class="step-dash">&mdash;</span>
                     <span class="step-num" data-num="2" id="step-num-2">2</span>
                     <span class="step-dash">&mdash;</span>
@@ -75,7 +91,7 @@
                     @csrf
 
                     {{-- ══════════════════ STEP 1 — Welcome + Booking details (read-only) ══════════════════ --}}
-                    <div class="idw-step" data-step="1">
+                    <div class="idw-step" data-step="0">
                         <div class="px-0 pb-2">
                             <h2 class="text-xl font-extrabold text-slate-950">Welcome, {{ $booking->guest_first_name ?: explode(' ', trim($booking->guest_name))[0] }}!</h2>
                         </div>
@@ -118,7 +134,7 @@
                         <div id="welcome-modal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
                             <div class="bg-white rounded-2xl max-w-md w-full max-h-[80vh] overflow-y-auto p-6">
                                 <div class="text-sm leading-6 text-slate-600">{!! $welcomeMessageClean !!}</div>
-                                <button type="button" class="guest-primary-btn guest-primary-btn-lg mt-6 w-full" data-next="2" onclick="document.getElementById('welcome-modal').classList.add('hidden')">
+                                <button type="button" class="guest-primary-btn guest-primary-btn-lg mt-6 w-full" data-next="1" onclick="document.getElementById('welcome-modal').classList.add('hidden')">
                                     I Agree
                                 </button>
                             </div>
@@ -126,7 +142,7 @@
                     </div>
 
                     {{-- ══════════════════ STEP 2 — Phone, Email, Parking, Check-in time ══════════════════ --}}
-                    <div class="idw-step hidden" data-step="2">
+                    <div class="idw-step hidden" data-step="1">
                         {{-- Name --}}
                         <div class="mt-5" id="name-display-block">
                             <p class="text-sm font-bold">Name</p>
@@ -194,15 +210,15 @@
                         {{-- Parking --}}
                         @if(is_null($booking->parking_needed))
                         <div class="mt-5">
-                            <p class="text-sm font-bold">Will you be parking a vehicle at the property?</p>
+                            <p class="text-sm font-bold">Will You Have A Vehicle?</p>
                             <div id="parking-question-block" class="mt-3 grid grid-cols-2 gap-3">
                                 <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 p-4 text-sm font-semibold hover:bg-slate-50">
                                     <input type="radio" name="parking_needed" value="1" class="accent-blue-600">
-                                    Yes, I am parking
+                                    Yes I Need Parking
                                 </label>
                                 <label class="flex cursor-pointer items-center gap-3 rounded-xl border border-slate-200 p-4 text-sm font-semibold hover:bg-slate-50">
                                     <input type="radio" name="parking_needed" value="0" class="accent-blue-600">
-                                    No, not parking
+                                    No I Will Not Need Parking
                                 </label>
                             </div>
                             <span id="parking-error" class="guest-field-error" style="display:none">Please let us know if you'll be parking.</span>
@@ -222,37 +238,40 @@
                             <span id="checkin-time-error" class="guest-field-error" style="display:@error('checkin_time_preference')block @else none @enderror">
                                 @error('checkin_time_preference'){{ $message }}@else Please select a check-in time. @enderror
                             </span>
-                            <p class="mt-1 text-xs text-slate-400">This helps us prepare for your arrival and unlocks your check-in details at the selected time.</p>
+                            <p class="mt-1 text-xs text-slate-400">Check in time is 10am, we will try our best to accommodate early check in if desired, and then update you if available.</p>
                         </div>
 
                         {{-- Check-out time --}}
                         <div class="mt-5">
-                            <label class="text-sm font-bold">What time are you planning to check out?
-                                <select name="checkout_time_preference" id="checkout_time_preference_select" class="guest-input mt-2">
-                                    <option value="" {{ old('checkout_time_preference', $booking->checkout_time_preference) ? '' : 'selected' }}>Select a time (optional)</option>
+                            <label class="text-sm font-bold">What time are you planning to check out? <span class="text-red-600">*</span>
+                                <select name="checkout_time_preference" id="checkout_time_preference_select" class="guest-input mt-2 @error('checkout_time_preference') border-red-400 @enderror" aria-describedby="checkout-time-error">
+                                    <option value="" disabled {{ old('checkout_time_preference', $booking->checkout_time_preference) ? '' : 'selected' }}>Select a time</option>
                                     @foreach($checkoutTimeOptions as $value => $label)
                                         <option value="{{ $value }}" {{ old('checkout_time_preference', $booking->checkout_time_preference) === $value ? 'selected' : '' }}>{{ $label }}</option>
                                     @endforeach
                                 </select>
                             </label>
-                            <p class="mt-1 text-xs text-slate-400">Let us know your planned check-out time so we can prepare accordingly.</p>
+                            <span id="checkout-time-error" class="guest-field-error" style="display:@error('checkout_time_preference')block @else none @enderror">
+                                @error('checkout_time_preference'){{ $message }}@else Please select a check-out time. @enderror
+                            </span>
+                            <p class="mt-1 text-xs text-slate-400">Check out time is 10am, we will try our best to accommodate late check out if desired, and then update you if available.</p>
                         </div>
 
                         <div class="mt-6 grid grid-cols-2 gap-3">
-                            <button type="button" class="guest-outline-btn w-full" data-prev="1">Back</button>
-                            <button type="button" id="step2-login-btn" class="guest-primary-btn w-full" data-login-next="3">Login</button>
+                            <button type="button" class="guest-outline-btn w-full" data-prev="0">Back</button>
+                            <button type="button" id="step1-next-btn" class="guest-primary-btn w-full">Next</button>
                         </div>
                     </div>
 
-                    {{-- ══════════════════ STEP 3 — ID capture ══════════════════ --}}
-                    <div class="idw-step hidden" data-step="3">
+                    {{-- ══════════════════ STEP 2 — ID capture ══════════════════ --}}
+                    <div class="idw-step hidden" data-step="2">
                         @if($booking->photo_id_received)
                         <div class="mt-5 text-center">
                             <div class="guest-big-check mx-auto">
                                 <x-icon name="check" class="h-8 w-8" />
                             </div>
                             <p class="mt-4 font-semibold text-slate-950">ID already received</p>
-                            <p class="mt-1 text-sm text-slate-500">No need to upload it again, you're all set to submit.</p>
+                            <p class="mt-1 text-sm text-slate-500">No need to upload it again, you're all set to continue.</p>
                         </div>
                         @else
                         <div class="mt-5" id="id-capture-section">
@@ -315,18 +334,22 @@
                         @endif
 
                         <div class="mt-6 grid grid-cols-2 gap-3">
-                            <button type="button" class="guest-outline-btn w-full" data-prev="2">Back</button>
-                            @if($booking->photo_id_received)
-                                @if($booking->isApproved())
-                                    <button type="submit" class="guest-primary-btn w-full">Continue</button>
-                                @else
-                                    <button type="button" class="guest-primary-btn w-full" disabled style="opacity:.5;cursor:not-allowed">Continue</button>
-                                @endif
-                            @else
-                                <button type="submit" class="guest-primary-btn w-full">Submit details</button>
-                            @endif
+                            <button type="button" class="guest-outline-btn w-full" data-prev="1">Back</button>
+                            <button type="button" class="guest-primary-btn w-full" id="id-capture-next-btn">Next</button>
                         </div>
                         <p class="mt-3 text-center text-xs leading-5 text-slate-500">Your information is used only for secure check-in verification.</p>
+                    </div>
+
+                    {{-- ══════════════════ STEP 3 — Smart lock / August Home ══════════════════ --}}
+                    <div class="idw-step hidden" data-step="3">
+                        <div class="mt-5 text-center">
+                            <p class="font-semibold text-slate-950">Smart Lock Access</p>
+                            <div class="mt-1 text-sm text-slate-500">{!! \App\Models\Setting::getValue('lock_message', "If you'd like quicker access to the unit, you can download the August Home app.") !!}</div>
+                        </div>
+                        <div class="mt-6 grid grid-cols-2 gap-3">
+                            <button type="button" class="guest-outline-btn w-full" data-prev="2">Back</button>
+                            <button type="button" id="smart-lock-continue-btn" class="guest-primary-btn w-full">Next</button>
+                        </div>
                     </div>
 
                 </form>
@@ -343,113 +366,90 @@
                         stepNums.forEach(function(el) {
                             el.classList.toggle("is-current", el.getAttribute("data-num") === String(n));
                         });
+                        var indicatorWrapper = document.getElementById("step-indicator-wrapper");
+                        if (indicatorWrapper) {
+                            indicatorWrapper.classList.toggle("hidden", String(n) === "0");
+                        }
+                        idwSaveState({ step: String(n) });
                     }
+                    window.goToStep = goToStep;
 
-                    @if($booking->needsIdApproval() || $booking->guest_authenticated_at)
-                        goToStep(3);
-                    @endif
+                    var IDW_STORAGE_KEY = "idw_form_state_{{ $booking->booking_id }}";
 
-                    var step2LoginBtn = document.getElementById("step2-login-btn");
-                    if (step2LoginBtn) {
-                        step2LoginBtn.addEventListener("click", function() {
-                            var step = step2LoginBtn.closest(".idw-step");
-                            if (step && step.querySelector("input:invalid")) {
-                                var invalid = step.querySelector("input:invalid");
-                                invalid.reportValidity();
-                                return;
-                            }
-                            var fieldChecks = [
-                                { name: "guest_name", label: "your name" },
-                                { name: "phone", label: "your phone number" },
-                                { name: "email", label: "your email address" }
-                            ];
-                            for (var fc = 0; fc < fieldChecks.length; fc++) {
-                                var visibleInputs = Array.prototype.filter.call(
-                                    step.querySelectorAll('input[name="' + fieldChecks[fc].name + '"]'),
-                                    function(el) { return el.offsetParent !== null; }
-                                );
-                                var activeInput = visibleInputs[0];
-                                if (activeInput && !activeInput.value.trim()) {
-                                    activeInput.classList.add("border-red-400");
-                                    activeInput.scrollIntoView({ behavior: "smooth", block: "center" });
-                                    activeInput.focus();
-                                    return;
-                                } else if (activeInput) {
-                                    activeInput.classList.remove("border-red-400");
-                                }
-                            }
-                            var parkingGroup = step.querySelectorAll('input[name="parking_needed"]');
-                            var parkingError = document.getElementById("parking-error");
-                            if (parkingGroup.length) {
-                                var parkingChecked = Array.prototype.some.call(parkingGroup, function(r) { return r.checked; });
-                                if (!parkingChecked) {
-                                    if (parkingError) parkingError.style.display = "block";
-                                    var parkingBlock = document.getElementById("parking-question-block");
-                                    if (parkingBlock) parkingBlock.scrollIntoView({ behavior: "smooth", block: "center" });
-                                    return;
-                                } else if (parkingError) {
-                                    parkingError.style.display = "none";
-                                }
-                            }
-                            var timeSelect = step.querySelector('#checkin_time_preference_select');
-                            if (timeSelect && !timeSelect.value) {
-                                timeSelect.classList.add("border-red-400");
-                                var timeError = document.getElementById("checkin-time-error");
-                                if (timeError) timeError.style.display = "block";
-                                timeSelect.scrollIntoView({ behavior: "smooth", block: "center" });
-                                timeSelect.focus();
-                                return;
-                            }
+                    function idwSaveState(partial) {
+                        try {
+                            var current = JSON.parse(sessionStorage.getItem(IDW_STORAGE_KEY) || "{}");
+                            var merged = Object.assign(current, partial);
+                            sessionStorage.setItem(IDW_STORAGE_KEY, JSON.stringify(merged));
+                        } catch (_) {}
+                    }
+                    window.idwSaveState = idwSaveState;
 
-                            var loginFd = new FormData();
-                            loginFd.append("_token", document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : "");
-                            ["guest_name", "phone", "email", "checkin_time_preference", "checkout_time_preference"].forEach(function(name) {
-                                var input = step.querySelector('[name="' + name + '"]');
-                                if (input) loginFd.append(name, input.value);
-                            });
-                            var parkingChecked2 = step.querySelector('input[name="parking_needed"]:checked');
-                            if (parkingChecked2) loginFd.append("parking_needed", parkingChecked2.value);
+                    function idwClearState() {
+                        try { sessionStorage.removeItem(IDW_STORAGE_KEY); } catch (_) {}
+                    }
+                    window.idwClearState = idwClearState;
 
-                            var origHtml = step2LoginBtn.innerHTML;
-                            step2LoginBtn.disabled = true;
-                            step2LoginBtn.innerHTML = '<span class="ui-spinner"></span><span>Logging in…</span>';
+                    function idwRestoreState() {
+                        var saved;
+                        try { saved = JSON.parse(sessionStorage.getItem(IDW_STORAGE_KEY) || "null"); } catch (_) { saved = null; }
+                        if (!saved) {
+                            @if($booking->needsIdApproval() || $booking->guest_authenticated_at)
+                                goToStep(2);
+                            @endif
+                            return false;
+                        }
 
-                            fetch("{{ route('guest.login', [$booking->booking_id, $booking->token]) }}", {
-                                method: "POST",
-                                body: loginFd,
-                                headers: { "Accept": "application/json" }
-                            })
-                                .then(function(r) {
-                                    if (r.status === 422) {
-                                        return r.json().then(function(body) {
-                                            step2LoginBtn.disabled = false;
-                                            step2LoginBtn.innerHTML = origHtml;
-                                            var messages = body.errors ? Object.values(body.errors).flat().join("\n") : "Please check the form and try again.";
-                                            alert(messages);
-                                        });
-                                    }
-                                    if (!r.ok) {
-                                        step2LoginBtn.disabled = false;
-                                        step2LoginBtn.innerHTML = origHtml;
-                                        alert("Something went wrong. Please try again.");
-                                        return;
-                                    }
-                                    step2LoginBtn.innerHTML = '<span>Logged in ✓</span>';
-                                    setTimeout(function() {
-                                        goToStep(3);
-                                        step2LoginBtn.disabled = false;
-                                        step2LoginBtn.innerHTML = origHtml;
-                                    }, 600);
-                                })
-                                .catch(function() {
-                                    step2LoginBtn.disabled = false;
-                                    step2LoginBtn.innerHTML = origHtml;
-                                    alert("Network error. Please try again.");
-                                });
+                        var fieldNames = ["guest_name", "phone", "email", "checkin_time_preference", "checkout_time_preference"];
+                        fieldNames.forEach(function(name) {
+                            if (saved[name] === undefined) return;
+                            var input = document.querySelector('[name="' + name + '"]');
+                            if (input) input.value = saved[name];
                         });
+                        if (saved.parking_needed !== undefined) {
+                            var radio = document.querySelector('input[name="parking_needed"][value="' + saved.parking_needed + '"]');
+                            if (radio) radio.checked = true;
+                        }
+                        var photoIdEl = document.getElementById("photo-id-data");
+                        if (saved.photo_id && photoIdEl) {
+                            photoIdEl.value = saved.photo_id;
+                            var frontImg = document.getElementById("front-preview");
+                            var uploadTrigger = document.getElementById("upload-zone-trigger");
+                            var uploadTriggerLabel = document.getElementById("upload-zone-trigger-front-label");
+                            var uploadTriggerBack = document.getElementById("upload-zone-trigger-back");
+                            var uploadTriggerBackLabel = document.getElementById("upload-zone-trigger-back-label");
+                            if (frontImg) {
+                                frontImg.src = saved.photo_id;
+                                document.getElementById("front-preview-block").classList.remove("hidden");
+                                if (uploadTrigger) uploadTrigger.classList.add("hidden");
+                                if (uploadTriggerLabel) uploadTriggerLabel.classList.add("hidden");
+                                if (saved.photo_id_back || isPassportGlobal()) {
+                                    if (uploadTriggerBack) uploadTriggerBack.classList.remove("hidden");
+                                    if (uploadTriggerBackLabel) uploadTriggerBackLabel.classList.remove("hidden");
+                                }
+                            }
+                        }
+                        var photoIdBackEl = document.getElementById("photo-id-back-data");
+                        if (saved.photo_id_back && photoIdBackEl) {
+                            photoIdBackEl.value = saved.photo_id_back;
+                            var backImg = document.getElementById("back-preview");
+                            if (backImg) {
+                                backImg.src = saved.photo_id_back;
+                                document.getElementById("back-preview-block").classList.remove("hidden");
+                            }
+                        }
+                        if (saved.step) {
+                            goToStep(saved.step);
+                        }
+                        return true;
                     }
 
-                    document.querySelectorAll("[data-next]").forEach(function(btn) {
+                    function isPassportGlobal() {
+                        return document.getElementById("upload-zone-trigger") &&
+                            document.getElementById("upload-zone-trigger").classList.contains("is-passport");
+                    }
+
+                    document.querySelectorAll("[data-next]:not(#id-capture-next-btn)").forEach(function(btn) {
                         btn.addEventListener("click", function() {
                             var step = btn.closest(".idw-step");
                             if (step && step.querySelector("input:invalid")) {
@@ -500,6 +500,15 @@
                                     timeSelect.focus();
                                     return;
                                 }
+                                var checkoutSelect = step.querySelector('#checkout_time_preference_select');
+                                if (checkoutSelect && !checkoutSelect.value) {
+                                    checkoutSelect.classList.add("border-red-400");
+                                    var checkoutError = document.getElementById("checkout-time-error");
+                                    if (checkoutError) checkoutError.style.display = "block";
+                                    checkoutSelect.scrollIntoView({ behavior: "smooth", block: "center" });
+                                    checkoutSelect.focus();
+                                    return;
+                                }
                             }
                             goToStep(btn.getAttribute("data-next"));
                         });
@@ -533,6 +542,29 @@
                             document.getElementById("email-input-block").classList.remove("hidden");
                         });
                     }
+
+                    ["guest_name", "phone", "email", "checkin_time_preference", "checkout_time_preference"].forEach(function(name) {
+                        var input = document.querySelector('[name="' + name + '"]');
+                        if (input) {
+                            input.addEventListener("input", function() {
+                                var partial = {};
+                                partial[name] = input.value;
+                                idwSaveState(partial);
+                            });
+                            input.addEventListener("change", function() {
+                                var partial = {};
+                                partial[name] = input.value;
+                                idwSaveState(partial);
+                            });
+                        }
+                    });
+                    document.querySelectorAll('input[name="parking_needed"]').forEach(function(radio) {
+                        radio.addEventListener("change", function() {
+                            idwSaveState({ parking_needed: radio.value });
+                        });
+                    });
+
+                    try { idwRestoreState(); } catch (e) { console.error("idwRestoreState failed:", e); }
                 })();
 
                 var currentSide = "front";
@@ -730,6 +762,7 @@
                                 var ok = checkBlur(img, document.getElementById("front-blur-warning"));
                                 if (ok) {
                                     document.getElementById("photo-id-data").value = dataUrl;
+                                    idwSaveState({ photo_id: dataUrl });
                                     if (!isPassport) {
                                         document.getElementById("upload-zone-trigger-back").classList.remove("hidden");
                                         document.getElementById("upload-zone-trigger-back-label").classList.remove("hidden");
@@ -742,7 +775,7 @@
                             document.getElementById("back-preview-block").classList.remove("hidden");
                             img.onload = function() {
                                 var ok = checkBlur(img, document.getElementById("back-blur-warning"));
-                                if (ok) { document.getElementById("photo-id-back-data").value = dataUrl; }
+                                if (ok) { document.getElementById("photo-id-back-data").value = dataUrl; idwSaveState({ photo_id_back: dataUrl }); }
                             };
                         }
                     });
@@ -762,9 +795,115 @@
                     });
                 }
 
-                document.getElementById("guest-booking-form").addEventListener("submit", function(e) {
-                    e.preventDefault();
+                function withButtonBusy(btn, busyLabel, fn) {
+                    var origHtml = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.innerHTML = '<span class="ui-spinner"></span><span>' + busyLabel + '</span>';
+                    function restore() {
+                        btn.disabled = false;
+                        btn.innerHTML = origHtml;
+                    }
+                    fn(restore);
+                }
 
+                // ── Step 1 "Next": validate contact fields, AJAX-save via guest.login, then advance ──
+                document.getElementById("step1-next-btn").addEventListener("click", function() {
+                    var btn = this;
+                    var step = btn.closest(".idw-step");
+                    if (step && step.querySelector("input:invalid")) {
+                        var invalid = step.querySelector("input:invalid");
+                        invalid.reportValidity();
+                        return;
+                    }
+                    var fieldChecks = ["guest_name", "phone", "email"];
+                    for (var fc = 0; fc < fieldChecks.length; fc++) {
+                        var visibleInputs = Array.prototype.filter.call(
+                            step.querySelectorAll('input[name="' + fieldChecks[fc] + '"]'),
+                            function(el) { return el.offsetParent !== null; }
+                        );
+                        var activeInput = visibleInputs[0];
+                        if (activeInput && !activeInput.value.trim()) {
+                            activeInput.classList.add("border-red-400");
+                            activeInput.scrollIntoView({ behavior: "smooth", block: "center" });
+                            activeInput.focus();
+                            return;
+                        } else if (activeInput) {
+                            activeInput.classList.remove("border-red-400");
+                        }
+                    }
+                    var parkingGroup = step.querySelectorAll('input[name="parking_needed"]');
+                    var parkingError = document.getElementById("parking-error");
+                    if (parkingGroup.length) {
+                        var parkingChecked = Array.prototype.some.call(parkingGroup, function(r) { return r.checked; });
+                        if (!parkingChecked) {
+                            if (parkingError) parkingError.style.display = "block";
+                            var parkingBlock = document.getElementById("parking-question-block");
+                            if (parkingBlock) parkingBlock.scrollIntoView({ behavior: "smooth", block: "center" });
+                            return;
+                        } else if (parkingError) {
+                            parkingError.style.display = "none";
+                        }
+                    }
+                    var timeSelect = step.querySelector('#checkin_time_preference_select');
+                    if (timeSelect && !timeSelect.value) {
+                        timeSelect.classList.add("border-red-400");
+                        var timeError = document.getElementById("checkin-time-error");
+                        if (timeError) timeError.style.display = "block";
+                        timeSelect.scrollIntoView({ behavior: "smooth", block: "center" });
+                        timeSelect.focus();
+                        return;
+                    }
+                    var checkoutSelect = step.querySelector('#checkout_time_preference_select');
+                    if (checkoutSelect && !checkoutSelect.value) {
+                        checkoutSelect.classList.add("border-red-400");
+                        var checkoutError = document.getElementById("checkout-time-error");
+                        if (checkoutError) checkoutError.style.display = "block";
+                        checkoutSelect.scrollIntoView({ behavior: "smooth", block: "center" });
+                        checkoutSelect.focus();
+                        return;
+                    }
+
+                    var loginFd = new FormData();
+                    loginFd.append("_token", document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : "");
+                    ["guest_name", "phone", "email", "checkin_time_preference", "checkout_time_preference"].forEach(function(name) {
+                        var input = step.querySelector('[name="' + name + '"]');
+                        if (input) loginFd.append(name, input.value);
+                    });
+                    var parkingChecked2 = step.querySelector('input[name="parking_needed"]:checked');
+                    if (parkingChecked2) loginFd.append("parking_needed", parkingChecked2.value);
+
+                    withButtonBusy(btn, "Saving…", function(restore) {
+                        fetch("{{ route('guest.login', [$booking->booking_id, $booking->token]) }}", {
+                            method: "POST",
+                            body: loginFd,
+                            headers: { "Accept": "application/json" }
+                        })
+                            .then(function(r) {
+                                if (r.status === 422) {
+                                    return r.json().then(function(body) {
+                                        restore();
+                                        var messages = body.errors ? Object.values(body.errors).flat().join("\n") : "Please check the form and try again.";
+                                        alert(messages);
+                                    });
+                                }
+                                if (!r.ok) {
+                                    restore();
+                                    alert("Something went wrong. Please try again.");
+                                    return;
+                                }
+                                restore();
+                                goToStep(2);
+                            })
+                            .catch(function() {
+                                restore();
+                                alert("Network error. Please try again.");
+                            });
+                    });
+                });
+
+                // ── Step 2 "Next": validate + AJAX-submit photos via submitIdentity, then advance to Step 3 ──
+                document.getElementById("id-capture-next-btn").addEventListener("click", function() {
+                    var btn = this;
                     if (photoIdRequired) {
                         var front = document.getElementById("photo-id-data").value;
                         var back = document.getElementById("photo-id-back-data").value;
@@ -775,18 +914,6 @@
                         if (!frontBlur.classList.contains("hidden")) { alert("Front ID photo is blurry. Please retake."); return; }
                         if (!isPassport && !backBlur.classList.contains("hidden")) { alert("Back ID photo is blurry. Please retake."); return; }
                     }
-                    var checkinTimeSelect = document.getElementById("checkin_time_preference_select");
-                    var checkinTimeError = document.getElementById("checkin-time-error");
-                    if (checkinTimeSelect && !checkinTimeSelect.value) {
-                        checkinTimeSelect.classList.add("border-red-400");
-                        if (checkinTimeError) checkinTimeError.style.display = "block";
-                        checkinTimeSelect.scrollIntoView({ behavior: "smooth", block: "center" });
-                        checkinTimeSelect.focus();
-                        return;
-                    } else if (checkinTimeSelect) {
-                        checkinTimeSelect.classList.remove("border-red-400");
-                        if (checkinTimeError) checkinTimeError.style.display = "none";
-                    }
 
                     function b64toBlob(b64) {
                         var arr = b64.split(","), mime = arr[0].match(/:(.*?);/)[1];
@@ -795,7 +922,8 @@
                         return new Blob([u8], {type: mime});
                     }
                     var form = document.getElementById("guest-booking-form");
-                    var fd = new FormData(form);
+                    var fd = new FormData();
+                    fd.append("_token", document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : "");
                     if (photoIdRequired) {
                         fd.set("photo_id", b64toBlob(document.getElementById("photo-id-data").value), "front.jpg");
                         if (!isPassport) {
@@ -803,47 +931,43 @@
                         }
                     }
 
-                    var submitBtn = form.querySelector('[type="submit"]');
-                    var submitBtnOrigHtml = submitBtn ? submitBtn.innerHTML : null;
-                    function resetSubmitBtn() {
-                        if (submitBtn) {
-                            submitBtn.disabled = false;
-                            submitBtn.innerHTML = submitBtnOrigHtml;
-                        }
-                    }
-                    if (submitBtn) {
-                        submitBtn.disabled = true;
-                        submitBtn.innerHTML = '<span class="ui-spinner"></span><span>Submitting…</span>';
-                    }
-
-                    fetch(form.action, {
-                        method: "POST",
-                        body: fd,
-                        headers: { "Accept": "application/json" }
-                    })
-                        .then(function(r) {
-                            if (r.status === 422) {
-                                return r.json().then(function(body) {
-                                    resetSubmitBtn();
-                                    var messages = body.errors ? Object.values(body.errors).flat().join("\n") : "Please check the form and try again.";
-                                    alert(messages);
-                                });
-                            }
-                            if (r.ok || r.redirected) {
-                                window.location = r.url;
-                            } else {
-                                resetSubmitBtn();
-                                return r.text().then(function(t) {
-                                    console.error("Server error:", t);
-                                    alert("Submission failed (server error). Please try again.");
-                                });
-                            }
+                    withButtonBusy(btn, "Uploading…", function(restore) {
+                        fetch(form.action, {
+                            method: "POST",
+                            body: fd,
+                            headers: { "Accept": "application/json" }
                         })
-                        .catch(function(e) {
-                            resetSubmitBtn();
-                            console.error(e);
-                            alert("Submission failed. Please try again.");
-                        });
+                            .then(function(r) {
+                                if (r.status === 422) {
+                                    return r.json().then(function(body) {
+                                        restore();
+                                        var messages = body.errors ? Object.values(body.errors).flat().join("\n") : "Please check the form and try again.";
+                                        alert(messages);
+                                    });
+                                }
+                                if (!r.ok && !r.redirected) {
+                                    restore();
+                                    return r.text().then(function(t) {
+                                        console.error("Server error:", t);
+                                        alert("Upload failed (server error). Please try again.");
+                                    });
+                                }
+                                restore();
+                                idwClearState();
+                                goToStep(3);
+                            })
+                            .catch(function(e) {
+                                restore();
+                                console.error(e);
+                                alert("Upload failed. Please try again.");
+                            });
+                    });
+                });
+
+                // ── Step 3 "Continue": no network call — data already saved, just reload to reflect pending-approval state ──
+                document.getElementById("smart-lock-continue-btn").addEventListener("click", function() {
+                    idwClearState();
+                    window.location.reload();
                 });
                 </script>
             </div>
@@ -866,7 +990,6 @@
                         <x-icon name="check" class="h-8 w-8" />
                     </div>
                     <h2 class="mt-4 text-xl font-extrabold text-slate-950">Approved for check in!</h2>
-                    <p class="mt-2 text-sm leading-6 text-slate-600">Please check back here about an hour before your arrival time for check in and parking instructions.</p>
                 </div>
                 <div class="px-6 pb-6">
                     <div class="guest-stay-grid">
@@ -893,8 +1016,9 @@
                             <x-icon name="check" class="h-5 w-5" />
                         </span>
                         <div>
-                            <p class="guest-detail-banner-title">Check-In Details Available</p>
+                            <p class="guest-detail-banner-title">Check In Details Available</p>
                             <p class="guest-detail-banner-sub">{{ $booking->check_in_date->format('M d, Y') }} at {{ $booking->effectiveCheckinTimeFormatted() }}</p>
+                            <p class="guest-detail-banner-sub mt-1">Please come back then for property address and check in details.</p>
                         </div>
                     </div>
 
@@ -916,12 +1040,7 @@
                     </span>
                 </div>
             <div class="p-6 md:p-10">
-                <h1 class="guest-status-title">Verify your location</h1>
-                @if($booking->canViewAddress())
-                    <p class="mt-2 text-sm leading-6 text-slate-600">It's go time! You can navigate to the property and on arrival you will be able to check in.</p>
-                @else
-                    <p class="mt-2 text-sm leading-6 text-slate-600">Approved for check in! Please check back here about an hour before your arrival time for check in and parking instructions.</p>
-                @endif
+                <h1 class="guest-status-title">We Can't Wait To See You!</h1>
                 <div class="guest-stay-grid">
                     <div class="guest-stay-tile">
                         <div class="guest-stay-tile-icon">
@@ -964,27 +1083,56 @@
                             <x-icon name="check" class="h-5 w-5" />
                         </span>
                         <div>
-                            <p class="guest-detail-banner-title">Check-In Details Available</p>
+                            <p class="guest-detail-banner-title">Check In Details Available</p>
                             <p class="guest-detail-banner-sub">{{ $booking->check_in_date->format('M d, Y') }} at {{ $booking->addressAvailableAtFormatted() }}</p>
+                            <p class="guest-detail-banner-sub mt-1">Please come back then for property address and check in details.</p>
                         </div>
                     </div>
                 @endif
-                @if($booking->canViewAddress())
-                <div class="mx-auto mt-8 max-w-md text-center text-sm font-semibold leading-6">{!! $gpsVerifyMessage !!}</div>
-                <div class="mx-auto mt-8 grid h-28 w-28 place-items-center rounded-full bg-blue-50 text-[#082b49]">
-                    <x-icon name="map-pin" class="h-12 w-12" />
-                </div>
-                <p class="mt-8 text-center text-sm font-semibold">Getting your location...</p>
-                <p class="mx-auto mt-8 max-w-md text-center text-sm leading-6 text-slate-600">This helps us ensure a smooth and secure check-in process.</p>
-                <div id="gps-ajax-message" class="hidden"></div>
-                <div class="mx-auto mt-10 grid max-w-md gap-3">
-                    <button id="gps-ajax-verify-btn" type="button" data-url="{{ route('guest.gps', [$booking->booking_id, $booking->token]) }}" data-csrf="{{ csrf_token() }}" class="guest-primary-btn is-go w-full">Verify Location</button>
-                    <a href="{{ route('guest.show', [$booking->booking_id, $booking->token]) }}" class="guest-outline-btn w-full">Cancel</a>
-                </div>
-                @endif
             </div>
             </div>
+
+            @if($booking->canViewAddress())
+            <div class="guest-portal-card mt-4">
+                <div class="p-6 md:p-8 text-center text-xl text-slate-950">{!! $gpsVerifyMessage !!}</div>
+            </div>
+
+            <div class="guest-portal-card mt-4">
+                <div class="p-6 md:p-8">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <p class="text-base font-bold text-slate-950">Navigate To:</p>
+                            <p class="mt-2 text-sm leading-6 text-slate-600">
+                                {{ $property->address }}<br>
+                                {{ $property->city }}@if($property->state), {{ $property->state }}@endif {{ $property->zip }}<br>
+                                {{ $property->contact_phone ?: \App\Models\Setting::getValue('contact_phone') }}
+                            </p>
+                        </div>
+                        @if($property->latitude && $property->longitude)
+                            <a href="https://www.google.com/maps/dir/?api=1&destination={{ $property->latitude }},{{ $property->longitude }}" target="_blank" class="shrink-0 flex flex-col items-center gap-1 text-xs font-semibold text-blue-600">
+                                <img src="{{ asset('img/google-maps-icon.png') }}" alt="Google Maps" class="h-9 w-9">
+                                Directions
+                            </a>
+                        @elseif($property->map_directions_url)
+                            <a href="{{ $property->map_directions_url }}" target="_blank" class="shrink-0 flex flex-col items-center gap-1 text-xs font-semibold text-blue-600">
+                                <img src="{{ asset('img/google-maps-icon.png') }}" alt="Google Maps" class="h-9 w-9">
+                                Directions
+                            </a>
+                        @endif
+                    </div>
+                </div>
+            </div>
+
+            <div class="guest-portal-card mt-4">
+                <div class="p-6 md:p-8 text-center">
+                    <div id="gps-ajax-message" class="hidden"></div>
+                    <button id="gps-ajax-verify-btn" type="button" data-url="{{ route('guest.gps', [$booking->booking_id, $booking->token]) }}" data-csrf="{{ csrf_token() }}" class="guest-primary-btn is-go w-full">I Have Arrived</button>
+                    <p class="mt-3 text-xs leading-5 text-slate-500">Please make sure your location is allowed. We will verify on the next page.</p>
+                </div>
+            </div>
+            @endif
         @elseif($state === 'awaiting_deposit')
+            <div data-poll-id-status="{{ route('guest.id-status', [$booking->booking_id, $booking->token]) }}" data-poll-fields="deposit_verified"></div>
             <div class="guest-portal-card">
                 <div class="guest-status-bar">
                     <div>
@@ -1004,7 +1152,7 @@
                 <div class="p-6 md:p-10 text-center">
                     @if($booking->status === 'pre_checkin_complete')
                         <h2 class="text-xl font-extrabold text-slate-950">Pre-check in completed!</h2>
-                        <p class="mt-3 text-sm leading-6 text-slate-600">Last step: Please submit your required incidentals hold payment on the booking platform. This hold is refundable after check out.</p>
+                        <p class="mt-3 text-sm leading-6 text-slate-600">Please submit your required incidentals hold payment on the booking platform. This hold is refundable after check out.</p>
                     @else
                         <h2 class="text-xl font-extrabold text-slate-950">Pending incidentals hold payment</h2>
                         <p class="mt-3 text-sm leading-6 text-slate-600">If you have already submitted the payment, please send us a message so that we can expedite this for you. It usually doesn't take that long.</p>
@@ -1255,13 +1403,14 @@
                     <x-step-wizard :steps="$checkinSteps" type="checkin" next-section="guest-guide-section" :booking-id="$booking->booking_id" :token="$booking->token" />
                 </div>
             @endif
-            <div class="guest-guide-open" id="guest-guide-section" {{ (count($checkinSteps) > 0 || count($parkingSteps) > 0) && $booking->status !== 'checked_in' ? 'style=display:none' : '' }}>
-                <div class="guest-status-bar">
-                    <div>
+            <div class="guest-guide-open guest-portal-card" id="guest-guide-section" {{ (count($checkinSteps) > 0 || count($parkingSteps) > 0) && $booking->status !== 'checked_in' ? 'style=display:none' : '' }}>
+                <div class="guest-status-bar guest-status-bar--with-weather">
+                    <div class="flex items-center gap-4">
                         @if($siteLogo)
                             <img src="{{ url('/img/'.$siteLogo) }}" alt="" class="h-8 max-w-[140px] w-auto object-contain">
                         @endif
                     </div>
+                    <x-weather-badge :property="$property" class="guest-weather-badge--inline" />
                     <span class="guest-status-pill is-checked">
                         <x-icon name="check" class="h-4 w-4" />
                         Checked in
@@ -1272,7 +1421,6 @@
                     <h1 class="guest-status-title">Welcome Guide</h1>
                     <p class="mt-2 text-sm leading-6 text-slate-600">Everything you need during your stay is ready below.</p>
                 </div>
-                <x-weather-badge :property="$property" class="guest-weather-card" />
                 <div class="mx-auto max-w-2xl text-center">
                     <p class="text-sm leading-6 text-slate-500">Explore information about your stay.</p>
                 </div>

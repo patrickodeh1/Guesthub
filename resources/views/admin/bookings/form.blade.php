@@ -40,6 +40,8 @@
                 <span>Photo ID Already Received</span>
             </label>
             <p class="field-help">If enabled, the guest will not be asked to upload a photo ID during check-in.</p>
+            <label class="field-label mt-5">Check-in Time<input type="time" name="checkin_time_preference" value="{{ old('checkin_time_preference', $booking->checkin_time_preference) }}" class="input"></label>
+            <label class="field-label mt-5">Check-out Time<input type="time" name="checkout_time_preference" value="{{ old('checkout_time_preference', $booking->checkout_time_preference) }}" class="input"></label>
             <label class="field-label mt-5">Status<select name="status" class="input">@foreach(['pending','pre_checkin_complete','awaiting_deposit','guest_approved','currently_hosting','checked_out'] as $status)<option value="{{ $status }}" @selected(old('status', $booking->status ?: 'pending')===$status)>{{ str($status)->replace('_',' ')->title() }}</option>@endforeach</select></label>
             <button class="btn-primary mt-6 w-full">Save guest</button>
             @if($booking->exists)

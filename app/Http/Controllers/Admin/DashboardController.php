@@ -93,6 +93,8 @@ class DashboardController extends Controller
 
     public function __invoke()
     {
+        Booking::archiveOverdue();
+
         $today = now()->toDateString();
         $activeStatuses = ['pre_checkin_complete', 'awaiting_deposit', 'guest_approved', 'currently_hosting'];
 

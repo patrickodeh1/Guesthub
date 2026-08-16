@@ -112,6 +112,19 @@ class PropertyController extends Controller
         return response()->json(['ok' => true, 'checkout_time' => $property->checkout_time]);
     }
 
+    public function updateLockboxCode(Request $request, Property $property)
+    {
+        $data = $request->validate([
+            'lockbox_code' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $property->update(['lockbox_code' => $data['lockbox_code'] ?? null]);
+
+        ActivityLog::record('property_updated', "{$property->name} lockbox code was updated.", 'edit', $property);
+
+        return back()->with('success', 'Lockbox code updated.');
+    }
+
     public function destroy(Property $property)
     {
         $property->delete();

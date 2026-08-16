@@ -22,7 +22,7 @@
                 <label class="field-label">State<input name="state" id="state_input" value="{{ old('state', $property->state) }}" placeholder="ST" class="input"></label>
                 <label class="field-label">ZIP<input name="zip" id="zip_input" value="{{ old('zip', $property->zip) }}" placeholder="ZIP Code" class="input"></label>
                 <label class="field-label">Phone<input name="contact_phone" value="{{ old('contact_phone', $property->contact_phone) }}" placeholder="+1 555 123 4567" class="input"></label>
-                
+
             </div>
         </section>
 
@@ -101,6 +101,23 @@
 
     @if($property->exists)
     {{-- ══════════════════ SMART LOCKS ══════════════════ --}}
+    <div class="mb-3 mt-10 flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-slate-950">Lockbox</h2>
+    </div>
+    <div class="card card-pad mb-10">
+        <form method="post" action="{{ route('admin.properties.lockbox-code', $property) }}">
+            @csrf
+            <label class="field-label">
+                Lockbox Code
+                <div class="flex items-center gap-3">
+                    <input name="lockbox_code" value="{{ old('lockbox_code', $property->lockbox_code) }}" placeholder="4521" class="input flex-1">
+                    <button class="btn-primary">Save</button>
+                </div>
+                <span class="field-help">Manually-set code for a physical key safe/lockbox.</span>
+            </label>
+        </form>
+    </div>
+
     <div class="mb-3 mt-10 flex items-center justify-between">
         <h2 class="text-lg font-semibold text-slate-950">Smart Locks</h2>
         <span class="text-sm text-slate-500">{{ $property->locks->count() }} lock{{ $property->locks->count() === 1 ? '' : 's' }}</span>

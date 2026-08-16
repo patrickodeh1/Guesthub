@@ -18,8 +18,12 @@ class BookingController extends Controller
 
     public function index(Request $request)
     {
+        Booking::archiveOverdue();
+
         $showArchived = $request->boolean('archived');
-        $bookings = Booking::with('property')
+        $hasSearch = filled($request->search);
+
+        $baseQuery = fn () => Booking::with('property')
             ->when($request->search, fn ($query, $search) => $query->where(fn ($inner) => $inner
                 ->where('guest_name', 'like', "%{$search}%")
                 ->orWhere('booking_id', 'like', "%{$search}%")
@@ -29,8 +33,19 @@ class BookingController extends Controller
                 ? $query->where('status', 'guest_approved')->whereDate('check_in_date', '<=', today())
                 : $query->where('status', $status))
             ->when($request->property_id, fn ($query, $pid) => $query->where('property_id', $pid))
-            ->when($showArchived, fn ($query) => $query->archived(), fn ($query) => $query->notArchived())
-            ->latest()
+            ->when(! $hasSearch, fn ($query) => $showArchived ? $query->archived() : $query->notArchived());
+
+        $currentlyHosting = ($baseQuery)()
+            ->where(fn ($q) => $q->where('manually_checked_in', true)->orWhere('status', 'currently_hosting'))
+            ->whereNull('checked_out_at')
+            ->orderBy('check_in_date')
+            ->get();
+
+        $currentlyHostingIds = $currentlyHosting->pluck('id');
+
+        $bookings = ($baseQuery)()
+            ->when($currentlyHostingIds->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $currentlyHostingIds))
+            ->orderBy('check_in_date')
             ->paginate(15)
             ->withQueryString();
 
@@ -46,7 +61,7 @@ class BookingController extends Controller
                 ->count(),
         ];
 
-        return view('admin.bookings.index', compact('bookings', 'properties', 'showArchived', 'stats'));
+        return view('admin.bookings.index', compact('bookings', 'currentlyHosting', 'properties', 'showArchived', 'stats'));
     }
 
     public function create()
@@ -144,12 +159,12 @@ class BookingController extends Controller
             'gpsRadius'      => (int) Setting::getValue('gps_radius_meters', 150),
             'previewMode'    => true,
             'welcomeMessage' => $booking->welcome_message ?: Setting::getValue('default_intro', 'We are glad to have you. Please complete the following details prior to check-in.'),
-            'gpsVerifyMessage' => Setting::getValue('gps_verify_message', 'We need to verify that you are at the property location.'),
+            'gpsVerifyMessage' => Setting::getValue('gps_verify_message', "It's Go Time!"),
             'checkinSteps'   => $checkinSteps,
             'parkingSteps'   => $parkingSteps,
             'checkoutSteps'  => $checkoutSteps,
             'checkinTimeOptions' => $this->checkinTimeOptions(),
-            'checkoutTimeOptions' => $this->checkinTimeOptions(),
+            'checkoutTimeOptions' => $this->checkoutTimeOptions(),
         ]);
     }
 
@@ -532,6 +547,8 @@ class BookingController extends Controller
             'parking_needed' => ['nullable', 'boolean'],
             'early_checkin'  => ['nullable', 'boolean'],
             'photo_id_received' => ['nullable', 'boolean'],
+            'checkin_time_preference'  => ['nullable', 'date_format:H:i'],
+            'checkout_time_preference' => ['nullable', 'date_format:H:i'],
             'status'         => ['required', 'in:pending,pre_checkin_complete,awaiting_deposit,guest_approved,currently_hosting,checked_out'],
             'notes'          => ['nullable', 'string'],
         ]);

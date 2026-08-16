@@ -95,14 +95,14 @@ class Booking extends Model
         $out = $this->check_out_date;
 
         if ($in->format('Y-m') === $out->format('Y-m')) {
-            return $in->format('M j').' through the '.$out->format('jS');
+            return $in->format('M j').'-'.$out->format('j');
         }
 
         if ($in->format('Y') === $out->format('Y')) {
-            return $in->format('M j').' through '.$out->format('M j');
+            return $in->format('M j').' - '.$out->format('M j');
         }
 
-        return $in->format('M j, Y').' through '.$out->format('M j, Y');
+        return $in->format('M j, Y').' - '.$out->format('M j, Y');
     }
 
     public function instructionsCompleted(): bool
@@ -231,6 +231,26 @@ class Booking extends Model
         [$hour, $minute] = array_map('intval', explode(':', $this->effectiveCheckoutTime()));
 
         return $now->hour > $hour || ($now->hour === $hour && $now->minute >= $minute);
+    }
+
+    public static function archiveOverdue(): int
+    {
+        $count = 0;
+        static::notArchived()->chunkById(100, function ($bookings) use (&$count) {
+            foreach ($bookings as $booking) {
+                if (! $booking->isPastCheckoutTime()) {
+                    continue;
+                }
+                $updates = ['archived_at' => now()];
+                if ($booking->status !== 'checked_out') {
+                    $updates['status'] = 'checked_out';
+                    $updates['checked_out_at'] = $booking->checked_out_at ?? now();
+                }
+                $booking->update($updates);
+                $count++;
+            }
+        });
+        return $count;
     }
 
     public function publicUrl(): string

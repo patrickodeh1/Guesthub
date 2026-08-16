@@ -46,6 +46,7 @@ class InstructionStep extends Model
                 '[[check_out_date]]',
                 '[[property_name]]',
                 '[[property_address]]',
+                '[[lockbox_code]]',
             ],
             [
                 $booking->guest_name,
@@ -57,6 +58,7 @@ class InstructionStep extends Model
                 $booking->check_out_date->format('M d, Y'),
                 $booking->property->name,
                 $booking->property->address,
+                $booking->property->lockbox_code ?? '',
             ],
             $this->content
         );

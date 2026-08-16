@@ -667,6 +667,23 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }, 5000);
     }
+    const idPollTarget = document.querySelector('[data-poll-id-status]');
+    if (idPollTarget) {
+        const idStatusUrl = idPollTarget.dataset.pollIdStatus;
+        const watchFields = (idPollTarget.dataset.pollFields || 'id_approved,background_check_complete,deposit_verified').split(',');
+        const idPollInterval = setInterval(async () => {
+            try {
+                const res = await fetch(idStatusUrl, { headers: { Accept: 'application/json' } });
+                const data = await res.json();
+                if (watchFields.every((field) => data[field])) {
+                    clearInterval(idPollInterval);
+                    location.reload();
+                }
+            } catch (_) {
+                // network hiccup — next tick will retry
+            }
+        }, 5000);
+    }
 
     const scrollTarget = document.querySelector('[data-scroll-to]');
     if (scrollTarget) {

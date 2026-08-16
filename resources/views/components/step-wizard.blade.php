@@ -1,15 +1,21 @@
 @props(['steps', 'type' => 'checkin', 'nextSection' => 'guest-guide-section', 'bookingId' => 'PREVIEW', 'token' => 'preview'])
+@php $siteLogo = \App\Models\Setting::getValue('site_logo'); @endphp
 @php $total = count($steps); @endphp
 @if($total > 0)
 <div id="step-wizard-{{ $type }}" class="guest-portal-card guest-portal-card--wizard">
     <div class="guest-status-bar">
         <div>
-            <p class="guest-status-kicker">{{ $type === 'checkout' ? 'Check-out' : ($type === 'parking' ? 'Parking' : 'Check-in') }}</p>
-            <h1 class="guest-status-title" id="wizard-title-{{ $type }}">{{ $steps[0]['title'] }}</h1>
+            @if($siteLogo)
+                <img src="{{ url('/img/'.$siteLogo) }}" alt="" class="h-8 max-w-[140px] w-auto object-contain">
+            @endif
         </div>
         <span class="guest-status-pill is-checked">
             <span id="wizard-counter-{{ $type }}" class="text-xs font-bold">1 / {{ $total }}</span>
         </span>
+    </div>
+    <div class="px-6 pt-4">
+        <p class="guest-status-kicker">{{ $type === 'checkout' ? 'Check-out' : ($type === 'parking' ? 'Parking' : 'Check-in') }}</p>
+        <h1 class="guest-status-title" id="wizard-title-{{ $type }}">{{ $steps[0]['title'] }}</h1>
     </div>
 
     <div class="wizard-body">
@@ -17,16 +23,8 @@
             @foreach($steps as $i => $step)
             @php $allImages = array_values(array_filter(array_merge([$step['image'] ?? null], $step['images'] ?? []))); @endphp
             <div class="wizard-step" id="wizard-{{ $type }}-step-{{ $i }}" @if($i > 0) style="display:none" @endif>
-                <div class="wizard-text-card mb-4">
-                    <div class="prose-welcome text-base text-slate-700">{!! $step['content'] !!}</div>
-                    @if(($step['action'] ?? 'content') === 'door_lock' && ($step['lock_id'] ?? null))
-                        <x-lock-card class="mt-5" :booking-id="$bookingId" :token="$token" :lock-id="$step['lock_id']" :lock-status="$step['lock_status'] ?? null" />
-                    @elseif(($step['action'] ?? 'content') === 'door_lock')
-                        <p class="mt-5 text-sm font-bold text-slate-500 text-center">No lock is configured for this property yet.</p>
-                    @endif
-                </div>
                 @if(count($allImages))
-                    <div class="wizard-image-card">
+                    <div class="wizard-image-card mb-4">
                         <img id="wizard-main-img-{{ $type }}-{{ $i }}" src="{{ $allImages[0] }}" alt="{{ $step['title'] }}" class="w-full rounded-xl shadow-sm">
                         @if(count($allImages) > 1)
                             <div class="mt-3 flex gap-2 overflow-x-auto pb-1">
@@ -37,6 +35,14 @@
                         @endif
                     </div>
                 @endif
+                <div class="wizard-text-card">
+                    <div class="prose-welcome text-base text-slate-700">{!! $step['content'] !!}</div>
+                    @if(($step['action'] ?? 'content') === 'door_lock' && ($step['lock_id'] ?? null))
+                        <x-lock-card class="mt-5" :booking-id="$bookingId" :token="$token" :lock-id="$step['lock_id']" :lock-status="$step['lock_status'] ?? null" />
+                    @elseif(($step['action'] ?? 'content') === 'door_lock')
+                        <p class="mt-5 text-sm font-bold text-slate-500 text-center">No lock is configured for this property yet.</p>
+                    @endif
+                </div>
             </div>
             @endforeach
         </div>

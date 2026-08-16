@@ -46,6 +46,7 @@
                 <button type="button" data-token="[[check_out_date]]" class="token-btn rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-mono font-semibold text-slate-600 hover:bg-slate-100">Check-out Date</button>
                 <button type="button" data-token="[[property_name]]" class="token-btn rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-mono font-semibold text-slate-600 hover:bg-slate-100">Property Name</button>
                 <button type="button" data-token="[[property_address]]" class="token-btn rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-mono font-semibold text-slate-600 hover:bg-slate-100">Address</button>
+                <button type="button" data-token="[[lockbox_code]]" class="token-btn rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-mono font-semibold text-slate-600 hover:bg-slate-100">Lockbox Code</button>
             </div>
             <textarea id="content-editor" name="content">{{ old('content', $step->content) }}</textarea>
             <p class="mt-1 text-xs text-slate-400">Use the token buttons above to insert guest details like name, booking ID, dates, etc.</p>

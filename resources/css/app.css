@@ -149,10 +149,12 @@
     }
 
     .badge-pending,
-    .badge-pre_checkin_complete,
     .badge-awaiting_deposit,
     .badge-waiting_checkin {
         @apply border-amber-200 bg-amber-50 text-amber-800;
+    }
+    .badge-pre_checkin_complete {
+        @apply border-red-200 bg-red-50 text-red-700;
     }
 
     .badge-id_uploaded,
@@ -351,16 +353,9 @@
     .wizard-body {
         display: flex;
         flex-direction: column;
-        height: min(620px, 76vh);
-        min-height: 0;
     }
     .wizard-scroll {
-        flex: 1 1 auto;
-        min-height: 0;
-        overflow-y: auto;
-        -webkit-overflow-scrolling: touch;
         padding: 0 clamp(20px, 4vw, 40px) 16px;
-        scrollbar-width: thin;
     }
     .wizard-scroll img {
         border-radius: 14px;
@@ -414,34 +409,8 @@
         }
     }
     @media (min-width: 900px) {
-        .guest-stage:has(.guest-portal-card--wizard) {
-            height: 100vh;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .wizard-body {
-            height: min(85vh, 880px);
-        }
-        .wizard-scroll {
-            overflow-y: auto;
-        }
-        .wizard-scroll img {
-            width: 100%;
-            max-height: 46vh;
-            object-fit: cover;
-            object-position: center top;
-            border-radius: 14px;
-            display: block;
-        }
         .wizard-scroll .wizard-image-card {
-            display: flex;
-            justify-content: center;
-            width: fit-content;
-            max-width: 100%;
-            margin-left: auto;
-            margin-right: auto;
+            width: 100%;
         }
         .wizard-scroll .wizard-image-card img {
             width: auto;
@@ -450,6 +419,8 @@
             max-height: 62vh;
             object-fit: contain;
             display: block;
+            margin-left: auto;
+            margin-right: auto;
             background: #fff;
             border-radius: 10px;
             border: 1px solid #eef1f5;
@@ -460,14 +431,34 @@
     .guest-guide-open {
         max-width: 1080px;
         margin-inline: auto;
+    }
+
+    .guest-guide-open .guest-guide-body {
         padding-inline: clamp(16px, 4vw, 40px);
     }
 
-    .guest-guide-open .guest-status-bar {
-        border-bottom: 0;
-        background: transparent;
-        padding-inline: 0;
-        padding-top: 0;
+    .guest-weather-badge--inline {
+        display: inline-flex;
+        width: auto;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        font-weight: 600;
+        color: #475569;
+        background: #fffbeb;
+        border: 1px solid #fde68a;
+        border-radius: 999px;
+        padding: 7px 14px;
+    }
+
+    .guest-weather-badge--inline svg {
+        color: #f59e0b;
+        flex-shrink: 0;
+    }
+
+    .guest-weather-badge--inline .text-slate-400 {
+        color: #b45309;
+        opacity: 0.75;
     }
 
     .guest-guide-body {
@@ -660,6 +651,41 @@
         border-bottom: 1px solid #e6eaf0;
         background: #fff;
         padding: 18px clamp(18px, 3vw, 34px);
+    }
+
+    .guest-status-bar--with-weather {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+    }
+
+    .guest-status-bar--with-weather > .guest-weather-badge--inline {
+        justify-self: center;
+    }
+
+    .guest-status-bar--with-weather > .guest-status-pill {
+        justify-self: end;
+    }
+
+    @media (max-width: 640px) {
+        .guest-status-bar--with-weather {
+            grid-template-columns: 1fr auto;
+            grid-template-areas: "logo pill" "weather weather";
+            row-gap: 10px;
+        }
+
+        .guest-status-bar--with-weather > .flex.items-center.gap-4 {
+            grid-area: logo;
+        }
+
+        .guest-status-bar--with-weather > .guest-weather-badge--inline {
+            grid-area: weather;
+            justify-self: center;
+        }
+
+        .guest-status-bar--with-weather > .guest-status-pill {
+            grid-area: pill;
+        }
     }
 
     .guest-status-kicker {
@@ -891,15 +917,14 @@
         border-radius: 12px;
         padding: 10px;
         box-shadow: 0 4px 10px rgb(15 23 42 / .04);
-        width: fit-content;
-        max-width: 100%;
-        margin-left: auto;
-        margin-right: auto;
+        width: 100%;
     }
     .wizard-image-card img {
         display: block;
         max-width: 100%;
         height: auto;
+        margin-left: auto;
+        margin-right: auto;
     }
     .step-indicator {
         display: flex;

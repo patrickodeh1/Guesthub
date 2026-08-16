@@ -39,12 +39,30 @@ trait BuildsGuestPortalData
     protected function checkinTimeOptions(): array
     {
         $options = [];
-        for ($hour = 0; $hour < 24; $hour++) {
-            foreach ([0, 30] as $minute) {
-                $value = sprintf('%02d:%02d', $hour, $minute);
-                $label = Carbon::createFromTime($hour, $minute)->format('g:i A');
-                $options[$value] = $label;
+        // 8am through 12am (midnight), hourly
+        $hours = array_merge(range(8, 23), [0]);
+        foreach ($hours as $hour) {
+            $value = sprintf('%02d:00', $hour);
+            $label = Carbon::createFromTime($hour, 0)->format('g:i A');
+            if ($hour === 10) {
+                $label .= ' (Recommended)';
             }
+            $options[$value] = $label;
+        }
+        return $options;
+    }
+
+    protected function checkoutTimeOptions(): array
+    {
+        $options = [];
+        // 10am through 8pm, hourly
+        for ($hour = 10; $hour <= 20; $hour++) {
+            $value = sprintf('%02d:00', $hour);
+            $label = Carbon::createFromTime($hour, 0)->format('g:i A');
+            if ($hour === 10) {
+                $label .= ' (Recommended)';
+            }
+            $options[$value] = $label;
         }
         return $options;
     }

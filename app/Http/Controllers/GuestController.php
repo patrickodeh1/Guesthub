@@ -41,12 +41,12 @@ class GuestController extends Controller
             'locks'         => $this->resolveLocks($booking),
             'welcomeMessage' => $booking->welcome_message ?: \App\Models\Setting::getValue('default_intro', 'We are glad to have you. Please complete the following details prior to check-in.'),
             'gpsRadius'     => (int) Setting::getValue('gps_radius_meters', 150),
-            'gpsVerifyMessage' => Setting::getValue('gps_verify_message', 'We need to verify that you are at the property location.'),
+            'gpsVerifyMessage' => Setting::getValue('gps_verify_message', "It's Go Time!"),
             'checkinSteps'  => ($state === 'guide' && ! $booking->instructionsCompleted()) ? $this->checkinSteps($booking) : [],
             'checkoutSteps' => $this->checkoutSteps($booking),
             'parkingSteps'  => ($state === 'guide' && ! $booking->instructionsCompleted()) ? $this->parkingSteps($booking) : [],
             'checkinTimeOptions' => $this->checkinTimeOptions(),
-            'checkoutTimeOptions' => $this->checkinTimeOptions(),
+            'checkoutTimeOptions' => $this->checkoutTimeOptions(),
         ]);
     }
 
@@ -359,6 +359,15 @@ class GuestController extends Controller
         $booking = $this->booking($bookingId, $token);
         return response()->json(['gps_verified' => (bool) $booking->gps_verified]);
     }
+    public function idStatus(string $bookingId, string $token)
+    {
+        $booking = $this->booking($bookingId, $token);
+        return response()->json([
+            'id_approved' => (bool) ($booking->photo_id_received && $booking->isApproved()),
+            'background_check_complete' => $booking->isBackgroundCheckComplete(),
+            'deposit_verified' => $booking->isDepositVerified(),
+        ]);
+    }
     public function category(string $bookingId, string $token, Category $category)
     {
         $booking = $this->booking($bookingId, $token);
@@ -582,6 +591,10 @@ class GuestController extends Controller
         if ($booking->needsIdApproval()) {
             return 'identity';
         }
+
+        if (! $booking->isBackgroundCheckComplete()) {
+            return 'identity';
+        }
         }
 
         if (in_array($booking->status, ['pre_checkin_complete', 'awaiting_deposit'], true) && ! $booking->deposit_verified_at) {
@@ -680,12 +693,28 @@ class GuestController extends Controller
     private function checkinTimeOptions(): array
     {
         $options = [];
-        for ($hour = 0; $hour < 24; $hour++) {
-            foreach ([0, 30] as $minute) {
-                $value = sprintf('%02d:%02d', $hour, $minute);
-                $label = \Carbon\Carbon::createFromTime($hour, $minute)->format('g:i A');
-                $options[$value] = $label;
+        $hours = array_merge(range(8, 23), [0]);
+        foreach ($hours as $hour) {
+            $value = sprintf('%02d:00', $hour);
+            $label = \Carbon\Carbon::createFromTime($hour, 0)->format('g:i A');
+            if ($hour === 10) {
+                $label .= ' (Recommended)';
             }
+            $options[$value] = $label;
+        }
+        return $options;
+    }
+
+    private function checkoutTimeOptions(): array
+    {
+        $options = [];
+        for ($hour = 10; $hour <= 20; $hour++) {
+            $value = sprintf('%02d:00', $hour);
+            $label = \Carbon\Carbon::createFromTime($hour, 0)->format('g:i A');
+            if ($hour === 10) {
+                $label .= ' (Recommended)';
+            }
+            $options[$value] = $label;
         }
         return $options;
     }

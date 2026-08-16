@@ -17,8 +17,29 @@
                 <label class="field-label">Brand color<input type="color" name="brand_color" value="{{ old('brand_color', $settings['brand_color']) }}" class="input h-12"></label>
                 <label class="field-label">Contact phone<input name="contact_phone" value="{{ old('contact_phone', $settings['contact_phone']) }}" class="input"></label>
                 <label class="field-label">Contact email<input name="contact_email" value="{{ old('contact_email', $settings['contact_email']) }}" class="input"></label>
-                <label class="field-label md:col-span-2">Default intro<textarea id="default-intro-editor" name="default_intro" rows="5" class="textarea">{{ old('default_intro', $settings['default_intro']) }}</textarea></label>
-                <label class="field-label md:col-span-2">GPS verify message<textarea id="gps-verify-message-editor" name="gps_verify_message" rows="3" class="textarea">{{ old('gps_verify_message', $settings['gps_verify_message']) }}</textarea><span class="field-help">Shown above the map on the location verification step.</span></label>
+                <div class="md:col-span-2">
+                    @php
+                        $messageFields = [
+                            'default_intro' => ['label' => 'Default Welcome Message', 'help' => 'Fallback shown on the pre-check-in welcome step when a booking has no custom welcome message set.', 'rows' => 5],
+                            'gps_verify_message' => ['label' => 'GPS Verify Message', 'help' => 'Shown above the map on the location verification step.', 'rows' => 3],
+                            'lock_message' => ['label' => 'Smart Lock Message', 'help' => 'Shown on the smart lock step when a property has a lock configured.', 'rows' => 3],
+                        ];
+                    @endphp
+                    <div class="mb-3 flex flex-wrap gap-2">
+                        @foreach($messageFields as $key => $field)
+                            <button type="button" onclick="switchMessageType('{{ $key }}')" data-message-tab="{{ $key }}" class="message-tab-btn btn-secondary {{ $loop->first ? 'bg-slate-900 text-white' : '' }}">{{ $field['label'] }}</button>
+                        @endforeach
+                    </div>
+                    @foreach($messageFields as $key => $field)
+                        <div id="message-panel-{{ $key }}" class="message-panel" style="{{ !$loop->first ? 'position:absolute;left:-9999px;top:-9999px;visibility:hidden;' : 'position:relative;' }}">
+                            <label class="field-label">
+                                {{ $field['label'] }}
+                                <textarea id="{{ str_replace('_', '-', $key) }}-editor" class="message-editor textarea" name="{{ $key }}" rows="{{ $field['rows'] }}">{{ old($key, $settings[$key]) }}</textarea>
+                                @if($field['help'])<span class="field-help">{{ $field['help'] }}</span>@endif
+                            </label>
+                        </div>
+                    @endforeach
+                </div>
             </div>
         </section>
 
@@ -170,12 +191,32 @@
     });
     </script>
 
+    <script>
+    function switchMessageType(key) {
+        document.querySelectorAll('.message-panel').forEach(function (panel) {
+            var isTarget = panel.id === 'message-panel-' + key;
+            panel.style.position = isTarget ? 'relative' : 'absolute';
+            panel.style.left = isTarget ? '' : '-9999px';
+            panel.style.top = isTarget ? '' : '-9999px';
+            panel.style.visibility = isTarget ? 'visible' : 'hidden';
+        });
+        document.querySelectorAll('.message-tab-btn').forEach(function (btn) {
+            if (btn.dataset.messageTab === key) {
+                btn.classList.add('bg-slate-900', 'text-white');
+            } else {
+                btn.classList.remove('bg-slate-900', 'text-white');
+            }
+        });
+        window.dispatchEvent(new Event('resize'));
+    }
+    </script>
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/tinymce/6.8.3/tinymce.min.js"></script>
     <script>
     tinymce.init({
         relative_urls: false,
         remove_script_host: false,
-        selector: '#default-intro-editor, #gps-verify-message-editor',
+        selector: '.message-editor',
         plugins: 'lists advlist link code table searchreplace wordcount visualblocks charmap emoticons preview anchor fullscreen nonbreaking',
         toolbar: 'undo redo | bold italic underline forecolor backcolor | alignleft aligncenter alignright | bullist numlist | customlineheight | link insertimage table anchor charmap emoticons | searchreplace preview fullscreen | removeformat code | fontfamily fontsize',
         browser_spellcheck: true,

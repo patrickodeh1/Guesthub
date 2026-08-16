@@ -21,7 +21,8 @@ class SettingsController extends Controller
                 'contact_phone' => Setting::getValue('contact_phone', '+1 555 123 4567'),
                 'contact_email' => Setting::getValue('contact_email', 'guestservices@example.com'),
                 'default_intro' => Setting::getValue('default_intro', 'Your arrival details and local guide are ready when you are.'),
-                'gps_verify_message' => Setting::getValue('gps_verify_message', 'We need to verify that you are at the property location.'),
+                'gps_verify_message' => Setting::getValue('gps_verify_message', "It's Go Time!"),
+                'lock_message' => Setting::getValue('lock_message', "If you'd like quicker access to the unit, you can download the August Home app."),
             ],
         ]);
     }
@@ -39,6 +40,7 @@ class SettingsController extends Controller
             'contact_email' => ['nullable', 'email', 'max:255'],
             'default_intro' => ['nullable', 'string'],
             'gps_verify_message' => ['nullable', 'string', 'max:500'],
+            'lock_message' => ['nullable', 'string', 'max:500'],
         ]);
 
         if ($request->hasFile('site_logo')) {

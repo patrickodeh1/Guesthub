@@ -37,6 +37,7 @@ Route::prefix('guest/{booking_id}/{token}')->name('guest.')->group(function () {
     Route::post('/lock-door/{lock}', [GuestController::class, 'lockDoor'])->name('lock-door');
     Route::get('/lock-status/{lock}', [GuestController::class, 'lockStatus'])->name('lock-status');
     Route::get('/gps-status', [GuestController::class, 'gpsStatus'])->name('gps-status');
+    Route::get('/id-status', [GuestController::class, 'idStatus'])->name('id-status');
     Route::get('/guide/{category:slug}', [GuestController::class, 'category'])->name('category');
     Route::get('/guide/{category:slug}/events', [GuestController::class, 'moreEvents'])->name('category.events');
 });
@@ -80,6 +81,7 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     // ─── Properties ──────────────────────────────────────────────────────────
     Route::resource('properties', PropertyController::class)->except(['show']);
     Route::post('properties/{property}/checkout-time', [PropertyController::class, 'updateCheckoutTime'])->name('properties.checkout-time');
+    Route::post('properties/{property}/lockbox-code', [PropertyController::class, 'updateLockboxCode'])->name('properties.lockbox-code');
 
     // ─── Guests / Bookings ────────────────────────────────────────────────────
     Route::resource('guests', BookingController::class)->parameters(['guests' => 'booking']);

@@ -13,7 +13,10 @@
             <span>{{ $weather['condition'] }}</span>
         </span>
         @if($property->city)
-            <span class="text-slate-400">{{ $property->city }}{{ $property->state ? ', '.$property->state : '' }}</span>
+            <span class="text-slate-400 flex items-center gap-1">
+                <x-icon name="map-pin" class="h-4 w-4" />
+                {{ $property->city }}{{ $property->state ? ', '.$property->state : '' }}
+            </span>
         @endif
     </div>
 @endif
