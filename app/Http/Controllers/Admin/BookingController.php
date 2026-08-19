@@ -6,8 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Property;
 use App\Models\Setting;
+use App\Mail\PhotoIdDeclinedMail;
 use App\Services\ActivityLogService;
+use App\Services\SmsNotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -411,20 +414,71 @@ class BookingController extends Controller
         return back()->with('success', 'Deposit verified — guest is now approved.');
     }
 
-    public function declineBooking(Request $request, Booking $booking)
+    /**
+     * Approve a single side of the guest's ID (front or back) independently.
+     * Overall booking approval (approved_at) is only set once every side on
+     * file is approved.
+     */
+    public function approveIdSide(Request $request, Booking $booking, string $side)
     {
+        abort_unless(in_array($side, ['front', 'back'], true), 404);
+
+        $field = $side === 'back' ? 'photo_id_back_approved_at' : 'photo_id_front_approved_at';
+        $reasonField = $side === 'back' ? 'photo_id_back_declined_reason' : 'photo_id_front_declined_reason';
+
+        $booking->update([
+            $field => now(),
+            $reasonField => null,
+        ]);
+
+        if ($booking->fresh()->isIdFullyApproved()) {
+            $booking->update([
+                'approved_at' => now(),
+                'decline_reason' => null,
+                'photo_id_received' => true,
+            ]);
+        }
+
+        ActivityLogService::admin('id_side_approved', auth()->user()->name." approved the {$side} of {$booking->guest_name}'s ID.", 'guests', [
+            'subject_type' => Booking::class,
+            'subject_id'   => $booking->id,
+            'booking_id'   => $booking->id,
+            'property_id'  => $booking->property_id,
+            'severity'     => 'success',
+        ]);
+
+        return back()->with('success', ucfirst($side).' of ID approved.');
+    }
+
+    /**
+     * Decline a single side of the guest's ID (front or back) independently.
+     * The declined side's uploaded photo is cleared so the guest is forced to
+     * re-upload only that side; the other side (if already approved) is left
+     * untouched. Triggers an email + SMS to the guest with the reason.
+     */
+    public function declineIdSide(Request $request, Booking $booking, string $side)
+    {
+        abort_unless(in_array($side, ['front', 'back'], true), 404);
+
         $data = $request->validate([
             'decline_reason' => ['required', 'string', 'max:1000'],
         ]);
 
+        $pathField = $side === 'back' ? 'photo_id_back_path' : 'photo_id_path';
+        $approvedField = $side === 'back' ? 'photo_id_back_approved_at' : 'photo_id_front_approved_at';
+        $reasonField = $side === 'back' ? 'photo_id_back_declined_reason' : 'photo_id_front_declined_reason';
+
         $booking->update([
+            $pathField => null,
+            $approvedField => null,
+            $reasonField => $data['decline_reason'],
             'approved_at' => null,
             'decline_reason' => $data['decline_reason'],
             'photo_id_received' => false,
             'status' => 'pending',
         ]);
 
-        ActivityLogService::admin('booking_declined', auth()->user()->name." declined ID for {$booking->guest_name}: {$data['decline_reason']}", 'guests', [
+        ActivityLogService::admin('id_side_declined', auth()->user()->name." declined the {$side} of {$booking->guest_name}'s ID: {$data['decline_reason']}", 'guests', [
             'subject_type' => Booking::class,
             'subject_id'   => $booking->id,
             'booking_id'   => $booking->id,
@@ -432,7 +486,17 @@ class BookingController extends Controller
             'severity'     => 'warning',
         ]);
 
-        return back();
+        if (filled($booking->email)) {
+            try {
+                Mail::to($booking->email)->send(new PhotoIdDeclinedMail($booking, $side, $data['decline_reason']));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to send photo ID declined email: '.$e->getMessage());
+            }
+        }
+
+        SmsNotificationService::photoIdDeclinedToGuest($booking, $side, $data['decline_reason']);
+
+        return back()->with('success', ucfirst($side).' of ID declined — guest has been notified and asked to re-upload.');
     }
 
     public function blockAccess(Request $request, Booking $booking)
@@ -473,8 +537,6 @@ class BookingController extends Controller
         ]);
 
         return back()->with('success', 'Guest access restored.');
-
-        return back()->with('success', 'Guest declined — they will be asked to re-upload their ID.');
     }
 
     public function photoId(Booking $booking)

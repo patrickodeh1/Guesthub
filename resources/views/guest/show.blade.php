@@ -275,14 +275,25 @@
                         </div>
                         @else
                         <div class="mt-5" id="id-capture-section">
-                            @if($booking->decline_reason)
+                            @if($booking->photo_id_front_declined_reason)
                                 <div class="guest-detail-banner mb-4" style="background:#fef3c7;border-color:#fde68a;">
                                     <span class="guest-detail-banner-icon" style="color:#92400e;">
                                         <x-icon name="alert-triangle" class="h-5 w-5" />
                                     </span>
                                     <div>
-                                        <p class="guest-detail-banner-title" style="color:#92400e;">New Photo ID Needed</p>
-                                        <p class="guest-detail-banner-sub">{{ $booking->decline_reason }}</p>
+                                        <p class="guest-detail-banner-title" style="color:#92400e;">Front of ID needs to be re-uploaded</p>
+                                        <p class="guest-detail-banner-sub">{{ $booking->photo_id_front_declined_reason }}</p>
+                                    </div>
+                                </div>
+                            @endif
+                            @if($booking->photo_id_back_declined_reason)
+                                <div class="guest-detail-banner mb-4" style="background:#fef3c7;border-color:#fde68a;">
+                                    <span class="guest-detail-banner-icon" style="color:#92400e;">
+                                        <x-icon name="alert-triangle" class="h-5 w-5" />
+                                    </span>
+                                    <div>
+                                        <p class="guest-detail-banner-title" style="color:#92400e;">Back of ID needs to be re-uploaded</p>
+                                        <p class="guest-detail-banner-sub">{{ $booking->photo_id_back_declined_reason }}</p>
                                     </div>
                                 </div>
                             @endif

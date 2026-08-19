@@ -51,6 +51,21 @@
                                         <button type="button" onclick="openPhotoIdModal('{{ route('admin.guests.photo-id-view', $booking) }}', 'Photo ID front')" class="text-sm font-semibold text-teal-800">View full size</button>
                                         <a class="text-sm font-semibold text-teal-800" href="{{ route('admin.guests.photo-id', $booking) }}">Download original</a>
                                     </div>
+                                    <div class="mt-4 border-t border-slate-100 pt-4">
+                                        @if($booking->isFrontIdApproved())
+                                            <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">Front approved {{ $booking->photo_id_front_approved_at->format('M j, Y g:i A') }}</div>
+                                        @else
+                                            <div class="flex gap-2">
+                                                <form method="post" action="{{ route('admin.guests.id.approve', [$booking, 'front']) }}" class="flex-1">@csrf<button class="btn-primary w-full gap-2"><x-icon name="check" class="h-4 w-4" />Approve Front</button></form>
+                                                <button type="button" class="btn-danger flex-1 gap-2" onclick="document.getElementById('decline-form-front-{{ $booking->id }}').classList.toggle('hidden')"><x-icon name="x" class="h-4 w-4" />Decline</button>
+                                            </div>
+                                            <form id="decline-form-front-{{ $booking->id }}" method="post" action="{{ route('admin.guests.id.decline', [$booking, 'front']) }}" class="hidden mt-2 grid gap-2">
+                                                @csrf
+                                                <textarea name="decline_reason" class="input" rows="3" placeholder="Reason for declining the front (shown to guest)" required>{{ old('decline_reason') }}</textarea>
+                                                <button class="btn-secondary w-full">Submit Decline</button>
+                                            </form>
+                                        @endif
+                                    </div>
                                 </div>
                             @endif
                             @if($booking->photo_id_back_path)
@@ -62,6 +77,21 @@
                                         <button type="button" onclick="openPhotoIdModal('{{ route('admin.guests.photo-id-back-view', $booking) }}', 'Photo ID back')" class="text-sm font-semibold text-teal-800">View full size</button>
                                         <a class="text-sm font-semibold text-teal-800" href="{{ route('admin.guests.photo-id-back', $booking) }}">Download original</a>
                                     </div>
+                                    <div class="mt-4 border-t border-slate-100 pt-4">
+                                        @if($booking->isBackIdApproved())
+                                            <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">Back approved {{ $booking->photo_id_back_approved_at->format('M j, Y g:i A') }}</div>
+                                        @else
+                                            <div class="flex gap-2">
+                                                <form method="post" action="{{ route('admin.guests.id.approve', [$booking, 'back']) }}" class="flex-1">@csrf<button class="btn-primary w-full gap-2"><x-icon name="check" class="h-4 w-4" />Approve Back</button></form>
+                                                <button type="button" class="btn-danger flex-1 gap-2" onclick="document.getElementById('decline-form-back-{{ $booking->id }}').classList.toggle('hidden')"><x-icon name="x" class="h-4 w-4" />Decline</button>
+                                            </div>
+                                            <form id="decline-form-back-{{ $booking->id }}" method="post" action="{{ route('admin.guests.id.decline', [$booking, 'back']) }}" class="hidden mt-2 grid gap-2">
+                                                @csrf
+                                                <textarea name="decline_reason" class="input" rows="3" placeholder="Reason for declining the back (shown to guest)" required>{{ old('decline_reason') }}</textarea>
+                                                <button class="btn-secondary w-full">Submit Decline</button>
+                                            </form>
+                                        @endif
+                                    </div>
                                 </div>
                             @endif
                         </div>
@@ -69,22 +99,8 @@
                         <p class="mt-4 font-semibold text-slate-950">Not uploaded</p>
                     @endif
 
-                    @if($booking->photo_id_path || $booking->photo_id_back_path)
-                        <div class="mt-5 border-t border-slate-100 pt-4">
-                            @if($booking->isApproved())
-                                <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">Approved {{ $booking->approved_at->format('M j, Y g:i A') }}</div>
-                            @else
-                                <div class="flex gap-2">
-                                    <form method="post" action="{{ route('admin.guests.approve', $booking) }}" class="flex-1">@csrf<button class="btn-primary w-full gap-2"><x-icon name="check" class="h-4 w-4" />Approve</button></form>
-                                    <button type="button" class="btn-danger flex-1 gap-2" onclick="document.getElementById('decline-form-{{ $booking->id }}').classList.toggle('hidden')"><x-icon name="x" class="h-4 w-4" />Decline</button>
-                                </div>
-                                <form id="decline-form-{{ $booking->id }}" method="post" action="{{ route('admin.guests.decline', $booking) }}" class="hidden mt-2 grid gap-2">
-                                    @csrf
-                                    <textarea name="decline_reason" class="input" rows="3" placeholder="Reason for declining (shown to guest)" required>{{ old('decline_reason') }}</textarea>
-                                    <button class="btn-secondary w-full">Submit Decline</button>
-                                </form>
-                            @endif
-                        </div>
+                    @if($booking->isIdFullyApproved())
+                        <div class="mt-5 rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">All ID photos approved{{ $booking->approved_at ? ' — '.$booking->approved_at->format('M j, Y g:i A') : '' }}</div>
                     @endif
                 </section>
 
@@ -116,8 +132,11 @@
                             </div>
                         @endforeach
                     </dl>
-                    @if($booking->decline_reason && !$booking->isApproved())
-                        <div class="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800"><span class="font-semibold">Last decline reason:</span> {{ $booking->decline_reason }}</div>
+                    @if($booking->photo_id_front_declined_reason)
+                        <div class="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800"><span class="font-semibold">Front ID decline reason:</span> {{ $booking->photo_id_front_declined_reason }}</div>
+                    @endif
+                    @if($booking->photo_id_back_declined_reason)
+                        <div class="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800"><span class="font-semibold">Back ID decline reason:</span> {{ $booking->photo_id_back_declined_reason }}</div>
                     @endif
                     @if($booking->notes)
                         <div class="mt-4 rounded-lg bg-slate-50 border border-slate-200 p-3">

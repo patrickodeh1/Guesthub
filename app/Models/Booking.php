@@ -14,6 +14,8 @@ class Booking extends Model
         'manually_checked_in', 'checked_in_at', 'checked_out_at', 'gps_overridden', 'status', 'notes', 'welcome_message', 'identity_confirmed_at',
         'approved_at', 'decline_reason', 'archived_at', 'background_check_completed_at', 'deposit_verified_at',
         'access_blocked_at', 'access_blocked_reason',
+        'photo_id_front_approved_at', 'photo_id_front_declined_reason',
+        'photo_id_back_approved_at', 'photo_id_back_declined_reason',
     ];
 
     protected function casts(): array
@@ -34,6 +36,8 @@ class Booking extends Model
             'background_check_completed_at' => 'datetime',
             'deposit_verified_at' => 'datetime',
             'access_blocked_at' => 'datetime',
+            'photo_id_front_approved_at' => 'datetime',
+            'photo_id_back_approved_at' => 'datetime',
                     ];
     }
 
@@ -87,6 +91,35 @@ class Booking extends Model
     public function needsIdApproval(): bool
     {
         return filled($this->photo_id_path) && ! $this->isApproved();
+    }
+
+    public function isFrontIdApproved(): bool
+    {
+        return filled($this->photo_id_front_approved_at);
+    }
+
+    public function isBackIdApproved(): bool
+    {
+        return filled($this->photo_id_back_approved_at);
+    }
+
+    /**
+     * True once every side of ID the guest is expected to provide is approved.
+     * Back side is only required if the booking has a back-side path/requirement
+     * on record (some ID types are front-only).
+     */
+    public function isIdFullyApproved(): bool
+    {
+        $frontOk = $this->isFrontIdApproved();
+        $backRequired = filled($this->photo_id_back_path) || filled($this->photo_id_back_declined_reason);
+        $backOk = ! $backRequired || $this->isBackIdApproved();
+
+        return $frontOk && $backOk;
+    }
+
+    public function hasPendingIdRejection(): bool
+    {
+        return filled($this->photo_id_front_declined_reason) || filled($this->photo_id_back_declined_reason);
     }
 
     public function stayRangeLabel(): string

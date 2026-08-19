@@ -203,11 +203,15 @@ class GuestController extends Controller
     public function submitIdentity(Request $request, string $bookingId, string $token)
     {
         $booking = $this->booking($bookingId, $token);
-        $photoRequired = ! $booking->photo_id_received;
+        // Each side is required only if that specific side is missing (never uploaded,
+        // or cleared out by an admin decline) — a decline on one side should never force
+        // re-upload of an already-approved other side.
+        $frontRequired = blank($booking->photo_id_path);
+        $backRequired = blank($booking->photo_id_back_path) && $booking->id_type !== 'passport';
 
         $data = $request->validate([
-            'photo_id' => [$photoRequired ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
-            'photo_id_back' => [($photoRequired && $booking->id_type !== 'passport') ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
+            'photo_id' => [$frontRequired ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
+            'photo_id_back' => [$backRequired ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
         ]);
 
         $advancedStatuses = ['guest_approved', 'awaiting_deposit', 'currently_hosting', 'checked_out'];
@@ -228,6 +232,7 @@ class GuestController extends Controller
                 );
             }
             $updates['photo_id_path'] = $request->file('photo_id')->store('photo-ids');
+            $updates['photo_id_front_declined_reason'] = null;
         }
         if ($request->hasFile('photo_id_back')) {
             if ($booking->photo_id_back_path && \Storage::disk('local')->exists($booking->photo_id_back_path)) {
@@ -237,6 +242,7 @@ class GuestController extends Controller
                 );
             }
             $updates['photo_id_back_path'] = $request->file('photo_id_back')->store('photo-ids');
+            $updates['photo_id_back_declined_reason'] = null;
         }
 
         $isFirstCompletion = $booking->status === 'pending';
