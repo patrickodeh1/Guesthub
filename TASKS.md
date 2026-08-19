@@ -1,10 +1,16 @@
 # Session Task List
 
+## Resolved clarifications
+- Email: use Resend.
+- SMS: currently configured for admin only; guest SMS "not working" = Twilio
+  misconfigured by client on their end, not a code bug. No SMS-sending code fix needed
+  unless investigation finds an actual bug — will verify config wiring only, not assume broken.
+- "Guest ID" in admin views = same field as booking ID, just renamed at some point.
+  Do NOT remove it — only confirm consistent naming/display as "booking ID" per task language.
+- Task 33 (deposit paid flips status to checked-in) — client already knows the undo path
+  (booking edit page). NO FIX NEEDED. Marked resolved/no-op below.
+
 ## Needs clarification / access before starting
-- Q1: ID decline DB error — need prod `migrate:status` output OR exact exception text.
-- Q2: "Text alerts not working" — need to know which provider (Twilio? etc.), and whether
-  it's total failure or intermittent. Check .env/config for provider — will inspect code,
-  but can't test sending without prod credentials.
 - Q3: Incidentals charge field, parking rate tiers, early check-in tiers (8am/12pm), late
   checkout rates (authorized vs unauthorized) — need exact dollar structure / business rules,
   or just the DB fields + admin UI and you fill in real numbers later?
@@ -12,6 +18,11 @@
 - Q5: Early-access registration form — payment required? Which processor (Stripe?).
 - Q6: Custom-named verification step — confirm this is the same as existing "extra steps"
   feature seen in migrations (`add_excluded_steps_to_bookings`)?
+
+## Process note
+Before coding each task, we restate the client's original wording + our interpretation,
+get sign-off, then implement. See PROD_INSTRUCTIONS.md for anything requiring prod access
+or client confirmation — do not guess at prod state.
 
 ## Critical fixes
 1. Session/"page doesn't exist" after inactivity — investigate session/cache config
@@ -48,7 +59,8 @@
 30. Text alert system: 6 lifecycle messages, globally customizable templates
 31. Settings: per-alert checkboxes (owner receives / guest receives)
 32. Customizable name + instructions for extra verification steps; name reflected in alert settings
-33. Fix: marking deposit paid re-triggers "checked in" status incorrectly (no undo path)
+33. ~~Fix: marking deposit paid re-triggers "checked in" status incorrectly (no undo path)~~
+    — RESOLVED, no fix needed (undo exists via booking edit page, client already informed)
 34. Parking flow: collect make/model + license plate photo when guest opts in
 
-Status: not started (0/34)
+Status: not started (0/33 remaining, 1 resolved as no-op)
