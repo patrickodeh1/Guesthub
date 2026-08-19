@@ -32,7 +32,7 @@ or client confirmation — do not guess at prod state.
 5. "Checkout time" mislabeled as "check-in time" in admin
 6. Pending check-in page missing property image header
 7. Checkout time picker should only allow 7am–2pm
-8. Flip front/back ID review + independent approve/reject + resubmit alert
+8. ~~Flip front/back ID review + independent approve/reject + resubmit alert~~ — DONE (merged with 22)
 9. ID capture: auto-fill frame + auto-capture, no manual button
 10. ID photos showing overlay/haze ("Hayes film") on every guest
 11. ID photos blurry — blur detection not working
@@ -46,7 +46,9 @@ or client confirmation — do not guess at prod state.
 19. 24h → 12h time display in guest details
 20. Parking auto-calculated charge, admin-editable override
 21. Welcome guide: restructure into cards (logo/status, weather, icons, guest info)
-22. **[NEW] ID decline DB exception (Q1) + missing guest notification/reupload flow**
+22. ~~ID decline DB exception (Q1) + missing guest notification/reupload flow~~ — DONE
+    (notification/reupload built; DB exception itself still needs prod diagnosis, see
+    PROD_INSTRUCTIONS.md #1 — no code defect found locally)
 
 ## Other fixes
 23. Lock/unlock button visible only check-in→checkout time; auto-checkout 30min after
