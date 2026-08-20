@@ -1682,29 +1682,30 @@
                     <x-step-wizard :steps="$checkinSteps" type="checkin" next-section="guest-guide-section" :booking-id="$booking->booking_id" :token="$booking->token" />
                 </div>
             @endif
-            <div class="guest-guide-open guest-portal-card" id="guest-guide-section" {{ (count($checkinSteps) > 0 || count($parkingSteps) > 0) && $booking->status !== 'checked_in' ? 'style=display:none' : '' }}>
-                <div class="guest-status-bar guest-status-bar--with-weather">
-                    <div class="flex items-center gap-4">
+            <div id="guest-guide-section" {{ (count($checkinSteps) > 0 || count($parkingSteps) > 0) && $booking->status !== 'checked_in' ? 'style=display:none' : '' }}>
+            <div class="guest-portal-card">
+                <div class="guest-status-bar">
+                    <div>
                         @if($siteLogo)
                             <img src="{{ url('/img/'.$siteLogo) }}" alt="" class="h-8 max-w-[140px] w-auto object-contain">
                         @endif
                     </div>
-                    <x-weather-badge :property="$property" class="guest-weather-badge--inline" />
                     <span class="guest-status-pill is-checked">
                         <x-icon name="check" class="h-4 w-4" />
                         Checked in
                     </span>
                 </div>
-            <div class="guest-guide-body">
-                <div class="px-6 pt-6">
-                    <h1 class="guest-status-title">Welcome Guide</h1>
-                    <p class="mt-2 text-sm leading-6 text-slate-600">Everything you need during your stay is ready below.</p>
+            </div>
+
+            @if($property->latitude && $property->longitude)
+                <div class="guest-portal-card mt-4 p-6">
+                    <x-weather-badge :property="$property" />
                 </div>
-                <div class="mx-auto max-w-2xl text-center">
-                    <p class="text-sm leading-6 text-slate-500">Explore information about your stay.</p>
-                </div>
+            @endif
+
+            <div class="guest-portal-card mt-4">
                 @if($locks->isNotEmpty())
-                    <div class="mt-8">
+                    <div class="p-6 pb-0">
                         <div class="grid gap-6 {{ $locks->count() > 1 ? 'sm:grid-cols-2' : '' }}">
                             @foreach($locks as $entry)
                                 <x-lock-card
@@ -1718,7 +1719,7 @@
                         </div>
                     </div>
                 @endif
-                <div id="guide-grid" class="guest-guide-grid mt-10">
+                <div id="guide-grid" class="guest-guide-grid p-6">
                     @foreach($guideCats as $category)
                         @php
                             $colors = $categoryColor;
@@ -1736,6 +1737,25 @@
                             :wide="$category->slug === 'checkout-instructions'"
                         />
                     @endforeach
+                </div>
+            </div>
+
+            <div class="guest-portal-card mt-4 p-6">
+                <div class="guest-stay-grid">
+                    <div class="guest-stay-tile">
+                        <div class="guest-stay-tile-icon">
+                            <x-icon name="guests" class="h-5 w-5" />
+                        </div>
+                        <p class="guest-stay-tile-label">Guest</p>
+                        <p class="guest-stay-tile-date">{{ $booking->guest_name }}</p>
+                    </div>
+                    <div class="guest-stay-tile">
+                        <div class="guest-stay-tile-icon">
+                            <x-icon name="calendar" class="h-5 w-5" />
+                        </div>
+                        <p class="guest-stay-tile-label">Check-Out</p>
+                        <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }} &middot; {{ $booking->effectiveCheckoutTimeFormatted() }}</p>
+                    </div>
                 </div>
             </div>
             </div>
