@@ -170,7 +170,13 @@ or client confirmation — do not guess at prod state.
     browser-rendered 12h/AM-PM already and needed no change. All other time
     displays across the app (checked-in/out timestamps, checkout notices,
     etc.) were already using the existing `safeFormatTime`-based formatters.
-29. "Check out" button: immediate status change + redirect, fix revert-to-menu bug
+29. ~~"Check out" button: immediate status change + redirect, fix revert-to-menu bug~~ — DONE.
+    Status update was already immediate server-side; the bug was purely
+    client-side — the wizard toggled sections in place instead of reflecting
+    the new locked state, leaving the guide/menu visible and clickable until
+    the next navigation. Now the checkout wizard reloads the page on success,
+    so the server's already-correct state renders immediately. Check-in and
+    parking wizards untouched. Test added to GuestCheckoutFlowTest.php.
 30. Text alert system: 6 lifecycle messages, globally customizable templates
 31. Settings: per-alert checkboxes (owner receives / guest receives)
 32. Customizable name + instructions for extra verification steps; name reflected in alert settings
@@ -178,4 +184,4 @@ or client confirmation — do not guess at prod state.
     — RESOLVED, no fix needed (undo exists via booking edit page, client already informed)
 34. Parking flow: collect make/model + license plate photo when guest opts in
 
-Status: 27/33 done, 1 resolved as no-op, 5 remaining
+Status: 28/33 done, 1 resolved as no-op, 4 remaining
