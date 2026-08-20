@@ -16,6 +16,8 @@ class Property extends Model
         'parking_rate_sunday', 'parking_rate_monday', 'parking_rate_tuesday',
         'parking_rate_wednesday', 'parking_rate_thursday', 'parking_rate_friday',
         'parking_rate_saturday',
+        'early_checkin_rate_8am', 'early_checkin_rate_12pm',
+        'late_checkout_rate_authorized_hourly', 'late_checkout_rate_unauthorized_hourly',
     ];
 
     protected function casts(): array
@@ -26,6 +28,9 @@ class Property extends Model
             'parking_rate_tuesday' => 'decimal:2', 'parking_rate_wednesday' => 'decimal:2',
             'parking_rate_thursday' => 'decimal:2', 'parking_rate_friday' => 'decimal:2',
             'parking_rate_saturday' => 'decimal:2',
+            'early_checkin_rate_8am' => 'decimal:2', 'early_checkin_rate_12pm' => 'decimal:2',
+            'late_checkout_rate_authorized_hourly' => 'decimal:2',
+            'late_checkout_rate_unauthorized_hourly' => 'decimal:2',
         ];
     }
 

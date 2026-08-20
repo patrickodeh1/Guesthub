@@ -120,6 +120,8 @@
                             ['parking', 'Parking', is_null($booking->parking_needed) ? 'Unknown' : ($booking->parking_needed ? 'Needed' : 'Not needed')],
                             ...($booking->parking_needed ? [['parking', 'Parking Charge', '$'.number_format($booking->effectiveParkingCharge() ?? 0, 2).($booking->parking_charge_override !== null ? ' (manual override)' : ' (auto-calculated)')]] : []),
                             ['info', 'Incidentals Charge', $booking->incidentals_charge !== null ? '$'.number_format($booking->incidentals_charge, 2) : 'Not set'],
+                            ...($booking->early_checkin_tier ? [['calendar', 'Early Check-in Charge', '$'.number_format($booking->earlyCheckinCharge() ?? 0, 2).' ('.($booking->early_checkin_tier === '8am' ? '8:00 AM' : '12:00 PM').' tier)']] : []),
+                            ...($booking->late_checkout_type ? [['clock', 'Late Checkout Charge', '$'.number_format($booking->lateCheckoutCharge() ?? 0, 2).' ('.ucfirst($booking->late_checkout_type).')']] : []),
                             ['calendar', 'Early Check-in', $booking->early_checkin ? 'Enabled' : 'Disabled'],
                             ['clock', 'Requested Check-in Time', $booking->checkinTimePreferenceFormatted() ?: 'Not specified'],
                             ['clock', 'Requested Check-out Time', $booking->checkoutTimePreferenceFormatted() ?: 'Not specified'],

@@ -141,6 +141,47 @@
     </div>
 
     <div class="mb-3 mt-10 flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-slate-950">Early check-in / late checkout rates</h2>
+    </div>
+    <div class="card card-pad mb-10">
+        <p class="section-copy mb-4">Flat rates for granted early check-in tiers, and hourly rates for late checkout. Authorized late checkout is billed by admin-entered hours; unauthorized late checkout is billed by the hours between standard checkout and the admin-recorded actual checkout time.</p>
+        <form method="post" action="{{ route('admin.properties.checkin-checkout-rates', $property) }}" class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            @csrf
+            <label class="field-label">
+                Early check-in (8:00 AM)
+                <div class="flex items-center gap-1">
+                    <span class="text-slate-500">$</span>
+                    <input type="number" step="0.01" min="0" name="early_checkin_rate_8am" value="{{ old('early_checkin_rate_8am', $property->early_checkin_rate_8am) }}" placeholder="0.00" class="input">
+                </div>
+            </label>
+            <label class="field-label">
+                Early check-in (12:00 PM)
+                <div class="flex items-center gap-1">
+                    <span class="text-slate-500">$</span>
+                    <input type="number" step="0.01" min="0" name="early_checkin_rate_12pm" value="{{ old('early_checkin_rate_12pm', $property->early_checkin_rate_12pm) }}" placeholder="0.00" class="input">
+                </div>
+            </label>
+            <label class="field-label">
+                Late checkout, authorized (per hour)
+                <div class="flex items-center gap-1">
+                    <span class="text-slate-500">$</span>
+                    <input type="number" step="0.01" min="0" name="late_checkout_rate_authorized_hourly" value="{{ old('late_checkout_rate_authorized_hourly', $property->late_checkout_rate_authorized_hourly) }}" placeholder="0.00" class="input">
+                </div>
+            </label>
+            <label class="field-label">
+                Late checkout, unauthorized (per hour)
+                <div class="flex items-center gap-1">
+                    <span class="text-slate-500">$</span>
+                    <input type="number" step="0.01" min="0" name="late_checkout_rate_unauthorized_hourly" value="{{ old('late_checkout_rate_unauthorized_hourly', $property->late_checkout_rate_unauthorized_hourly) }}" placeholder="0.00" class="input">
+                </div>
+            </label>
+            <div class="flex items-end sm:col-span-2 lg:col-span-4">
+                <button class="btn-primary">Save rates</button>
+            </div>
+        </form>
+    </div>
+
+    <div class="mb-3 mt-10 flex items-center justify-between">
         <h2 class="text-lg font-semibold text-slate-950">Smart Locks</h2>
         <span class="text-sm text-slate-500">{{ $property->locks->count() }} lock{{ $property->locks->count() === 1 ? '' : 's' }}</span>
     </div>

@@ -54,6 +54,33 @@
                 <span>Early Check-in Exception</span>
             </label>
             <p class="field-help">If enabled, the property address is shown to the guest immediately, bypassing the check-in day / 3:00 PM rule.</p>
+            <label class="field-label mt-5">
+                Early check-in billing tier (admin only)
+                <select name="early_checkin_tier" class="input">
+                    <option value="">None</option>
+                    <option value="8am" @selected(old('early_checkin_tier', $booking->early_checkin_tier)==='8am')>8:00 AM tier</option>
+                    <option value="12pm" @selected(old('early_checkin_tier', $booking->early_checkin_tier)==='12pm')>12:00 PM tier</option>
+                </select>
+                @if($booking->exists && $booking->early_checkin_tier)
+                    <span class="field-help">Charge: ${{ number_format($booking->earlyCheckinCharge() ?? 0, 2) }} (from the property's rate for this tier).</span>
+                @else
+                    <span class="field-help">Independent of the exception checkbox above — set this if the early check-in should be billed.</span>
+                @endif
+            </label>
+            <div class="field-label mt-5">
+                <span>Late checkout billing (admin only)</span>
+                <select name="late_checkout_type" class="input mt-1">
+                    <option value="">Not applicable</option>
+                    <option value="authorized" @selected(old('late_checkout_type', $booking->late_checkout_type)==='authorized')>Authorized</option>
+                    <option value="unauthorized" @selected(old('late_checkout_type', $booking->late_checkout_type)==='unauthorized')>Unauthorized</option>
+                </select>
+                <label class="field-label mt-3">Hours late (authorized only)<input type="number" step="0.25" min="0" name="late_checkout_hours" value="{{ old('late_checkout_hours', $booking->late_checkout_hours) }}" placeholder="e.g. 2" class="input"></label>
+                <label class="field-label mt-3">Actual checkout time (unauthorized only)<input type="datetime-local" name="late_checkout_actual_time" value="{{ old('late_checkout_actual_time', optional($booking->late_checkout_actual_time)->format('Y-m-d\TH:i')) }}" class="input"></label>
+                <span class="field-help">Separate from the system's automatic checkout timestamp — enter what time the guest actually left for an unauthorized late checkout, so hours can be calculated.</span>
+                @if($booking->exists && $booking->late_checkout_type)
+                    <span class="field-help font-semibold">Charge: ${{ number_format($booking->lateCheckoutCharge() ?? 0, 2) }}</span>
+                @endif
+            </div>
             <label class="field-label mt-5 flex items-center gap-2">
                 <input type="checkbox" name="photo_id_received" value="1" @checked(old('photo_id_received', $booking->photo_id_received))>
                 <span>Photo ID Already Received</span>

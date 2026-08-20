@@ -10,8 +10,8 @@ class Booking extends Model
 {
     protected $fillable = [
         'booking_id', 'reservation_id', 'guest_name', 'phone', 'email', 'check_in_date', 'check_out_date',
-        'property_id', 'id_type', 'token', 'photo_id_path', 'photo_id_back_path', 'photo_id_received', 'parking_needed', 'early_checkin', 'checkin_time_preference', 'checkout_time_preference', 'gps_verified', 'guest_authenticated_at',
-        'manually_checked_in', 'checked_in_at', 'checked_out_at', 'gps_overridden', 'status', 'notes', 'welcome_message', 'identity_confirmed_at',
+        'property_id', 'id_type', 'token', 'photo_id_path', 'photo_id_back_path', 'photo_id_received', 'parking_needed', 'early_checkin', 'early_checkin_tier', 'checkin_time_preference', 'checkout_time_preference', 'gps_verified', 'guest_authenticated_at',
+        'manually_checked_in', 'checked_in_at', 'checked_out_at', 'late_checkout_type', 'late_checkout_hours', 'late_checkout_actual_time', 'gps_overridden', 'status', 'notes', 'welcome_message', 'identity_confirmed_at',
         'approved_at', 'decline_reason', 'archived_at', 'background_check_completed_at', 'deposit_verified_at',
         'access_blocked_at', 'access_blocked_reason',
         'photo_id_front_approved_at', 'photo_id_front_declined_reason',
@@ -30,6 +30,8 @@ class Booking extends Model
             'manually_checked_in' => 'boolean',
             'checked_in_at' => 'datetime',
             'checked_out_at' => 'datetime',
+            'late_checkout_hours' => 'decimal:2',
+            'late_checkout_actual_time' => 'datetime',
             'guest_authenticated_at' => 'datetime',
             'approved_at' => 'datetime',
             'identity_confirmed_at' => 'datetime',
@@ -193,6 +195,101 @@ class Booking extends Model
         }
 
         return $this->parking_charge !== null ? (float) $this->parking_charge : null;
+    }
+
+    /**
+     * The charge for a granted early check-in exception, looked up flat from
+     * the property's rate for whichever tier was granted (task 26). Returns
+     * null if no tier was granted or the property hasn't set that rate yet.
+     */
+    public function earlyCheckinCharge(): ?float
+    {
+        if (!$this->early_checkin_tier || !$this->property) {
+            return null;
+        }
+
+        $rate = match ($this->early_checkin_tier) {
+            '8am' => $this->property->early_checkin_rate_8am,
+            '12pm' => $this->property->early_checkin_rate_12pm,
+            default => null,
+        };
+
+        return $rate !== null ? (float) $rate : null;
+    }
+
+    /**
+     * The property's standard checkout instant for this booking's checkout
+     * day, respecting the guest's chosen checkout time preference if set.
+     * Used only for the unauthorized late-checkout hour calculation below —
+     * deliberately independent of checked_out_at and the auto-checkout
+     * scheduled command (task 23), so the two features never interact.
+     */
+    protected function standardCheckoutInstant(): ?CarbonInterface
+    {
+        if (!$this->check_out_date || !$this->property) {
+            return null;
+        }
+
+        [$hour, $minute] = array_map('intval', explode(':', $this->effectiveCheckoutTime()));
+
+        return $this->check_out_date->copy()->setTime($hour, $minute);
+    }
+
+    /**
+     * Hours late for an unauthorized late checkout, computed from the
+     * admin-entered actual checkout time vs. the standard checkout time.
+     * This is intentionally separate from checked_out_at (which may be set
+     * by the auto-checkout command and doesn't reflect when the guest
+     * actually left) — task 26 explicitly calls for a manually recorded
+     * actual time for the unauthorized case.
+     */
+    public function lateCheckoutHoursUnauthorized(): ?float
+    {
+        if ($this->late_checkout_type !== 'unauthorized' || !$this->late_checkout_actual_time) {
+            return null;
+        }
+
+        $standard = $this->standardCheckoutInstant();
+        if (!$standard) {
+            return null;
+        }
+
+        $minutesLate = $standard->diffInMinutes($this->late_checkout_actual_time, false);
+
+        return $minutesLate > 0 ? round($minutesLate / 60, 2) : 0.0;
+    }
+
+    /**
+     * The late-checkout charge, either authorized (admin-entered hours ×
+     * property's authorized hourly rate) or unauthorized (hours computed
+     * from the admin-entered actual checkout time × unauthorized hourly
+     * rate). Returns null if no late-checkout type is set, or the needed
+     * rate/hours aren't available yet.
+     */
+    public function lateCheckoutCharge(): ?float
+    {
+        if (!$this->late_checkout_type || !$this->property) {
+            return null;
+        }
+
+        if ($this->late_checkout_type === 'authorized') {
+            if ($this->late_checkout_hours === null || $this->property->late_checkout_rate_authorized_hourly === null) {
+                return null;
+            }
+
+            return round((float) $this->late_checkout_hours * (float) $this->property->late_checkout_rate_authorized_hourly, 2);
+        }
+
+        if ($this->late_checkout_type === 'unauthorized') {
+            $hours = $this->lateCheckoutHoursUnauthorized();
+            if ($hours === null || $this->property->late_checkout_rate_unauthorized_hourly === null) {
+                return null;
+            }
+
+            return round($hours * (float) $this->property->late_checkout_rate_unauthorized_hourly, 2);
+        }
+
+        return null;
     }
 
     public function instructionsCompleted(): bool

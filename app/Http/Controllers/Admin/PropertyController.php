@@ -150,6 +150,22 @@ class PropertyController extends Controller
         return back()->with('success', 'Parking rates updated.');
     }
 
+    public function updateCheckinCheckoutRates(Request $request, Property $property)
+    {
+        $data = $request->validate([
+            'early_checkin_rate_8am'    => ['nullable', 'numeric', 'min:0'],
+            'early_checkin_rate_12pm'   => ['nullable', 'numeric', 'min:0'],
+            'late_checkout_rate_authorized_hourly'   => ['nullable', 'numeric', 'min:0'],
+            'late_checkout_rate_unauthorized_hourly' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $property->update($data);
+
+        ActivityLog::record('property_updated', "{$property->name} early check-in / late checkout rates were updated.", 'edit', $property);
+
+        return back()->with('success', 'Early check-in / late checkout rates updated.');
+    }
+
     public function destroy(Property $property)
     {
         $property->delete();
