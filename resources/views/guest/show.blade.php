@@ -306,10 +306,11 @@
                                 <p id="camera-instruction-label" class="pointer-events-none absolute top-2 left-0 right-0 text-center text-white text-sm font-bold" style="text-shadow:0 1px 3px rgba(0,0,0,0.8)"></p>
                             </div>
                             <div id="capture-btn-wrapper" class="hidden mt-3 flex flex-col items-center gap-2">
-                                <button type="button" id="capture-btn" class="bg-slate-900 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-xl border-4 border-white mx-auto">
+                                <p id="idw-capture-status" class="text-sm font-semibold text-slate-700 text-center">Loading camera…</p>
+                                <button type="button" id="capture-btn" class="hidden bg-slate-900 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-xl border-4 border-white mx-auto">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>
                                 </button>
-                                <span class="text-xs font-semibold text-slate-600">Tap to capture</span>
+                                <span id="capture-btn-fallback-label" class="hidden text-xs font-semibold text-slate-600">Tap to capture</span>
                             </div>
                             <div id="front-preview-block" class="hidden mt-3">
                                 <p class="text-xs font-semibold text-slate-500 mb-1">Front of ID</p>
@@ -583,10 +584,59 @@
                 var photoIdRequired = {{ $booking->photo_id_received ? 'false' : 'true' }};
                 var isPassport = {{ $booking->id_type === 'passport' ? 'true' : 'false' }};
 
+                // ── OpenCV.js loader ────────────────────────────────────────────────
+                // OpenCV.js is loaded lazily (only once the guest reaches this step) and
+                // runs entirely client-side in the browser — this has no server/hosting
+                // requirements at all (works the same on any host, cPanel included).
+                // If it fails to load (blocked network, offline, slow connection) we fall
+                // back to the old manual tap-to-capture button + JS blur check so nobody
+                // gets stuck unable to upload their ID.
+                var IDW_OPENCV_SRC = "https://docs.opencv.org/4.9.0/opencv.js";
+                var idwCvReady = false;
+                var idwCvFailed = false;
+                var idwCvLoadStarted = false;
+
+                function loadOpenCv(onReady, onFail) {
+                    if (idwCvReady) { onReady(); return; }
+                    if (idwCvFailed) { onFail(); return; }
+                    if (!idwCvLoadStarted) {
+                        idwCvLoadStarted = true;
+                        var script = document.createElement("script");
+                        script.src = IDW_OPENCV_SRC;
+                        script.async = true;
+                        script.onerror = function() { idwCvFailed = true; onFail(); };
+                        document.head.appendChild(script);
+                        // Give it a reasonable timeout — slow connections shouldn't block
+                        // the guest from uploading their ID indefinitely.
+                        setTimeout(function() {
+                            if (!idwCvReady && !idwCvFailed) { idwCvFailed = true; onFail(); }
+                        }, 8000);
+                    }
+                    var checkInterval = setInterval(function() {
+                        if (window.cv && window.cv.Mat) {
+                            // Some builds need onRuntimeInitialized; guard for both cases.
+                            if (window.cv.onRuntimeInitialized !== undefined && !idwCvReady) {
+                                window.cv["onRuntimeInitialized"] = function() {
+                                    idwCvReady = true;
+                                    clearInterval(checkInterval);
+                                    onReady();
+                                };
+                            } else if (!idwCvReady) {
+                                idwCvReady = true;
+                                clearInterval(checkInterval);
+                                onReady();
+                            }
+                        }
+                    }, 100);
+                }
+
                 // Downsamples the captured image, computes a Laplacian-based sharpness
                 // score (real focus/blur detection, not just brightness contrast), and a
                 // grid edge-density heuristic as a lightweight (non-OCR) "is there
                 // text-like structure here" signal.
+                // NOTE: this is the legacy JS-only fallback, used only if OpenCV.js fails
+                // to load. When OpenCV is available, idwCvCheckFrame() below is used
+                // instead — it's faster and considerably more reliable.
                 var IDW_DEBUG_LOG_SCORES = false; // tuning logs disabled
 
                 function __idwGetGrayscaleSample(imgEl, targetWidth) {
@@ -661,6 +711,14 @@
                 var IDW_SHARPNESS_MIN = 45;      // Laplacian variance floor - retune after real captures
                 var IDW_TEXT_RATIO_MIN = 0.03;   // fraction of grid cells that must look text-like
 
+                // Thresholds for the OpenCV auto-capture path — these run on a different
+                // scale (full guide-box crop, not a 400px downsample) so they are NOT the
+                // same numbers as the legacy JS thresholds above. Untested against real
+                // captures yet — retune once real guest photos are reviewed.
+                var IDW_CV_FILL_MIN = 0.80;       // detected document must fill ≥80% of the guide box
+                var IDW_CV_SHARPNESS_MIN = 120;   // OpenCV Laplacian variance floor
+                var IDW_CV_STABLE_FRAMES_NEEDED = 4; // consecutive good frames (~1s) before auto-capture
+
                 function checkBlur(imgEl, warningEl) {
                     var sample = __idwGetGrayscaleSample(imgEl, 400);
                     var lap = __idwLaplacianMap(sample.gray, sample.w, sample.h);
@@ -685,6 +743,112 @@
                     return true;
                 }
 
+                // ── OpenCV-based live frame analysis ────────────────────────────────
+                // Runs on a downsized crop of the guide-box region while the camera
+                // stream is live, every ~250ms. Reports back:
+                //   fillRatio  — how much of the guide box the detected document
+                //                rectangle occupies (auto-capture requires the ID to
+                //                actually fill the frame, not just be present in it)
+                //   sharpness  — Laplacian variance (higher = sharper); this uses the
+                //                same live frame the guide-box crop will actually use
+                //                for the final capture, so by the time we auto-fire,
+                //                the frame is already known-sharp (fixes the "haze"
+                //                issue caused by capturing before autofocus settles)
+                function idwCvCheckFrame(canvas) {
+                    var src = cv.imread(canvas);
+                    var gray = new cv.Mat();
+                    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+
+                    // Sharpness via Laplacian variance (OpenCV's own, much faster than
+                    // the hand-rolled JS version above).
+                    var lap = new cv.Mat();
+                    cv.Laplacian(gray, lap, cv.CV_64F);
+                    var mean = new cv.Mat();
+                    var stddev = new cv.Mat();
+                    cv.meanStdDev(lap, mean, stddev);
+                    var sharpness = Math.pow(stddev.data64F[0], 2);
+
+                    // Document-fill detection: edge detect, find the largest contour,
+                    // compare its bounding box to the full frame.
+                    var edges = new cv.Mat();
+                    cv.Canny(gray, edges, 50, 150);
+                    var contours = new cv.MatVector();
+                    var hierarchy = new cv.Mat();
+                    cv.findContours(edges, contours, hierarchy, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE);
+
+                    var frameArea = canvas.width * canvas.height;
+                    var bestArea = 0;
+                    for (var i = 0; i < contours.size(); i++) {
+                        var contour = contours.get(i);
+                        var rect = cv.boundingRect(contour);
+                        var area = rect.width * rect.height;
+                        if (area > bestArea && area < frameArea * 1.02) {
+                            bestArea = area;
+                        }
+                        contour.delete();
+                    }
+                    var fillRatio = frameArea > 0 ? bestArea / frameArea : 0;
+
+                    src.delete(); gray.delete(); lap.delete(); mean.delete(); stddev.delete();
+                    edges.delete(); contours.delete(); hierarchy.delete();
+
+                    return { fillRatio: fillRatio, sharpness: sharpness };
+                }
+
+                var idwDetectionTimer = null;
+                var idwStableFrameCount = 0;
+                var idwAutoCaptureInFlight = false;
+
+                function stopDetectionLoop() {
+                    if (idwDetectionTimer) { clearInterval(idwDetectionTimer); idwDetectionTimer = null; }
+                    idwStableFrameCount = 0;
+                    idwAutoCaptureInFlight = false;
+                }
+
+                function startDetectionLoop() {
+                    stopDetectionLoop();
+                    var video = document.getElementById("camera-stream");
+                    var statusEl = document.getElementById("idw-capture-status");
+                    var detectCanvas = document.createElement("canvas");
+
+                    idwDetectionTimer = setInterval(function() {
+                        if (idwAutoCaptureInFlight || !video.videoWidth) return;
+                        var crop = __idwGetGuideCropRect(video);
+                        // Downsize for speed — we only need this for detection, not the
+                        // final saved image (final capture re-crops at full resolution).
+                        var scale = Math.min(1, 260 / crop.w);
+                        detectCanvas.width = Math.round(crop.w * scale);
+                        detectCanvas.height = Math.round(crop.h * scale);
+                        detectCanvas.getContext("2d").drawImage(
+                            video, crop.x, crop.y, crop.w, crop.h, 0, 0, detectCanvas.width, detectCanvas.height
+                        );
+
+                        var result;
+                        try {
+                            result = idwCvCheckFrame(detectCanvas);
+                        } catch (e) {
+                            return; // transient decode error, just skip this frame
+                        }
+
+                        if (result.fillRatio >= IDW_CV_FILL_MIN && result.sharpness >= IDW_CV_SHARPNESS_MIN) {
+                            idwStableFrameCount++;
+                            statusEl.textContent = "Hold steady…";
+                        } else if (result.fillRatio < IDW_CV_FILL_MIN) {
+                            idwStableFrameCount = 0;
+                            statusEl.textContent = "Move the ID closer so it fills the frame";
+                        } else {
+                            idwStableFrameCount = 0;
+                            statusEl.textContent = "Hold steady for a clear photo…";
+                        }
+
+                        if (idwStableFrameCount >= IDW_CV_STABLE_FRAMES_NEEDED) {
+                            idwAutoCaptureInFlight = true;
+                            statusEl.textContent = "Capturing…";
+                            performCapture();
+                        }
+                    }, 250);
+                }
+
                 function startCamera(side) {
                     currentSide = side;
                     var container = document.getElementById("camera-container");
@@ -705,6 +869,10 @@
 
                     container.classList.remove("hidden");
                     btnWrapper.classList.remove("hidden");
+                    document.getElementById("idw-capture-status").textContent = "Loading camera…";
+                    document.getElementById("capture-btn").classList.add("hidden");
+                    document.getElementById("capture-btn-fallback-label").classList.add("hidden");
+
                     navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false })
                         .then(function(s) {
                             stream = s;
@@ -715,13 +883,24 @@
                             } else {
                                 label = "Take a picture of the back of ID";
                             }
-                            document.getElementById("capture-btn").title = label;
                             document.getElementById("camera-instruction-label").textContent = label;
+
+                            loadOpenCv(function() {
+                                document.getElementById("idw-capture-status").textContent = "Position the ID within the frame";
+                                startDetectionLoop();
+                            }, function() {
+                                // OpenCV unavailable — fall back to manual capture so the
+                                // guest isn't stuck.
+                                document.getElementById("idw-capture-status").textContent = "Position the ID within the frame, then tap to capture";
+                                document.getElementById("capture-btn").classList.remove("hidden");
+                                document.getElementById("capture-btn-fallback-label").classList.remove("hidden");
+                            });
                         })
                         .catch(function() { alert("Camera access denied. Please allow camera permissions and try again."); });
                 }
 
                 function stopCamera() {
+                    stopDetectionLoop();
                     if (stream) { stream.getTracks().forEach(function(t){ t.stop(); }); stream = null; }
                     document.getElementById("camera-container").classList.add("hidden");
                     document.getElementById("capture-btn-wrapper").classList.add("hidden");
@@ -756,7 +935,7 @@
                 }
 
                 if (photoIdRequired) {
-                    document.getElementById("capture-btn").addEventListener("click", function() {
+                    function performCapture() {
                         var video = document.getElementById("camera-stream");
                         var crop = __idwGetGuideCropRect(video);
                         var canvas = document.createElement("canvas");
@@ -764,8 +943,9 @@
                         canvas.height = crop.h;
                         canvas.getContext("2d").drawImage(video, crop.x, crop.y, crop.w, crop.h, 0, 0, crop.w, crop.h);
                         var dataUrl = canvas.toDataURL("image/jpeg", 0.92);
+                        var side = currentSide;
                         stopCamera();
-                        if (currentSide === "front") {
+                        if (side === "front") {
                             var img = document.getElementById("front-preview");
                             img.src = dataUrl;
                             document.getElementById("front-preview-block").classList.remove("hidden");
@@ -789,7 +969,10 @@
                                 if (ok) { document.getElementById("photo-id-back-data").value = dataUrl; idwSaveState({ photo_id_back: dataUrl }); }
                             };
                         }
-                    });
+                    }
+
+                    // Manual fallback button — only shown if OpenCV.js fails to load.
+                    document.getElementById("capture-btn").addEventListener("click", performCapture);
 
                     document.getElementById("retake-front-btn").addEventListener("click", function() {
                         document.getElementById("front-preview-block").classList.add("hidden");

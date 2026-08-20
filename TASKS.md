@@ -38,9 +38,13 @@ or client confirmation — do not guess at prod state.
 7. ~~Checkout time picker should only allow 7am–2pm~~ — DONE (with task 5). Range
    narrowed to 7am-2pm, 10am recommended and shown first.
 8. ~~Flip front/back ID review + independent approve/reject + resubmit alert~~ — DONE (merged with 22)
-9. ID capture: auto-fill frame + auto-capture, no manual button
-10. ID photos showing overlay/haze ("Hayes film") on every guest
-11. ID photos blurry — blur detection not working
+9. ~~ID capture: auto-fill frame + auto-capture, no manual button~~ — DONE (combined
+   with 10 + 11, see PROD_INSTRUCTIONS.md for tuning/self-hosting follow-ups)
+10. ~~ID photos showing overlay/haze ("Hayes film") on every guest~~ — DONE (combined
+    with 9). Root cause: capture fired before camera autofocus/exposure settled.
+11. ~~ID photos blurry — blur detection not working~~ — DONE (combined with 9). Replaced
+    untested hand-rolled threshold with OpenCV.js-based detection; needs real-world
+    threshold tuning (see PROD_INSTRUCTIONS.md).
 12. Checkout status not updating day-before / warning before final "checked out" press
 13. Admin guest list: full name visibility, rectangular hero image, no truncation
 14. Remove guest ID from list views; only booking ID on full detail page

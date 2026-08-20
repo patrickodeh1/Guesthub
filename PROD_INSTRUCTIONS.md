@@ -104,4 +104,48 @@ if it turns out not to be the root cause.
 being visited and whether "Remember me" was checked at login, and we can dig
 further with that specific case.
 
+---
+
+## 6. ID capture auto-fill/auto-capture + haze + blur detection (tasks 9, 10, 11)
+
+**What shipped:** Replaced the manual tap-to-capture button with an OpenCV.js-based
+live detection loop. While the camera is open, it checks ~4x/second whether the ID
+fills the guide frame AND is sharp; after ~1 second of both being true, it
+auto-captures. No button tap needed. If OpenCV.js fails to load (blocked network,
+very slow connection), a manual fallback button appears so guests are never stuck.
+
+**Why this should fix the haze issue:** the old flow let guests tap "capture"
+instantly, often before the camera's autofocus/exposure had settled — producing a
+soft/washed-out frame on nearly every capture. The new flow only captures once the
+live frame has been detected as sharp, so it structurally can't fire on an
+unsettled frame anymore.
+
+**Needs real-world tuning after deploy — thresholds are untested against real
+guest photos:**
+- `IDW_CV_FILL_MIN` (currently 0.80) — how much of the guide box the ID must
+  fill before auto-capture is allowed to consider it "in frame."
+- `IDW_CV_SHARPNESS_MIN` (currently 120) — OpenCV Laplacian variance floor.
+- `IDW_CV_STABLE_FRAMES_NEEDED` (currently 4, ~1 second at 250ms/check) — how
+  long the frame must stay good before firing.
+- All three are constants near the top of the `<script>` block in
+  `resources/views/guest/show.blade.php`, clearly commented, easy to adjust
+  without touching the detection logic itself.
+- **Ask the client to test on a few real phones (iOS Safari + Android Chrome
+  especially) after deploy** and report back if it's auto-capturing too early
+  (blurry/cut-off results) or taking too long (frustrating wait) — we'll retune
+  from real numbers rather than guessing further.
+
+**CDN dependency — recommend self-hosting before going live long-term:**
+Currently loads OpenCV.js from `https://docs.opencv.org/4.9.0/opencv.js` at
+runtime (client-side, in the guest's browser — this has zero relationship to
+your server/cPanel hosting, it's just a script tag). This works out of the box,
+but ties correctness to that external site staying up. To remove that
+dependency:
+1. Download the file from that same URL.
+2. Place it at `public/vendor/opencv/opencv.js` in the repo.
+3. Change `IDW_OPENCV_SRC` in `resources/views/guest/show.blade.php` to
+   `{{ asset('vendor/opencv/opencv.js') }}`.
+This is optional (current CDN setup works fine), just a robustness improvement
+whenever convenient — not blocking.
+
 Status: living doc, update as items are resolved.
