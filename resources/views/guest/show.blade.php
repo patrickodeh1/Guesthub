@@ -298,6 +298,17 @@
                                 </div>
                             @endif
                             <p class="text-sm font-bold mb-3">Photo ID <span class="text-red-500">*</span></p>
+
+                            <div id="idw-desktop-notice" class="hidden rounded-xl border border-slate-200 bg-slate-50 p-4 text-center">
+                                <p class="text-sm font-bold text-slate-800">It's easier to snap this on your phone</p>
+                                <p class="mt-1 text-xs text-slate-500">Scan the code below with your phone's camera to pick up right where you left off.</p>
+                                <div id="idw-qr-canvas" class="mx-auto mt-4 flex items-center justify-center" style="width:180px;height:180px"></div>
+                                <p class="mt-3 text-xs font-semibold text-slate-600">Or open this link on your phone:</p>
+                                <p id="idw-qr-link" class="mt-1 break-all rounded-lg bg-white px-3 py-2 text-xs font-mono text-slate-700 border border-slate-200"></p>
+                                <button type="button" id="idw-continue-desktop-btn" class="mt-4 text-xs font-semibold text-blue-600 underline">Don't have a mobile device? Continue on desktop</button>
+                            </div>
+
+                            <div id="idw-mobile-capture-ui">
                             <div id="camera-container" class="relative w-full rounded-xl overflow-hidden bg-black hidden" style="aspect-ratio:16/9">
                                 <video id="camera-stream" class="w-full h-full object-cover" autoplay playsinline muted></video>
                                 <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -342,6 +353,7 @@
                             <p id="upload-zone-trigger-back-label" class="mt-2 text-center font-bold hidden">Tap to take photo of back of ID</p>
                             <input type="hidden" name="photo_id" id="photo-id-data">
                             <input type="hidden" name="photo_id_back" id="photo-id-back-data">
+                            </div>
                         </div>
                         @endif
 
@@ -583,6 +595,78 @@
                 var stream = null;
                 var photoIdRequired = {{ $booking->photo_id_received ? 'false' : 'true' }};
                 var isPassport = {{ $booking->id_type === 'passport' ? 'true' : 'false' }};
+
+                // ── Device detection (mobile/tablet vs desktop) ────────────────────
+                // Deliberately NOT a screen-width check — that's trivially spoofed by
+                // resizing a desktop browser window. Instead this checks the actual
+                // device/browser signals: the modern userAgentData.mobile flag where
+                // available, falling back to a User-Agent match for older browsers,
+                // plus a special case for iPads — they report a desktop "Macintosh"
+                // UA by default, but a real Mac never reports multi-touch, so
+                // platform === 'MacIntel' + maxTouchPoints > 1 reliably catches them.
+                function idwIsMobileOrTablet() {
+                    try {
+                        if (navigator.userAgentData && typeof navigator.userAgentData.mobile === "boolean") {
+                            if (navigator.userAgentData.mobile) return true;
+                        }
+                        var ua = navigator.userAgent || "";
+                        if (/Android|iPhone|iPod|iPad|Mobile|Tablet/i.test(ua)) return true;
+                        if (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1) return true;
+                        return false;
+                    } catch (e) {
+                        // If detection throws for any reason, don't block a real guest —
+                        // default to showing the camera flow.
+                        return true;
+                    }
+                }
+
+                // ── QR handoff for desktop guests ───────────────────────────────────
+                // Photo capture only makes sense on a device with a camera in hand, so
+                // desktop guests are pointed to their phone instead of being shown a
+                // camera UI. Loaded lazily and only for desktop guests. Generated
+                // entirely client-side — no external service call, no cost, and it
+                // still works if this CDN is ever unreachable (the plain link below
+                // the code is always shown as a fallback).
+                var IDW_QRCODE_SRC = "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js";
+                var idwQrLoadStarted = false;
+
+                function idwShowDesktopNotice() {
+                    document.getElementById("idw-mobile-capture-ui").classList.add("hidden");
+                    document.getElementById("idw-desktop-notice").classList.remove("hidden");
+                    document.getElementById("idw-qr-link").textContent = window.location.href;
+
+                    if (idwQrLoadStarted) return;
+                    idwQrLoadStarted = true;
+                    var script = document.createElement("script");
+                    script.src = IDW_QRCODE_SRC;
+                    script.onload = function() {
+                        try {
+                            new QRCode(document.getElementById("idw-qr-canvas"), {
+                                text: window.location.href,
+                                width: 180,
+                                height: 180,
+                                correctLevel: QRCode.CorrectLevel.M
+                            });
+                        } catch (e) {
+                            // QR render failed — the plain link underneath still works.
+                        }
+                    };
+                    document.head.appendChild(script);
+                }
+
+                (function idwInitDeviceGate() {
+                    if (!photoIdRequired) return;
+                    if (!idwIsMobileOrTablet()) {
+                        idwShowDesktopNotice();
+                    }
+                    var continueBtn = document.getElementById("idw-continue-desktop-btn");
+                    if (continueBtn) {
+                        continueBtn.addEventListener("click", function() {
+                            document.getElementById("idw-desktop-notice").classList.add("hidden");
+                            document.getElementById("idw-mobile-capture-ui").classList.remove("hidden");
+                        });
+                    }
+                })();
 
                 // ── OpenCV.js loader ────────────────────────────────────────────────
                 // OpenCV.js is loaded lazily (only once the guest reaches this step) and
