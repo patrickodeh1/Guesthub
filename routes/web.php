@@ -13,9 +13,8 @@ use App\Http\Controllers\GuestController;
 use App\Services\ActivityLogService;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return redirect()->route('login');
-});
+Route::get('/', [App\Http\Controllers\EarlyAccessController::class, 'show'])->name('early-access');
+Route::post('/early-access', [App\Http\Controllers\EarlyAccessController::class, 'store'])->name('early-access.store');
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.store');
@@ -152,6 +151,8 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     Route::middleware('role:owner')->group(function () {
         Route::resource('users', UserController::class);
         Route::post('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
+        Route::get('early-access-leads', [App\Http\Controllers\Admin\EarlyAccessLeadController::class, 'index'])->name('early-access-leads.index');
+        Route::post('early-access-leads/{lead}/mark-contacted', [App\Http\Controllers\Admin\EarlyAccessLeadController::class, 'markContacted'])->name('early-access-leads.mark-contacted');
     });
 
     // ─── Activity Logs ────────────────────────────────────────────────────────
