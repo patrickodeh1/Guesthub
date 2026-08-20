@@ -61,4 +61,47 @@ env var names once that code is written.
 - Early-access registration: payment required? which processor?
 - Confirm "custom verification step naming" = existing extra-steps feature
 
+---
+
+## 5. Admin gets logged out / "page doesn't exist" after being idle (Task 1)
+
+**Client report (paraphrased):** After some time, admin gets logged out and has to
+log back in, even losing the page they were on. Client believes "remember me"
+should prevent this.
+
+**Code review result:** No bug found. Session config, auth guard config, and the
+"Remember me" checkbox on login are all standard, correct Laravel implementations.
+`Auth::attempt($credentials, $request->boolean('remember'))` is wired properly —
+checking "Remember me" should keep the admin logged in via a long-lived cookie
+independent of normal session expiry.
+
+**Fixed regardless (safe, low-risk):** Added `trustProxies(at: '*')` in
+`bootstrap/app.php`. If prod sits behind any reverse proxy / load balancer / CDN
+that terminates HTTPS (nginx, Cloudflare, a PaaS, etc.), Laravel previously had
+no way to reliably detect the original request was secure — this can cause
+session/remember-me cookies to behave inconsistently. This is safe to have even
+if it turns out not to be the root cause.
+
+**What we need you to check in prod `.env`:**
+- `SESSION_LIFETIME` — how many minutes before an idle session expires *without*
+  "Remember me" checked. Default is 120. If this is set unusually low, that alone
+  would explain frequent logouts for anyone not checking "Remember me."
+- `SESSION_SECURE_COOKIE` — should generally be left unset/`null` unless you know
+  you need to force it. If it's explicitly set to `true` but the app isn't
+  correctly recognized as HTTPS (see proxy note above), cookies won't be stored
+  at all, breaking sessions AND remember-me.
+- `SESSION_DOMAIN` — should almost always be `null` unless intentionally sharing
+  the session across subdomains. A leftover/incorrect value here can silently
+  break cookie storage.
+- `APP_URL` — should exactly match the real prod URL (including `https://`).
+- Confirm the `sessions` table exists and is migrated (`SESSION_DRIVER=database`
+  is the default) — run `php artisan migrate:status` and check for it.
+- Confirm `APP_KEY` has NOT changed/been regenerated recently. Rotating `APP_KEY`
+  invalidates all existing sessions and cookies instantly for every logged-in
+  user — this alone would explain sudden, unexplained logouts across the board.
+
+**If none of the above explains it:** next time it happens, note the exact URL
+being visited and whether "Remember me" was checked at login, and we can dig
+further with that specific case.
+
 Status: living doc, update as items are resolved.
