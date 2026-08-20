@@ -98,10 +98,10 @@
                     @forelse($entry['entries'] as $item)
                         @php $booking = $item['booking']; @endphp
                         <a href="{{ route('admin.guests.show', $booking) }}" class="mt-3 flex flex-wrap items-start gap-x-3 gap-y-2 hover:bg-slate-50 {{ ! $loop->first ? 'border-t border-slate-100 pt-3' : '' }}">
-                            <img src="{{ $entry['property']->heroImageUrl() }}" alt="" class="h-8 w-8 shrink-0 rounded-lg object-cover">
+                            <img src="{{ $entry['property']->heroImageUrl() }}" alt="" class="h-8 w-12 shrink-0 rounded-lg object-cover">
                             <div class="min-w-0 flex-1">
-                                <p class="truncate font-semibold text-slate-950">{{ $booking->guest_name }}</p>
-                                <p class="truncate text-xs font-medium text-slate-600">{{ $booking->phone }}</p>
+                                <p class="font-semibold text-slate-950">{{ $booking->guest_name }}</p>
+                                <p class="text-xs font-medium text-slate-600">{{ $booking->phone }}</p>
                                 <p class="text-xs {{ $item['is_today'] ? 'font-bold text-slate-950' : 'text-slate-500' }}">
                                     @if($item['kind'] === 'current')
                                         Currently hosting &middot; out {{ $booking->check_out_date->format('M j') }}
