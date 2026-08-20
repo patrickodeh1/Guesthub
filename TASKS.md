@@ -139,7 +139,23 @@ or client confirmation — do not guess at prod state.
     property's rates are edited. Guests never see a dollar amount anywhere —
     admin-only per the client's instruction. **Real per-property rate numbers
     still need to be entered by the client — see PROD_INSTRUCTIONS.md #8.**
-26. Early check-in tiers (8am/12pm) + late checkout rates (authorized/unauthorized, hourly)
+26. ~~Early check-in tiers (8am/12pm) + late checkout rates (authorized/unauthorized, hourly)~~ — DONE.
+    Property gets 4 new admin-editable rates: `early_checkin_rate_8am`,
+    `early_checkin_rate_12pm` (flat), `late_checkout_rate_authorized_hourly`,
+    `late_checkout_rate_unauthorized_hourly` (per-hour). Booking gets
+    `early_checkin_tier` (billing tier, kept separate from the existing
+    `early_checkin` boolean which controls address-visibility — the two
+    don't affect each other) and `late_checkout_type`/`late_checkout_hours`/
+    `late_checkout_actual_time` for late-checkout billing: authorized is
+    billed by admin-entered hours, unauthorized is billed by hours between
+    standard checkout time and an admin-recorded actual checkout time.
+    **Deliberately decoupled from task 23's auto-checkout command** — the
+    late-checkout billing fields never read or write `checked_out_at`, and
+    a dedicated test confirms billing follows only the manually-recorded
+    time even when auto-checkout has also fired on the same booking.
+    Charges are computed live from current property rates (not persisted),
+    so no stale-data/recalculation concerns. Admin-only throughout — nothing
+    shown to guests.
 27. Show "(X nights)" next to date ranges everywhere
 28. ~~Global 12h time audit across all pages~~ — DONE, combined with task 19.
     Audited the whole codebase for raw 24-hour time display (not inputs) —
@@ -156,4 +172,4 @@ or client confirmation — do not guess at prod state.
     — RESOLVED, no fix needed (undo exists via booking edit page, client already informed)
 34. Parking flow: collect make/model + license plate photo when guest opts in
 
-Status: 25/33 done, 1 resolved as no-op, 7 remaining
+Status: 26/33 done, 1 resolved as no-op, 6 remaining

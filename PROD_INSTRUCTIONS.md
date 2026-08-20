@@ -192,4 +192,27 @@ automatically whenever a property's rates are saved.
 No code changes needed here — this is purely data entry once real rates are
 available.
 
+## 9. Early check-in / late checkout rates need real numbers entered per property (task 26)
+
+Same situation as #8 above, for the 4 new rates from task 26 (early check-in
+8am/12pm tiers, late checkout authorized/unauthorized hourly). All default to
+blank, so any booking billed against them will show $0.00 until real numbers
+are entered.
+
+**Action needed:** for each active property, go to its edit page in the admin
+(Properties → [property] → "Early check-in / late checkout rates" section,
+just below Parking rates) and fill in the actual amounts. These charges are
+computed live (not persisted), so there's no separate recalculation step —
+saving the property's rates is enough for any booking to reflect the new
+number immediately.
+
+Also worth flagging: for **unauthorized** late checkout, the hourly charge is
+driven by a manually-entered "actual checkout time" field on the booking —
+separate from the automatic checkout timestamp used by the auto-checkout
+system (task 23) — so admins will need to fill that in themselves (e.g. from
+lock activity logs or in-person knowledge) any time they want to bill an
+unauthorized late checkout. This was a deliberate choice to keep the two
+systems from interfering with each other; flagging here in case the client
+expects it to populate automatically.
+
 Status: living doc, update as items are resolved.
