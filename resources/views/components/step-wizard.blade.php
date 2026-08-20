@@ -126,6 +126,14 @@
             if (!response.ok) {
                 throw new Error("Request failed with status " + response.status);
             }
+            if (type === "checkout") {
+                // Reload so the server recomputes state and serves the real
+                // "all checked out" locked page immediately — toggling a
+                // client-side section here left the guide/menu visible and
+                // clickable until the next full navigation (task 29).
+                window.location.reload();
+                return;
+            }
             var modal = document.getElementById("checkout-confirm-modal");
             if (modal) modal.classList.add("hidden");
             document.getElementById("step-wizard-" + type).style.display = "none";

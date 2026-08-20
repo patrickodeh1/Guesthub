@@ -69,7 +69,26 @@ class GuestCheckoutFlowTest extends TestCase
         }
     }
 
-    public function test_auto_checkout_command_respects_grace_period(): void
+    public function test_reloading_after_checkout_confirmation_shows_locked_page_not_guide(): void
+    {
+        // Regression test for task 29: after the guest confirms checkout, the
+        // very next page load must show the locked "all checked out" page
+        // (no guide/menu), not the guide the wizard used to fall back into.
+        $booking = $this->makeCheckedInBooking();
+
+        $this->post(route('guest.confirm-checkout', [$booking->booking_id, $booking->token]))
+            ->assertOk();
+
+        $booking->refresh();
+        $this->assertEquals('checked_out', $booking->status);
+
+        $response = $this->get(route('guest.show', [$booking->booking_id, $booking->token]));
+        $response->assertOk();
+        $response->assertSee("You're all checked out");
+        $response->assertDontSee('id="guide-grid"', false);
+    }
+
+
     {
         // 10 minutes past checkout time — inside the default 30-minute grace period.
         $withinGrace = $this->makeCheckedInBooking([
