@@ -160,6 +160,16 @@ class Booking extends Model
         return $this->safeFormatTime($this->effectiveCheckinTime());
     }
 
+    public function checkinTimePreferenceFormatted(): ?string
+    {
+        return $this->checkin_time_preference ? $this->safeFormatTime($this->checkin_time_preference) : null;
+    }
+
+    public function checkoutTimePreferenceFormatted(): ?string
+    {
+        return $this->checkout_time_preference ? $this->safeFormatTime($this->checkout_time_preference) : null;
+    }
+
     public function addressAvailableAtFormatted(): string
     {
         return $this->safeFormatTime($this->effectiveCheckinTime(), subHour: true);
