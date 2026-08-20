@@ -266,6 +266,20 @@ class Booking extends Model
         return $now->hour > $hour || ($now->hour === $hour && $now->minute >= $minute);
     }
 
+    public function isPastCheckoutGracePeriod(int $graceMinutes = 30, ?CarbonInterface $now = null): bool
+    {
+        $timezone = $this->property?->timezone ?? 'America/New_York';
+        $now = ($now ?? now())->setTimezone($timezone);
+
+        if ($now->toDateString() < $this->check_out_date->toDateString()) return false;
+        if ($now->toDateString() > $this->check_out_date->toDateString()) return true;
+
+        [$hour, $minute] = array_map('intval', explode(':', $this->effectiveCheckoutTime()));
+        $threshold = $now->copy()->setTime($hour, $minute)->addMinutes($graceMinutes);
+
+        return $now->greaterThanOrEqualTo($threshold);
+    }
+
     public static function archiveOverdue(): int
     {
         $count = 0;
@@ -275,11 +289,33 @@ class Booking extends Model
                     continue;
                 }
                 $updates = ['archived_at' => now()];
-                if ($booking->status !== 'checked_out') {
-                    $updates['status'] = 'checked_out';
-                    $updates['checked_out_at'] = $booking->checked_out_at ?? now();
-                }
                 $booking->update($updates);
+                $count++;
+            }
+        });
+        return $count;
+    }
+
+    /**
+     * Auto-checkout bookings whose guests never pressed "All Done", once the
+     * configured grace period after their checkout time has elapsed (task 23).
+     * Intentionally separate from archiveOverdue(): archiving is cosmetic/admin
+     * housekeeping and can happen immediately at checkout time, but flipping a
+     * booking's status to checked_out is a real state change the guest should
+     * get a grace window for.
+     */
+    public static function autoCheckoutOverdue(int $graceMinutes = 30): int
+    {
+        $count = 0;
+        static::where('status', '!=', 'checked_out')->chunkById(100, function ($bookings) use (&$count, $graceMinutes) {
+            foreach ($bookings as $booking) {
+                if (! $booking->isPastCheckoutGracePeriod($graceMinutes)) {
+                    continue;
+                }
+                $booking->update([
+                    'status' => 'checked_out',
+                    'checked_out_at' => now(),
+                ]);
                 $count++;
             }
         });
