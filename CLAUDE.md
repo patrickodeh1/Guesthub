@@ -102,7 +102,7 @@ changed.
 - **SMS:** Twilio, via `App\Services\SmsNotificationService`. Was
   admin-only originally; being extended to guest-facing sends. Config keys
   live under `services.twilio.*`.
-- Client has said (see `CLIENT_TASKS.md` task 30/5-followup) they want
+- Client has said (see `CLIENT_TASKS.md` task 30) they want
   **both email and text working, and guest-selectable** which channel(s)
   they receive, with **text preferred**. Build both channels as first-class,
   not email-with-SMS-as-afterthought.
@@ -117,3 +117,12 @@ changed.
 - SMS "not working" (original report) was a client-side Twilio
   misconfiguration, not a code bug — don't chase this as a bug in isolation;
   see task 30 for the actual notification-system build-out.
+- Task 5 is ONLY the check-in/checkout time dropdown mislabel (system showed
+  10am/checkout time as the recommended check-in time). It is NOT the
+  notification system — an earlier session mis-scoped this by conflating it
+  with a message about notification channel preferences that actually
+  belongs to task 30. If a message mentions "checkin time is 4pm" alongside
+  notification preferences, that's just context data for task 30, not a
+  redefinition of task 5. Watch for this kind of conflation generally — a
+  client message can touch multiple tasks at once; don't assume the last
+  task discussed is the one a new message is about without checking.

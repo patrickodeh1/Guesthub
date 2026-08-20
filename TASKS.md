@@ -31,12 +31,12 @@ or client confirmation — do not guess at prod state.
    (payment deferred per direction; contact form + admin leads list built instead)
 3. Inner iframe/scroll issue on steps pages
 4. Text alerts not working (Q2)
-5. ~~"Checkout time" mislabeled~~ — SUPERSEDED per client reply, see below and CLIENT_TASKS.md.
-   Real scope: build working email + SMS guest notifications, guest-selectable channel
-   preference (text preferred/default), fixed check-in 4pm / check-out 10am per current
-   db config. NOT an admin mislabeling issue — do not treat as a UI text-fix task.
+5. ~~Check-in time showed system's checkout time (10am) as recommended~~ — DONE.
+   Guest check-in dropdown now recommends 4pm (shown first), helper text corrected.
+   Handled together with task 7.
 6. Pending check-in page missing property image header
-7. Checkout time picker should only allow 7am–2pm
+7. ~~Checkout time picker should only allow 7am–2pm~~ — DONE (with task 5). Range
+   narrowed to 7am-2pm, 10am recommended and shown first.
 8. ~~Flip front/back ID review + independent approve/reject + resubmit alert~~ — DONE (merged with 22)
 9. ID capture: auto-fill frame + auto-capture, no manual button
 10. ID photos showing overlay/haze ("Hayes film") on every guest
