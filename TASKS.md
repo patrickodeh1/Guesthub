@@ -156,7 +156,13 @@ or client confirmation — do not guess at prod state.
     Charges are computed live from current property rates (not persisted),
     so no stale-data/recalculation concerns. Admin-only throughout — nothing
     shown to guests.
-27. Show "(X nights)" next to date ranges everywhere
+27. ~~Show "(X nights)" next to date ranges everywhere~~ — DONE.
+    Added Booking::nightsCount()/nightsLabel() ("(1 night)" / "(N nights)").
+    stayRangeLabel() (admin bookings index, guest-row partial, admin booking
+    show subtitle) picks it up automatically. Also applied directly to the
+    guest-facing check-out tiles, the admin dashboard "Currently hosting"
+    line, and the admin booking show page's Check-out Date row. Tests in
+    tests/Feature/BookingNightsLabelTest.php.
 28. ~~Global 12h time audit across all pages~~ — DONE, combined with task 19.
     Audited the whole codebase for raw 24-hour time display (not inputs) —
     the admin Guest Details panel (task 19) was the only instance found. All
@@ -172,4 +178,4 @@ or client confirmation — do not guess at prod state.
     — RESOLVED, no fix needed (undo exists via booking edit page, client already informed)
 34. Parking flow: collect make/model + license plate photo when guest opts in
 
-Status: 26/33 done, 1 resolved as no-op, 6 remaining
+Status: 27/33 done, 1 resolved as no-op, 5 remaining
