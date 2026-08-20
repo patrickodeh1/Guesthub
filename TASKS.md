@@ -34,7 +34,10 @@ or client confirmation — do not guess at prod state.
 5. ~~Check-in time showed system's checkout time (10am) as recommended~~ — DONE.
    Guest check-in dropdown now recommends 4pm (shown first), helper text corrected.
    Handled together with task 7.
-6. Pending check-in page missing property image header
+6. ~~Pending check-in page missing property image header~~ — DONE. The "arrival"
+   state (check-in day page, "We Can't Wait To See You!", before GPS check-in) was
+   the only guest-facing state missing the property hero image — added it, matching
+   the same image treatment already used on the other status pages.
 7. ~~Checkout time picker should only allow 7am–2pm~~ — DONE (with task 5). Range
    narrowed to 7am-2pm, 10am recommended and shown first.
 8. ~~Flip front/back ID review + independent approve/reject + resubmit alert~~ — DONE (merged with 22)
