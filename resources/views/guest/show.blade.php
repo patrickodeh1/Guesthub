@@ -1317,6 +1317,7 @@
                         Not checked in
                     </span>
                 </div>
+                <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="w-full block rounded-xl mt-4">
             <div class="p-6 md:p-10">
                 <h1 class="guest-status-title">We Can't Wait To See You!</h1>
                 <div class="guest-stay-grid">
