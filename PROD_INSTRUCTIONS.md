@@ -172,4 +172,24 @@ and a completely separate path from the real "All Done" button. That's been
 removed; the scheduled command above is now the only thing that auto-flips
 checkout status, and only after the 30-minute grace period.
 
+## 8. Parking rates need real numbers entered per property (tasks 20/25)
+
+The auto-calculated parking charge mechanism (7 per-weekday rates per
+property, summed across the guest's stay, admin-only visible, override field
+available) is now built and live. It calculates correctly, but every
+property's 7 rate fields currently default to blank/unset, which the
+calculation treats as \$0 for that weekday — so right now every booking with
+`parking_needed = true` will show a \$0.00 auto-calculated charge until real
+numbers are entered.
+
+**Action needed:** for each active property, go to its edit page in the admin
+(Properties → [property] → "Parking rates" section, near the bottom) and fill
+in the actual per-weekday parking rate. Existing bookings that already have
+`parking_needed` set will need a save on that property's rates (or a save on
+the individual booking) to pick up the new numbers — the charge recalculates
+automatically whenever a property's rates are saved.
+
+No code changes needed here — this is purely data entry once real rates are
+available.
+
 Status: living doc, update as items are resolved.

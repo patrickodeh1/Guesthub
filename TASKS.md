@@ -93,7 +93,9 @@ or client confirmation — do not guess at prod state.
     `checkoutTimePreferenceFormatted()` accessors, "Not specified" unchanged
     when unset. The edit form's native `<input type="time">` fields were
     already fine (browser-rendered per locale) — not touched.
-20. Parking auto-calculated charge, admin-editable override
+20. ~~Parking auto-calculated charge, admin-editable override~~ — DONE. Same
+    feature as task 25 (client's message was one combined answer covering
+    both); see task 25 for full description.
 21. ~~Welcome guide: restructure into cards (logo/status, weather, icons, guest
     info)~~ — DONE. Matched the stacked-card pattern already used on
     preregistration (separate `guest-portal-card` blocks instead of one big
@@ -119,7 +121,21 @@ or client confirmation — do not guess at prod state.
     Done" — replacing the old buggy zero-grace flip described in task 12.
     **Needs a prod cron entry to actually run — see PROD_INSTRUCTIONS.md #7.**
 24. Admin-only incidentals charge field (per guest)
-25. Auto parking rate calc from per-day property pricing + override
+25. ~~Auto parking rate calc from per-day property pricing + override~~ — DONE.
+    Client's clarifying answer (originally attached to task 26's paragraph in
+    CLIENT_TASKS.md, initially missed) gave the formula: 7 per-weekday rates
+    set on each property, auto-calculated per stay, admin-only visible with
+    an override field. Built as: `properties.parking_rate_{sunday..saturday}`
+    (nullable, admin sets real numbers per property in a new "Parking rates"
+    section on the property edit page), `bookings.parking_charge` (auto-sum
+    of the relevant weekday rates across the stay's nights, unconfigured days
+    = \$0 rather than blocking calculation) and `bookings.parking_charge_override`
+    (admin-only field on the booking form, wins over the auto-calculated
+    amount when set). Recalculates whenever `parking_needed` is set (guest
+    login, guest parking-answer step, admin create/update) and whenever a
+    property's rates are edited. Guests never see a dollar amount anywhere —
+    admin-only per the client's instruction. **Real per-property rate numbers
+    still need to be entered by the client — see PROD_INSTRUCTIONS.md #8.**
 26. Early check-in tiers (8am/12pm) + late checkout rates (authorized/unauthorized, hourly)
 27. Show "(X nights)" next to date ranges everywhere
 28. ~~Global 12h time audit across all pages~~ — DONE, combined with task 19.
@@ -137,4 +153,4 @@ or client confirmation — do not guess at prod state.
     — RESOLVED, no fix needed (undo exists via booking edit page, client already informed)
 34. Parking flow: collect make/model + license plate photo when guest opts in
 
-Status: 23/33 done, 1 resolved as no-op, 9 remaining
+Status: 24/33 done, 1 resolved as no-op, 8 remaining
