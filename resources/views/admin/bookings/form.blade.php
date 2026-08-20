@@ -41,6 +41,14 @@
                 <span class="field-help">Leave blank to use the auto-calculated amount. Set a value to override it.</span>
             </div>
             @endif
+            <label class="field-label mt-5">
+                Incidentals charge (admin only)
+                <div class="flex items-center gap-1 mt-1">
+                    <span class="text-slate-500">$</span>
+                    <input type="number" step="0.01" min="0" name="incidentals_charge" value="{{ old('incidentals_charge', $booking->incidentals_charge) }}" placeholder="0.00" class="input">
+                </div>
+                <span class="field-help">Any incidentals charge for this guest. Not visible to the guest.</span>
+            </label>
             <label class="field-label mt-5 flex items-center gap-2">
                 <input type="checkbox" name="early_checkin" value="1" @checked(old('early_checkin', $booking->early_checkin))>
                 <span>Early Check-in Exception</span>

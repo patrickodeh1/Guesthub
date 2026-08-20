@@ -119,6 +119,7 @@
                             ['security', 'ID Type', $booking->id_type === 'passport' ? 'Passport' : 'State-issued ID'],
                             ['parking', 'Parking', is_null($booking->parking_needed) ? 'Unknown' : ($booking->parking_needed ? 'Needed' : 'Not needed')],
                             ...($booking->parking_needed ? [['parking', 'Parking Charge', '$'.number_format($booking->effectiveParkingCharge() ?? 0, 2).($booking->parking_charge_override !== null ? ' (manual override)' : ' (auto-calculated)')]] : []),
+                            ['info', 'Incidentals Charge', $booking->incidentals_charge !== null ? '$'.number_format($booking->incidentals_charge, 2) : 'Not set'],
                             ['calendar', 'Early Check-in', $booking->early_checkin ? 'Enabled' : 'Disabled'],
                             ['clock', 'Requested Check-in Time', $booking->checkinTimePreferenceFormatted() ?: 'Not specified'],
                             ['clock', 'Requested Check-out Time', $booking->checkoutTimePreferenceFormatted() ?: 'Not specified'],

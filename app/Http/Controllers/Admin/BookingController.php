@@ -619,6 +619,7 @@ class BookingController extends Controller
             'id_type'        => ['required', 'in:state_id,passport'],
             'parking_needed' => ['nullable', 'boolean'],
             'parking_charge_override' => ['nullable', 'numeric', 'min:0'],
+            'incidentals_charge' => ['nullable', 'numeric', 'min:0'],
             'early_checkin'  => ['nullable', 'boolean'],
             'photo_id_received' => ['nullable', 'boolean'],
             'checkin_time_preference'  => ['nullable', 'date_format:H:i'],
