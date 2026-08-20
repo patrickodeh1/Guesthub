@@ -47,7 +47,11 @@ or client confirmation — do not guess at prod state.
     threshold tuning (see PROD_INSTRUCTIONS.md).
 12. Checkout status not updating day-before / warning before final "checked out" press
 13. Admin guest list: full name visibility, rectangular hero image, no truncation
-14. Remove guest ID from list views; only booking ID on full detail page
+14. ~~Remove guest ID from list views; only booking ID on full detail page~~ — DONE.
+    No second ID existed — "Guest ID" label on the add/edit guest form was a rename
+    of booking ID; relabeled back to "Booking ID" (field/name unchanged). Booking ID
+    and reservation ID removed from the admin guest list row entirely (only shown on
+    the full detail page).
 15. Replace view/edit buttons with single action-menu (quick actions)
 16. Guest list landing: remove stat cards, add "Add Guest", surface action items only
 17. Single unified search bar (name/reservation ID) replacing filters
