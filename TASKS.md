@@ -26,7 +26,8 @@ or client confirmation — do not guess at prod state.
 
 ## Critical fixes
 1. Session/"page doesn't exist" after inactivity — investigate session/cache config
-2. Root domain shows admin login instead of coming-soon page — NEW landing page (Q4/Q5)
+2. ~~Root domain shows admin login instead of coming-soon page — NEW landing page (Q4/Q5)~~ — DONE
+   (payment deferred per direction; contact form + admin leads list built instead)
 3. Inner iframe/scroll issue on steps pages
 4. Text alerts not working (Q2)
 5. "Checkout time" mislabeled as "check-in time" in admin
