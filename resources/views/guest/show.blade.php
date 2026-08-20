@@ -238,7 +238,7 @@
                             <span id="checkin-time-error" class="guest-field-error" style="display:@error('checkin_time_preference')block @else none @enderror">
                                 @error('checkin_time_preference'){{ $message }}@else Please select a check-in time. @enderror
                             </span>
-                            <p class="mt-1 text-xs text-slate-400">Check in time is 10am, we will try our best to accommodate early check in if desired, and then update you if available.</p>
+                            <p class="mt-1 text-xs text-slate-400">Check in time is 4pm, we will try our best to accommodate early check in if desired, and then update you if available.</p>
                         </div>
 
                         {{-- Check-out time --}}

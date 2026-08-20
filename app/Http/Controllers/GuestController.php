@@ -698,12 +698,17 @@ class GuestController extends Controller
 
     private function checkinTimeOptions(): array
     {
-        $options = [];
+        $recommendedHour = 16; // 4:00 PM — the system's actual check-in time
         $hours = array_merge(range(8, 23), [0]);
+
+        // Recommended time first, then the rest in chronological order.
+        usort($hours, fn ($a, $b) => ($a === $recommendedHour ? -1 : ($b === $recommendedHour ? 1 : $a <=> $b)));
+
+        $options = [];
         foreach ($hours as $hour) {
             $value = sprintf('%02d:00', $hour);
             $label = \Carbon\Carbon::createFromTime($hour, 0)->format('g:i A');
-            if ($hour === 10) {
+            if ($hour === $recommendedHour) {
                 $label .= ' (Recommended)';
             }
             $options[$value] = $label;
@@ -713,11 +718,17 @@ class GuestController extends Controller
 
     private function checkoutTimeOptions(): array
     {
+        $recommendedHour = 10; // 10:00 AM — the system's actual check-out time
+        $hours = range(7, 14); // 7:00 AM through 2:00 PM only
+
+        // Recommended time first, then the rest in chronological order.
+        usort($hours, fn ($a, $b) => ($a === $recommendedHour ? -1 : ($b === $recommendedHour ? 1 : $a <=> $b)));
+
         $options = [];
-        for ($hour = 10; $hour <= 20; $hour++) {
+        foreach ($hours as $hour) {
             $value = sprintf('%02d:00', $hour);
             $label = \Carbon\Carbon::createFromTime($hour, 0)->format('g:i A');
-            if ($hour === 10) {
+            if ($hour === $recommendedHour) {
                 $label .= ' (Recommended)';
             }
             $options[$value] = $label;
