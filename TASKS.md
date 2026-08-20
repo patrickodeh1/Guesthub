@@ -85,7 +85,14 @@ or client confirmation — do not guess at prod state.
     Received, Approve for Check-In, Mark Background Check Complete, Mark Deposit
     Verified, Override GPS Verification, Manually Mark Checked In/Out — mirroring the
     same conditions used in the Quick Actions panel on the guest detail/edit page.
-19. 24h → 12h time display in guest details
+19. ~~12-hour time display in guest details~~ — DONE. Admin "Guest Details" panel
+    was echoing the raw 24-hour DB values (`checkin_time_preference` /
+    `checkout_time_preference`, e.g. `16:00`) with no formatting at all — the
+    only place in the app with actual raw 24h text (see task 28). Now formatted
+    12h with AM/PM via new `checkinTimePreferenceFormatted()` /
+    `checkoutTimePreferenceFormatted()` accessors, "Not specified" unchanged
+    when unset. The edit form's native `<input type="time">` fields were
+    already fine (browser-rendered per locale) — not touched.
 20. Parking auto-calculated charge, admin-editable override
 21. Welcome guide: restructure into cards (logo/status, weather, icons, guest info)
 22. ~~ID decline DB exception (Q1) + missing guest notification/reupload flow~~ — DONE
@@ -106,7 +113,13 @@ or client confirmation — do not guess at prod state.
 25. Auto parking rate calc from per-day property pricing + override
 26. Early check-in tiers (8am/12pm) + late checkout rates (authorized/unauthorized, hourly)
 27. Show "(X nights)" next to date ranges everywhere
-28. Global 12h time audit across all pages
+28. ~~Global 12h time audit across all pages~~ — DONE, combined with task 19.
+    Audited the whole codebase for raw 24-hour time display (not inputs) —
+    the admin Guest Details panel (task 19) was the only instance found. All
+    `<input type="time">` fields (booking form, property checkout time) are
+    browser-rendered 12h/AM-PM already and needed no change. All other time
+    displays across the app (checked-in/out timestamps, checkout notices,
+    etc.) were already using the existing `safeFormatTime`-based formatters.
 29. "Check out" button: immediate status change + redirect, fix revert-to-menu bug
 30. Text alert system: 6 lifecycle messages, globally customizable templates
 31. Settings: per-alert checkboxes (owner receives / guest receives)
@@ -115,4 +128,4 @@ or client confirmation — do not guess at prod state.
     — RESOLVED, no fix needed (undo exists via booking edit page, client already informed)
 34. Parking flow: collect make/model + license plate photo when guest opts in
 
-Status: 20/33 done, 1 resolved as no-op, 12 remaining
+Status: 22/33 done, 1 resolved as no-op, 10 remaining
