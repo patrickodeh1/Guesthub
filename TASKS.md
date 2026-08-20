@@ -48,7 +48,15 @@ or client confirmation — do not guess at prod state.
 11. ~~ID photos blurry — blur detection not working~~ — DONE (combined with 9). Replaced
     untested hand-rolled threshold with OpenCV.js-based detection; needs real-world
     threshold tuning (see PROD_INSTRUCTIONS.md).
-12. Checkout status not updating day-before / warning before final "checked out" press
+12. ~~Checkout status not updating day-before / warning before final "checked out"
+    press~~ — DONE. Root cause of the "not updating" symptom: a stray auto-flip
+    in `GuestController@state()` was silently force-marking bookings
+    `checked_out` the instant checkout time passed, on any page view, with zero
+    grace period — a completely separate path from the real checkout button.
+    Removed (see task 23 below for the correct scheduled replacement). Added a
+    confirmation modal ("Ready to check out?" / Not Yet / Yes, I'm Checked Out)
+    in front of the "All Done" checkout button so a guest can't finalize by
+    accident.
 13. ~~Admin guest list: full name visibility, rectangular hero image, no
     truncation~~ — DONE. Client confirmed the target was the admin Dashboard's
     "Priority Today" panel (the only place a small square image + truncated guest
@@ -85,7 +93,15 @@ or client confirmation — do not guess at prod state.
     PROD_INSTRUCTIONS.md #1 — no code defect found locally)
 
 ## Other fixes
-23. Lock/unlock button visible only check-in→checkout time; auto-checkout 30min after
+23. ~~Lock/unlock button visible only check-in→checkout time; auto-checkout
+    30min after~~ — DONE. The door-lock category page rendered the lock button
+    regardless of guest state (before check-in, after checkout, etc.); now
+    gated to only the checked-in/pre-checkout window, with a message shown
+    outside that window instead of the control. Auto-checkout is now a real
+    scheduled command (`bookings:auto-checkout`, runs every 5 min) that flips
+    status 30 minutes after checkout time if the guest never pressed "All
+    Done" — replacing the old buggy zero-grace flip described in task 12.
+    **Needs a prod cron entry to actually run — see PROD_INSTRUCTIONS.md #7.**
 24. Admin-only incidentals charge field (per guest)
 25. Auto parking rate calc from per-day property pricing + override
 26. Early check-in tiers (8am/12pm) + late checkout rates (authorized/unauthorized, hourly)
@@ -99,4 +115,4 @@ or client confirmation — do not guess at prod state.
     — RESOLVED, no fix needed (undo exists via booking edit page, client already informed)
 34. Parking flow: collect make/model + license plate photo when guest opts in
 
-Status: not started (0/33 remaining, 1 resolved as no-op)
+Status: 20/33 done, 1 resolved as no-op, 12 remaining

@@ -148,4 +148,28 @@ dependency:
 This is optional (current CDN setup works fine), just a robustness improvement
 whenever convenient — not blocking.
 
+## 7. Auto-checkout scheduled job needs a real cron entry (task 23)
+
+Task 23's "auto-checkout 30 minutes after checkout time" is now a real scheduled
+command (`php artisan bookings:auto-checkout`), registered in
+`routes/console.php` to run every 5 minutes via Laravel's scheduler. That
+schedule only fires if your server actually runs the Laravel scheduler.
+
+**Action needed on prod:** add this single cron entry (once, via cPanel's Cron
+Jobs page or SSH crontab) if it isn't already there:
+```
+* * * * * cd /path-to-your-app && php artisan schedule:run >> /dev/null 2>&1
+```
+Without this cron entry, no auto-checkout will happen — bookings will just sit
+in whatever status the guest last confirmed (or never confirmed) indefinitely.
+This is likely already set up if any other scheduled feature relies on it;
+if unsure, ask your host/dev whether `schedule:run` is already cronned.
+
+Also fixed while diagnosing this: `GuestController@state()` had a stray block
+that silently force-flipped a booking to `checked_out` the instant the clock
+crossed checkout time, on *any* page view (guest or admin) — zero grace period,
+and a completely separate path from the real "All Done" button. That's been
+removed; the scheduled command above is now the only thing that auto-flips
+checkout status, and only after the 30-minute grace period.
+
 Status: living doc, update as items are resolved.
