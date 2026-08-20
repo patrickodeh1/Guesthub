@@ -578,12 +578,6 @@ class GuestController extends Controller
             return 'access_blocked';
         }
 
-        if ($booking->status !== 'checked_out' && $booking->isPastCheckoutTime()) {
-            $booking->update([
-                'status' => 'checked_out',
-                'checked_out_at' => now(),
-            ]);
-        }
         if (! $booking->isCheckedIn()) {
 
         if (! $booking->isIdentityComplete()) {

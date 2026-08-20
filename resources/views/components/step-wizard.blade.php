@@ -64,6 +64,20 @@
     </div>
 </div>
 
+@if($type === 'checkout')
+{{-- Checkout confirmation modal --}}
+<div id="checkout-confirm-modal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6">
+        <h2 class="text-lg font-bold text-slate-900">Ready to check out?</h2>
+        <p class="mt-2 text-sm leading-6 text-slate-600">This marks your stay as checked out and locks further access to the guide. Make sure you've followed every step above before continuing.</p>
+        <div class="mt-6 flex gap-3">
+            <button type="button" id="checkout-confirm-cancel" class="guest-outline-btn flex-1">Not Yet</button>
+            <button type="button" id="checkout-confirm-proceed" class="guest-primary-btn is-go flex-1">Yes, I'm Checked Out</button>
+        </div>
+    </div>
+</div>
+@endif
+
 <script>
 (function() {
     var type = "{{ $type }}";
@@ -99,37 +113,50 @@
 
     document.getElementById("wizard-next-" + type).addEventListener("click", function() { if (current < total - 1) goTo(current + 1); });
     document.getElementById("wizard-prev-" + type).addEventListener("click", function() { if (current > 0) goTo(current - 1); });
+    function runConfirm() {
+        var confirmUrl = type === "checkin"
+            ? "{{ route('guest.confirm-checkin', [$bookingId, $token]) }}"
+            : "{{ route('guest.confirm-checkout', [$bookingId, $token]) }}";
+        var doneBtn = document.getElementById("wizard-done-" + type);
+        doneBtn.disabled = true;
+        fetch(confirmUrl, {
+            method: "POST",
+            headers: { "X-CSRF-TOKEN": "{{ csrf_token() }}", "Content-Type": "application/json" }
+        }).then(function(response) {
+            if (!response.ok) {
+                throw new Error("Request failed with status " + response.status);
+            }
+            var modal = document.getElementById("checkout-confirm-modal");
+            if (modal) modal.classList.add("hidden");
+            document.getElementById("step-wizard-" + type).style.display = "none";
+            var wrapper = document.getElementById("step-wizard-" + type + "-wrapper");
+            if (wrapper) wrapper.style.display = "none";
+            var next = document.getElementById("{{ $nextSection }}-wrapper") || document.getElementById("{{ $nextSection }}");
+            if (next) next.style.display = "";
+            window.scrollTo({top: 0, behavior: "smooth"});
+        }).catch(function() {
+            doneBtn.disabled = false;
+            var proceedBtn = document.getElementById("checkout-confirm-proceed");
+            if (proceedBtn) proceedBtn.disabled = false;
+            var errEl = document.getElementById("wizard-error-" + type);
+            if (!errEl) {
+                errEl = document.createElement("p");
+                errEl.id = "wizard-error-" + type;
+                errEl.className = "mt-3 text-sm font-semibold text-red-600 text-center";
+                doneBtn.insertAdjacentElement("afterend", errEl);
+            }
+            errEl.textContent = "Something went wrong. Please check your connection and try again, or refresh the page.";
+        });
+    }
+
     document.getElementById("wizard-done-" + type).addEventListener("click", function() {
-        if (type === "checkin" || type === "checkout") {
-            var confirmUrl = type === "checkin"
-                ? "{{ route('guest.confirm-checkin', [$bookingId, $token]) }}"
-                : "{{ route('guest.confirm-checkout', [$bookingId, $token]) }}";
-            var doneBtn = document.getElementById("wizard-done-" + type);
-            doneBtn.disabled = true;
-            fetch(confirmUrl, {
-                method: "POST",
-                headers: { "X-CSRF-TOKEN": "{{ csrf_token() }}", "Content-Type": "application/json" }
-            }).then(function(response) {
-                if (!response.ok) {
-                    throw new Error("Request failed with status " + response.status);
-                }
-                document.getElementById("step-wizard-" + type).style.display = "none";
-                var wrapper = document.getElementById("step-wizard-" + type + "-wrapper");
-                if (wrapper) wrapper.style.display = "none";
-                var next = document.getElementById("{{ $nextSection }}-wrapper") || document.getElementById("{{ $nextSection }}");
-                if (next) next.style.display = "";
-                window.scrollTo({top: 0, behavior: "smooth"});
-            }).catch(function() {
-                doneBtn.disabled = false;
-                var errEl = document.getElementById("wizard-error-" + type);
-                if (!errEl) {
-                    errEl = document.createElement("p");
-                    errEl.id = "wizard-error-" + type;
-                    errEl.className = "mt-3 text-sm font-semibold text-red-600 text-center";
-                    doneBtn.insertAdjacentElement("afterend", errEl);
-                }
-                errEl.textContent = "Something went wrong. Please check your connection and try again, or refresh the page.";
-            });
+        if (type === "checkout") {
+            var modal = document.getElementById("checkout-confirm-modal");
+            if (modal) modal.classList.remove("hidden");
+            return;
+        }
+        if (type === "checkin") {
+            runConfirm();
         } else {
             document.getElementById("step-wizard-" + type).style.display = "none";
             var wrapper = document.getElementById("step-wizard-" + type + "-wrapper");
@@ -139,6 +166,22 @@
             window.scrollTo({top: 0, behavior: "smooth"});
         }
     });
+
+    if (type === "checkout") {
+        var cancelBtn = document.getElementById("checkout-confirm-cancel");
+        var proceedBtn = document.getElementById("checkout-confirm-proceed");
+        if (cancelBtn) {
+            cancelBtn.addEventListener("click", function() {
+                document.getElementById("checkout-confirm-modal").classList.add("hidden");
+            });
+        }
+        if (proceedBtn) {
+            proceedBtn.addEventListener("click", function() {
+                proceedBtn.disabled = true;
+                runConfirm();
+            });
+        }
+    }
 })();
 </script>
 @endif
