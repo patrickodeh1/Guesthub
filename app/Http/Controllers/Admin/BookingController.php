@@ -30,6 +30,7 @@ class BookingController extends Controller
             ->when($request->search, fn ($query, $search) => $query->where(fn ($inner) => $inner
                 ->where('guest_name', 'like', "%{$search}%")
                 ->orWhere('booking_id', 'like', "%{$search}%")
+                ->orWhere('reservation_id', 'like', "%{$search}%")
                 ->orWhere('email', 'like', "%{$search}%")
             ))
             ->when($request->status, fn ($query, $status) => $status === 'pending_check_in'
@@ -45,6 +46,14 @@ class BookingController extends Controller
             ->get();
 
         $currentlyHostingIds = $currentlyHosting->pluck('id');
+
+        $needsAttention = Booking::with('property')
+            ->notArchived()
+            ->whereNotNull('photo_id_path')
+            ->whereNull('approved_at')
+            ->orderBy('check_in_date')
+            ->limit(10)
+            ->get();
 
         $bookings = ($baseQuery)()
             ->when($currentlyHostingIds->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $currentlyHostingIds))
@@ -64,7 +73,7 @@ class BookingController extends Controller
                 ->count(),
         ];
 
-        return view('admin.bookings.index', compact('bookings', 'currentlyHosting', 'properties', 'showArchived', 'stats'));
+        return view('admin.bookings.index', compact('bookings', 'currentlyHosting', 'needsAttention', 'properties', 'showArchived', 'stats'));
     }
 
     public function create()
