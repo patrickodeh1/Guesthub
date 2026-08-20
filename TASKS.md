@@ -49,16 +49,34 @@ or client confirmation — do not guess at prod state.
     untested hand-rolled threshold with OpenCV.js-based detection; needs real-world
     threshold tuning (see PROD_INSTRUCTIONS.md).
 12. Checkout status not updating day-before / warning before final "checked out" press
-13. Admin guest list: full name visibility, rectangular hero image, no truncation
+13. Admin guest list: full name visibility, rectangular hero image, no truncation —
+    NOT YET IMPLEMENTED. Likely target: the admin Dashboard's "Priority Today" panel
+    (32px square property thumbnail + `truncate`-classed guest name/phone) — the
+    actual Guests list page never truncated names or showed an image, so the
+    complaint doesn't match it. Awaiting client confirmation of which page this is
+    before implementing.
 14. ~~Remove guest ID from list views; only booking ID on full detail page~~ — DONE.
     No second ID existed — "Guest ID" label on the add/edit guest form was a rename
     of booking ID; relabeled back to "Booking ID" (field/name unchanged). Booking ID
     and reservation ID removed from the admin guest list row entirely (only shown on
     the full detail page).
-15. Replace view/edit buttons with single action-menu (quick actions)
-16. Guest list landing: remove stat cards, add "Add Guest", surface action items only
-17. Single unified search bar (name/reservation ID) replacing filters
-18. Action menu = all quick actions + status changes from edit screen
+15. ~~Replace view/edit buttons with single action-menu (quick actions)~~ — DONE.
+    Standalone "View Details" button removed from guest list rows; "View Details" and
+    "Edit" now live inside the existing action-menu dropdown alongside the other
+    actions. Combined with 18.
+16. ~~Guest list landing: remove stat cards, add "Add Guest", surface action items
+    only~~ — DONE. Removed the 4 stat cards. Added a "Needs Attention" panel above
+    Currently Hosting / All Guests, surfacing bookings with a photo ID submitted and
+    pending approval (the example the client gave); "Add Guest" already existed as a
+    header button.
+17. ~~Single unified search bar (name/reservation ID) replacing filters~~ — DONE.
+    Removed the status and property dropdown filters; one search box now matches
+    guest name, booking ID, reservation ID, or email.
+18. ~~Action menu = all quick actions + status changes from edit screen~~ — DONE
+    (combined with 15). Row action menu now conditionally includes: Mark Photo ID
+    Received, Approve for Check-In, Mark Background Check Complete, Mark Deposit
+    Verified, Override GPS Verification, Manually Mark Checked In/Out — mirroring the
+    same conditions used in the Quick Actions panel on the guest detail/edit page.
 19. 24h → 12h time display in guest details
 20. Parking auto-calculated charge, admin-editable override
 21. Welcome guide: restructure into cards (logo/status, weather, icons, guest info)
