@@ -49,12 +49,12 @@ or client confirmation — do not guess at prod state.
     untested hand-rolled threshold with OpenCV.js-based detection; needs real-world
     threshold tuning (see PROD_INSTRUCTIONS.md).
 12. Checkout status not updating day-before / warning before final "checked out" press
-13. Admin guest list: full name visibility, rectangular hero image, no truncation —
-    NOT YET IMPLEMENTED. Likely target: the admin Dashboard's "Priority Today" panel
-    (32px square property thumbnail + `truncate`-classed guest name/phone) — the
-    actual Guests list page never truncated names or showed an image, so the
-    complaint doesn't match it. Awaiting client confirmation of which page this is
-    before implementing.
+13. ~~Admin guest list: full name visibility, rectangular hero image, no
+    truncation~~ — DONE. Client confirmed the target was the admin Dashboard's
+    "Priority Today" panel (the only place a small square image + truncated guest
+    name/phone appear together, visible mainly on smaller screens). Thumbnail
+    changed from a 32×32 square to a 32×48 rectangle; guest name and phone no longer
+    truncate.
 14. ~~Remove guest ID from list views; only booking ID on full detail page~~ — DONE.
     No second ID existed — "Guest ID" label on the add/edit guest form was a rename
     of booking ID; relabeled back to "Booking ID" (field/name unchanged). Booking ID
