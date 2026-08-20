@@ -13,11 +13,20 @@ class Property extends Model
         'map_embed_url', 'map_directions_url', 'contact_phone', 'contact_email',
         'welcome_intro', 'checkin_instructions', 'lockbox_code', 'parking_instructions',
         'checkout_instructions', 'header_image', 'active',
+        'parking_rate_sunday', 'parking_rate_monday', 'parking_rate_tuesday',
+        'parking_rate_wednesday', 'parking_rate_thursday', 'parking_rate_friday',
+        'parking_rate_saturday',
     ];
 
     protected function casts(): array
     {
-        return ['active' => 'boolean', 'latitude' => 'decimal:7', 'longitude' => 'decimal:7'];
+        return [
+            'active' => 'boolean', 'latitude' => 'decimal:7', 'longitude' => 'decimal:7',
+            'parking_rate_sunday' => 'decimal:2', 'parking_rate_monday' => 'decimal:2',
+            'parking_rate_tuesday' => 'decimal:2', 'parking_rate_wednesday' => 'decimal:2',
+            'parking_rate_thursday' => 'decimal:2', 'parking_rate_friday' => 'decimal:2',
+            'parking_rate_saturday' => 'decimal:2',
+        ];
     }
 
     public function bookings(): HasMany
@@ -56,6 +65,31 @@ class Property extends Model
     public function locks(): HasMany
     {
         return $this->hasMany(PropertyLock::class);
+    }
+
+    /**
+     * Get the configured parking rate for a given weekday.
+     * Accepts a Carbon-like instance with ->dayOfWeek (0 = Sunday ... 6 = Saturday) or an int.
+     */
+    public function parkingRateForDay(\Carbon\Carbon|int $day): ?float
+    {
+        $dayOfWeek = $day instanceof \Carbon\Carbon ? $day->dayOfWeek : $day;
+
+        $field = [
+            0 => 'parking_rate_sunday',
+            1 => 'parking_rate_monday',
+            2 => 'parking_rate_tuesday',
+            3 => 'parking_rate_wednesday',
+            4 => 'parking_rate_thursday',
+            5 => 'parking_rate_friday',
+            6 => 'parking_rate_saturday',
+        ][$dayOfWeek] ?? null;
+
+        if (!$field || $this->{$field} === null) {
+            return null;
+        }
+
+        return (float) $this->{$field};
     }
 
     public function heroImageUrl(): string

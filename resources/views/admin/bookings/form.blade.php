@@ -30,6 +30,17 @@
             <h2 class="section-title">Status controls</h2>
             <p class="section-copy">Use these to reflect what has happened outside the public guest flow.</p>
             <label class="field-label mt-5">Parking<select name="parking_needed" class="input"><option value="">Unknown</option><option value="1" @selected(old('parking_needed', $booking->parking_needed)==='1' || old('parking_needed', $booking->parking_needed)===true)>Yes, guest needs parking</option><option value="0" @selected(old('parking_needed', $booking->parking_needed)==='0' || old('parking_needed', $booking->parking_needed)===false)>No parking needed</option></select></label>
+            @if($booking->exists && $booking->parking_needed)
+            <div class="field-label mt-5">
+                <span>Parking charge (admin only)</span>
+                <p class="field-help mt-1">Auto-calculated: ${{ number_format($booking->parking_charge ?? 0, 2) }} from the property's weekday rates across the stay.</p>
+                <div class="flex items-center gap-1 mt-1">
+                    <span class="text-slate-500">$</span>
+                    <input type="number" step="0.01" min="0" name="parking_charge_override" value="{{ old('parking_charge_override', $booking->parking_charge_override) }}" placeholder="Override amount" class="input">
+                </div>
+                <span class="field-help">Leave blank to use the auto-calculated amount. Set a value to override it.</span>
+            </div>
+            @endif
             <label class="field-label mt-5 flex items-center gap-2">
                 <input type="checkbox" name="early_checkin" value="1" @checked(old('early_checkin', $booking->early_checkin))>
                 <span>Early Check-in Exception</span>

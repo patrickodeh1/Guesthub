@@ -16,6 +16,7 @@ class Booking extends Model
         'access_blocked_at', 'access_blocked_reason',
         'photo_id_front_approved_at', 'photo_id_front_declined_reason',
         'photo_id_back_approved_at', 'photo_id_back_declined_reason',
+        'parking_charge', 'parking_charge_override',
     ];
 
     protected function casts(): array
@@ -38,6 +39,8 @@ class Booking extends Model
             'access_blocked_at' => 'datetime',
             'photo_id_front_approved_at' => 'datetime',
             'photo_id_back_approved_at' => 'datetime',
+            'parking_charge' => 'decimal:2',
+            'parking_charge_override' => 'decimal:2',
                     ];
     }
 
@@ -136,6 +139,59 @@ class Booking extends Model
         }
 
         return $in->format('M j, Y').' - '.$out->format('M j, Y');
+    }
+
+    /**
+     * Calculate the parking charge for this stay by summing the property's
+     * per-weekday parking rate across each night of the stay (task 20/25).
+     * Nights with no configured rate for that weekday are skipped (treated as $0),
+     * rather than blocking the whole calculation, since the client fills in
+     * rates per property over time.
+     * Returns null if parking isn't needed, or if there's no check-in/check-out
+     * date pair to calculate nights from.
+     */
+    public function calculateParkingCharge(): ?float
+    {
+        if (!$this->parking_needed) {
+            return null;
+        }
+
+        if (!$this->check_in_date || !$this->check_out_date || !$this->property) {
+            return null;
+        }
+
+        $total = 0.0;
+        $night = $this->check_in_date->copy();
+
+        while ($night->lt($this->check_out_date)) {
+            $total += $this->property->parkingRateForDay($night) ?? 0.0;
+            $night->addDay();
+        }
+
+        return round($total, 2);
+    }
+
+    /**
+     * Recalculate and persist the auto-calculated parking_charge field.
+     * Does not touch parking_charge_override — that's set independently by an admin.
+     */
+    public function recalculateParkingCharge(): void
+    {
+        $this->parking_charge = $this->calculateParkingCharge();
+        $this->save();
+    }
+
+    /**
+     * The charge actually used for billing: admin override wins if set,
+     * otherwise fall back to the auto-calculated amount.
+     */
+    public function effectiveParkingCharge(): ?float
+    {
+        if ($this->parking_charge_override !== null) {
+            return (float) $this->parking_charge_override;
+        }
+
+        return $this->parking_charge !== null ? (float) $this->parking_charge : null;
     }
 
     public function instructionsCompleted(): bool

@@ -81,6 +81,7 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     Route::resource('properties', PropertyController::class)->except(['show']);
     Route::post('properties/{property}/checkout-time', [PropertyController::class, 'updateCheckoutTime'])->name('properties.checkout-time');
     Route::post('properties/{property}/lockbox-code', [PropertyController::class, 'updateLockboxCode'])->name('properties.lockbox-code');
+    Route::post('properties/{property}/parking-rates', [PropertyController::class, 'updateParkingRates'])->name('properties.parking-rates');
 
     // ─── Guests / Bookings ────────────────────────────────────────────────────
     Route::resource('guests', BookingController::class)->parameters(['guests' => 'booking']);

@@ -99,6 +99,7 @@ class BookingController extends Controller
             $data['approved_at'] = now();
         }
         $booking            = Booking::create($data);
+        $booking->recalculateParkingCharge();
 
         ActivityLogService::admin('booking_created', "Guest booking created for {$booking->guest_name} ({$booking->booking_id}).", 'guests', [
             'subject_type' => Booking::class,
@@ -208,6 +209,7 @@ class BookingController extends Controller
             $data['approved_at'] = now();
         }
         $booking->update($data);
+        $booking->recalculateParkingCharge();
 
         ActivityLogService::admin('booking_updated', auth()->user()->name." updated booking for {$booking->guest_name}.", 'guests', [
             'subject_type' => Booking::class,
@@ -616,6 +618,7 @@ class BookingController extends Controller
             'property_id'    => ['required', 'exists:properties,id'],
             'id_type'        => ['required', 'in:state_id,passport'],
             'parking_needed' => ['nullable', 'boolean'],
+            'parking_charge_override' => ['nullable', 'numeric', 'min:0'],
             'early_checkin'  => ['nullable', 'boolean'],
             'photo_id_received' => ['nullable', 'boolean'],
             'checkin_time_preference'  => ['nullable', 'date_format:H:i'],

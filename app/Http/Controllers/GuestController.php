@@ -121,6 +121,8 @@ class GuestController extends Controller
             'guest_authenticated_at' => now(),
         ]);
 
+        $booking->recalculateParkingCharge();
+
         \App\Services\GuestSessionService::refreshCookie($booking);
 
         ActivityLogService::guest('guest_login_verified', "Guest {$booking->guest_name} completed login step.", 'guest_portal', [
@@ -272,6 +274,7 @@ class GuestController extends Controller
         $booking = $this->booking($bookingId, $token);
         $data    = $request->validate(['parking_needed' => ['required', 'boolean']]);
         $booking->update($data);
+        $booking->recalculateParkingCharge();
 
         ActivityLogService::guest('parking_answered', "Guest {$booking->guest_name} answered parking question: ".($data['parking_needed'] ? 'Yes' : 'No').".", 'guest_portal', [
             'booking_id'  => $booking->id,
