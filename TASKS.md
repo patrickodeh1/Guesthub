@@ -120,7 +120,10 @@ or client confirmation — do not guess at prod state.
     status 30 minutes after checkout time if the guest never pressed "All
     Done" — replacing the old buggy zero-grace flip described in task 12.
     **Needs a prod cron entry to actually run — see PROD_INSTRUCTIONS.md #7.**
-24. Admin-only incidentals charge field (per guest)
+24. ~~Admin-only incidentals charge field (per guest)~~ — DONE. Plain
+    `bookings.incidentals_charge` decimal field, no formula — admin types in
+    a number per guest. Editable on the booking form, shown on the booking
+    detail page, admin-only (not exposed anywhere in the guest portal).
 25. ~~Auto parking rate calc from per-day property pricing + override~~ — DONE.
     Client's clarifying answer (originally attached to task 26's paragraph in
     CLIENT_TASKS.md, initially missed) gave the formula: 7 per-weekday rates
@@ -153,4 +156,4 @@ or client confirmation — do not guess at prod state.
     — RESOLVED, no fix needed (undo exists via booking edit page, client already informed)
 34. Parking flow: collect make/model + license plate photo when guest opts in
 
-Status: 24/33 done, 1 resolved as no-op, 8 remaining
+Status: 25/33 done, 1 resolved as no-op, 7 remaining
