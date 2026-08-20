@@ -108,7 +108,7 @@
                                     <x-icon name="calendar" class="h-5 w-5" />
                                 </div>
                                 <p class="guest-stay-tile-label">Check-Out</p>
-                                <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }}</p>
+                                <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }} {{ $booking->nightsLabel() }}</p>
                             </div>
                         </div>
                         @php
@@ -1284,7 +1284,7 @@
                                 <x-icon name="calendar" class="h-5 w-5" />
                             </div>
                             <p class="guest-stay-tile-label">Check-Out</p>
-                            <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }}</p>
+                            <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }} {{ $booking->nightsLabel() }}</p>
                             <p class="guest-stay-tile-time">{{ $booking->effectiveCheckoutTimeFormatted() }}</p>
                         </div>
                     </div>
@@ -1334,7 +1334,7 @@
                             <x-icon name="calendar" class="h-5 w-5" />
                         </div>
                         <p class="guest-stay-tile-label">Check-Out</p>
-                        <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }}</p>
+                        <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }} {{ $booking->nightsLabel() }}</p>
                         <p class="guest-stay-tile-time">{{ $booking->effectiveCheckoutTimeFormatted() }}</p>
                     </div>
                 </div>
@@ -1754,7 +1754,7 @@
                             <x-icon name="calendar" class="h-5 w-5" />
                         </div>
                         <p class="guest-stay-tile-label">Check-Out</p>
-                        <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }} &middot; {{ $booking->effectiveCheckoutTimeFormatted() }}</p>
+                        <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }} &middot; {{ $booking->effectiveCheckoutTimeFormatted() }} {{ $booking->nightsLabel() }}</p>
                     </div>
                 </div>
             </div>

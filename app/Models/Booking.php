@@ -5,6 +5,7 @@ namespace App\Models;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Str;
 
 class Booking extends Model
 {
@@ -134,14 +135,43 @@ class Booking extends Model
         $out = $this->check_out_date;
 
         if ($in->format('Y-m') === $out->format('Y-m')) {
-            return $in->format('M j').'-'.$out->format('j');
+            $range = $in->format('M j').'-'.$out->format('j');
+        } elseif ($in->format('Y') === $out->format('Y')) {
+            $range = $in->format('M j').' - '.$out->format('M j');
+        } else {
+            $range = $in->format('M j, Y').' - '.$out->format('M j, Y');
         }
 
-        if ($in->format('Y') === $out->format('Y')) {
-            return $in->format('M j').' - '.$out->format('M j');
+        return $range.' '.$this->nightsLabel();
+    }
+
+    /**
+     * Number of nights for this stay, based on check_in_date/check_out_date.
+     * Returns null if either date is missing (task 27).
+     */
+    public function nightsCount(): ?int
+    {
+        if (!$this->check_in_date || !$this->check_out_date) {
+            return null;
         }
 
-        return $in->format('M j, Y').' - '.$out->format('M j, Y');
+        return (int) $this->check_in_date->diffInDays($this->check_out_date);
+    }
+
+    /**
+     * "(X night)" / "(X nights)" bracketed label for display next to dates,
+     * per the client's request to show nights count next to dates everywhere
+     * (task 27). Returns an empty string if nights can't be determined.
+     */
+    public function nightsLabel(): string
+    {
+        $nights = $this->nightsCount();
+
+        if ($nights === null) {
+            return '';
+        }
+
+        return '('.$nights.' '.Str::plural('night', $nights).')';
     }
 
     /**

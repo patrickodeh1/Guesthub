@@ -113,7 +113,7 @@
                     <dl class="mt-4 grid gap-0 text-sm">
                         @foreach([
                             ['calendar', 'Check-in Date', $booking->check_in_date ? $booking->check_in_date->format('M j, Y') : 'Not set'],
-                            ['calendar', 'Check-out Date', $booking->check_out_date ? $booking->check_out_date->format('M j, Y') : 'Not set'],
+                            ['calendar', 'Check-out Date', $booking->check_out_date ? $booking->check_out_date->format('M j, Y').' '.$booking->nightsLabel() : 'Not set'],
                             ['mail', 'Email', $booking->email ?: 'No email yet'],
                             ['contact-guest-services', 'Phone', $booking->phone ?: 'No phone on file'],
                             ['security', 'ID Type', $booking->id_type === 'passport' ? 'Passport' : 'State-issued ID'],

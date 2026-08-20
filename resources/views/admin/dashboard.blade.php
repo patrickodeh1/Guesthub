@@ -104,7 +104,7 @@
                                 <p class="text-xs font-medium text-slate-600">{{ $booking->phone }}</p>
                                 <p class="text-xs {{ $item['is_today'] ? 'font-bold text-slate-950' : 'text-slate-500' }}">
                                     @if($item['kind'] === 'current')
-                                        Currently hosting &middot; out {{ $booking->check_out_date->format('M j') }}
+                                        Currently hosting &middot; out {{ $booking->check_out_date->format('M j') }} {{ $booking->nightsLabel() }}
                                     @elseif($item['is_today'])
                                         Arriving today
                                     @else
