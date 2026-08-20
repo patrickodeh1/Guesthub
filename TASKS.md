@@ -94,7 +94,16 @@ or client confirmation — do not guess at prod state.
     when unset. The edit form's native `<input type="time">` fields were
     already fine (browser-rendered per locale) — not touched.
 20. Parking auto-calculated charge, admin-editable override
-21. Welcome guide: restructure into cards (logo/status, weather, icons, guest info)
+21. ~~Welcome guide: restructure into cards (logo/status, weather, icons, guest
+    info)~~ — DONE. Matched the stacked-card pattern already used on
+    preregistration (separate `guest-portal-card` blocks instead of one big
+    panel): card 1 = logo + "Checked in" status, card 2 = weather (omitted
+    entirely if the property has no coordinates, same as before), card 3 =
+    door lock + category icon grid only ("Welcome Guide" heading and intro
+    text removed per instruction), card 4 = guest name + check-out date/time.
+    The pre-check-in "hide until checked in" behavior now wraps all 4 cards
+    together (previously would've only applied to the first card after
+    splitting — caught and fixed before commit).
 22. ~~ID decline DB exception (Q1) + missing guest notification/reupload flow~~ — DONE
     (notification/reupload built; DB exception itself still needs prod diagnosis, see
     PROD_INSTRUCTIONS.md #1 — no code defect found locally)
@@ -128,4 +137,4 @@ or client confirmation — do not guess at prod state.
     — RESOLVED, no fix needed (undo exists via booking edit page, client already informed)
 34. Parking flow: collect make/model + license plate photo when guest opts in
 
-Status: 22/33 done, 1 resolved as no-op, 10 remaining
+Status: 23/33 done, 1 resolved as no-op, 9 remaining
