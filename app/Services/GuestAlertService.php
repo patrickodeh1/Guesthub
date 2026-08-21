@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Mail\GuestAlertMail;
 use App\Models\Booking;
 use App\Models\Setting;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 /**
@@ -138,7 +139,11 @@ class GuestAlertService
         }
 
         if ($row['guest_email'] && $booking->email) {
-            Mail::to($booking->email)->send(new GuestAlertMail(self::labels()[$event], $message));
+            try {
+                Mail::to($booking->email)->send(new GuestAlertMail(self::labels()[$event], $message));
+            } catch (\Throwable $e) {
+                Log::error("Guest alert email failed (guest, {$event}): ".$e->getMessage());
+            }
         }
 
         $envAdminNumber = config('services.twilio.admin_notify_number');
@@ -160,7 +165,11 @@ class GuestAlertService
         }
 
         if ($row['admin_email'] && $adminEmail) {
-            Mail::to($adminEmail)->send(new GuestAlertMail(self::labels()[$event], "[{$booking->guest_name}] ".$message));
+            try {
+                Mail::to($adminEmail)->send(new GuestAlertMail(self::labels()[$event], "[{$booking->guest_name}] ".$message));
+            } catch (\Throwable $e) {
+                Log::error("Guest alert email failed (admin, {$event}): ".$e->getMessage());
+            }
         }
     }
 
