@@ -124,7 +124,7 @@
                         @error('message')<p class="mt-1 text-xs text-red-700">{{ $message }}</p>@enderror
                     </div>
 
-                    <button class="w-full rounded-md bg-[#082b49] px-6 py-3 text-sm font-semibold text-white hover:bg-[#0a3a63]">Reserve my spot</button>
+                    <button class="w-full rounded-md bg-[#082b49] px-6 py-3 text-sm font-semibold text-white hover:bg-[#0a3a63]">Join the waitlist</button>
                 </form>
             </div>
         </div>
