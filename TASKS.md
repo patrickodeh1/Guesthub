@@ -205,6 +205,14 @@ or client confirmation — do not guess at prod state.
     BackgroundCheckStepNamingTest.php and GuestAlertServiceTest.php.
 33. ~~Fix: marking deposit paid re-triggers "checked in" status incorrectly (no undo path)~~
     — RESOLVED, no fix needed (undo exists via booking edit page, client already informed)
-34. Parking flow: collect make/model + license plate photo when guest opts in
+34. ~~Parking flow: collect make/model + license plate photo when guest opts in~~ — DONE.
+    Added vehicle_make_model and license_plate_photo_path to bookings,
+    collected in step 1 of the identity wizard alongside the parking
+    yes/no question. Required once the effective parking answer is yes,
+    but never re-forces the guest to redo a field that's already saved.
+    Photos served the same way photo IDs are (private storage, admin-only
+    view/download routes, activity-logged). Admin booking show page shows
+    a Vehicle card + detail row when parking is needed. Tests in
+    VehicleInfoCollectionTest.php.
 
-Status: 31/33 done, 1 resolved as no-op, 1 remaining
+Status: 32/33 done, 1 resolved as no-op, 0 remaining. All tasks complete.
