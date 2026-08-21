@@ -26,23 +26,38 @@
                     Guest check-in, handled.
                 </h1>
                 <p class="mt-4 text-base leading-relaxed text-slate-700">
-                    Tell us about your properties. We'll be in touch about early access.
+                    GuestHub is a check-in platform for short-term rental hosts. ID verification, keyless
+                    entry, and a branded welcome guide, all in one place.
                 </p>
+
+                <ul class="mt-10 space-y-6">
+                    <li class="flex gap-3">
+                        <svg class="mt-0.5 h-5 w-5 shrink-0 text-[#082b49]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                        <div>
+                            <p class="text-sm font-semibold text-slate-950">ID verification and arrival check</p>
+                            <p class="mt-0.5 text-sm leading-relaxed text-slate-600">Guests confirm their identity before check-in details unlock.</p>
+                        </div>
+                    </li>
+                    <li class="flex gap-3">
+                        <svg class="mt-0.5 h-5 w-5 shrink-0 text-[#082b49]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                        <div>
+                            <p class="text-sm font-semibold text-slate-950">Keyless entry</p>
+                            <p class="mt-0.5 text-sm leading-relaxed text-slate-600">Guests unlock the door from their phone for the length of their stay.</p>
+                        </div>
+                    </li>
+                    <li class="flex gap-3">
+                        <svg class="mt-0.5 h-5 w-5 shrink-0 text-[#082b49]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                        <div>
+                            <p class="text-sm font-semibold text-slate-950">A guide built for your place</p>
+                            <p class="mt-0.5 text-sm leading-relaxed text-slate-600">WiFi, parking, and checkout instructions in one page, styled with your branding.</p>
+                        </div>
+                    </li>
+                </ul>
             </div>
 
-            <svg viewBox="0 0 400 260" class="absolute bottom-0 right-0 h-64 w-auto opacity-90" xmlns="http://www.w3.org/2000/svg">
-                <ellipse cx="230" cy="235" rx="150" ry="18" fill="#e8dcc8"/>
-                <rect x="120" y="60" width="120" height="90" rx="6" fill="#082b49"/>
-                <rect x="132" y="72" width="40" height="30" rx="2" fill="#f4ede4"/>
-                <rect x="180" y="72" width="40" height="30" rx="2" fill="#f4ede4"/>
-                <rect x="132" y="112" width="40" height="30" rx="2" fill="#f4ede4"/>
-                <rect x="180" y="112" width="24" height="38" rx="2" fill="#c9622a"/>
-                <path d="M110 60 L180 15 L250 60 Z" fill="#0a3a63"/>
-                <rect x="270" y="150" width="10" height="70" rx="2" fill="#5b8a5a"/>
-                <ellipse cx="275" cy="145" rx="28" ry="34" fill="#6ea56a"/>
-                <circle cx="60" cy="80" r="26" fill="#e3c48a"/>
-                <rect x="40" y="180" width="40" height="12" rx="3" fill="#0a3a63"/>
-            </svg>
+            <p class="max-w-sm text-xs text-slate-500">
+                Built for hosts managing one property or many.
+            </p>
         </div>
 
         {{-- Right: form --}}
