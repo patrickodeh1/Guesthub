@@ -54,15 +54,35 @@ class GuestAlertService
 
     /**
      * Default toggle state for an event when nothing has been configured yet.
-     * Text preferred per the client, both guest and admin notified by default.
+     * Both SMS and email, for both guest and admin, are on by default so a
+     * fresh install notifies both parties over both channels out of the box;
+     * each can still be turned off per event from Settings.
      */
     public static function defaultToggles(): array
     {
         return [
             'guest_sms' => true,
-            'guest_email' => false,
+            'guest_email' => true,
             'admin_sms' => true,
-            'admin_email' => false,
+            'admin_email' => true,
+        ];
+    }
+
+    /**
+     * Per-event overrides of defaultToggles(), for events that shouldn't use
+     * the global default. Photo ID uploads are an admin review step, not
+     * something the guest needs to be told about, so guest notifications
+     * default off while admin stays on.
+     */
+    public static function defaultToggleOverrides(): array
+    {
+        return [
+            'photo_id_uploaded' => [
+                'guest_sms' => false,
+                'guest_email' => false,
+                'admin_sms' => true,
+                'admin_email' => true,
+            ],
         ];
     }
 
@@ -70,11 +90,13 @@ class GuestAlertService
     {
         $stored = json_decode(Setting::getValue('guest_alerts_config', '') ?: '', true) ?: [];
         $config = [];
+        $overrides = self::defaultToggleOverrides();
 
         foreach (self::EVENTS as $key => $meta) {
             $config[$key] = array_merge(
                 ['message' => $meta['default_message']],
                 self::defaultToggles(),
+                $overrides[$key] ?? [],
                 $stored[$key] ?? []
             );
         }
