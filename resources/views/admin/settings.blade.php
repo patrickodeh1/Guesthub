@@ -17,6 +17,8 @@
                 <label class="field-label">Brand color<input type="color" name="brand_color" value="{{ old('brand_color', $settings['brand_color']) }}" class="input h-12"></label>
                 <label class="field-label">Contact phone<input name="contact_phone" value="{{ old('contact_phone', $settings['contact_phone']) }}" class="input"></label>
                 <label class="field-label">Contact email<input name="contact_email" value="{{ old('contact_email', $settings['contact_email']) }}" class="input"></label>
+                <label class="field-label">Background check step name<input name="background_check_step_name" value="{{ old('background_check_step_name', $settings['background_check_step_name']) }}" class="input"><span class="field-help">Shown to guests waiting on this step, and used to label this step's alert in the "Guest lifecycle alerts" section below.</span></label>
+                <label class="field-label">Background check step instructions<textarea name="background_check_step_instructions" rows="2" class="input">{{ old('background_check_step_instructions', $settings['background_check_step_instructions']) }}</textarea><span class="field-help">Shown to guests on the waiting screen for this step.</span></label>
                 <div class="md:col-span-2">
                     @php
                         $messageFields = [
@@ -64,6 +66,52 @@
 
             <button class="btn-primary mt-6 w-full">Save settings</button>
         </aside>
+    </form>
+
+    <form method="post" action="{{ route('admin.settings.alerts.update') }}" class="card card-pad mt-6">
+        @csrf @method('put')
+        <h2 class="section-title">Guest lifecycle alerts</h2>
+        <p class="section-copy">Customize the message sent for each stage of a booking, and choose who gets it (guest and/or owner) and over which channel(s). Text is sent from your Twilio number; email uses the contact email above for owner alerts.</p>
+
+        <div class="mt-6 flex flex-col gap-3">
+            @foreach($alertEvents as $key => $meta)
+                @php($row = $alertConfig[$key])
+                <details class="rounded-xl border border-slate-200 p-4" {{ $loop->first ? 'open' : '' }}>
+                    <summary class="cursor-pointer font-bold text-slate-800">{{ $alertLabels[$key] }}</summary>
+                    <div class="mt-4 grid gap-4">
+                        <label class="field-label">
+                            Message
+                            <textarea name="alerts[{{ $key }}][message]" rows="3" class="input">{{ old("alerts.$key.message", $row['message']) }}</textarea>
+                            <span class="field-help">Available tokens: {guest_name}, {property_name}, {check_in_date}, {check_in_time}, {check_out_date}, {check_out_time}, {parking_status}, {step_name}</span>
+                        </label>
+                        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                            <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                <input type="hidden" name="alerts[{{ $key }}][guest_sms]" value="0">
+                                <input type="checkbox" name="alerts[{{ $key }}][guest_sms]" value="1" {{ old("alerts.$key.guest_sms", $row['guest_sms']) ? 'checked' : '' }}>
+                                Text guest
+                            </label>
+                            <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                <input type="hidden" name="alerts[{{ $key }}][guest_email]" value="0">
+                                <input type="checkbox" name="alerts[{{ $key }}][guest_email]" value="1" {{ old("alerts.$key.guest_email", $row['guest_email']) ? 'checked' : '' }}>
+                                Email guest
+                            </label>
+                            <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                <input type="hidden" name="alerts[{{ $key }}][admin_sms]" value="0">
+                                <input type="checkbox" name="alerts[{{ $key }}][admin_sms]" value="1" {{ old("alerts.$key.admin_sms", $row['admin_sms']) ? 'checked' : '' }}>
+                                Text owner
+                            </label>
+                            <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                <input type="hidden" name="alerts[{{ $key }}][admin_email]" value="0">
+                                <input type="checkbox" name="alerts[{{ $key }}][admin_email]" value="1" {{ old("alerts.$key.admin_email", $row['admin_email']) ? 'checked' : '' }}>
+                                Email owner
+                            </label>
+                        </div>
+                    </div>
+                </details>
+            @endforeach
+        </div>
+
+        <button class="btn-primary mt-6">Save alert settings</button>
     </form>
 
     {{-- Media Picker Modal (for editor image insert) --}}

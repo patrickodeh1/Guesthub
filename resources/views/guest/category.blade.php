@@ -62,6 +62,8 @@
     </div>
 
     @php
+        $lockWindowStates = ['guide', 'checkout_notice', 'checkout_available'];
+        $lockAvailableNow = in_array($state, $lockWindowStates, true);
         $hasArticleContent = $category->action === 'door_lock'
             || $category->action === 'local_events'
             || optional($page)->content
@@ -70,7 +72,7 @@
     <div class="guest-detail-content-grid">
         @if($hasArticleContent)
         <article class="guest-detail-card">
-            @if($category->action === 'door_lock' && $locks->isNotEmpty())
+            @if($category->action === 'door_lock' && $locks->isNotEmpty() && $lockAvailableNow)
                 <div class="grid gap-6 {{ $locks->count() > 1 ? 'sm:grid-cols-2' : '' }}">
                     @foreach($locks as $entry)
                         <x-lock-card
@@ -82,6 +84,8 @@
                         />
                     @endforeach
                 </div>
+            @elseif($category->action === 'door_lock')
+                <p class="text-sm font-bold text-slate-500 text-center py-6">Door controls are available once you're checked in, and until check-out.</p>
             @elseif($category->action === 'local_events')
                 @if($localEvents->isNotEmpty())
                     @php

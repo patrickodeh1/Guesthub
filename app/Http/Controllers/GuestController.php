@@ -42,6 +42,8 @@ class GuestController extends Controller
             'welcomeMessage' => $booking->welcome_message ?: \App\Models\Setting::getValue('default_intro', 'We are glad to have you. Please complete the following details prior to check-in.'),
             'gpsRadius'     => (int) Setting::getValue('gps_radius_meters', 150),
             'gpsVerifyMessage' => Setting::getValue('gps_verify_message', "It's Go Time!"),
+            'backgroundCheckStepName' => Setting::getValue('background_check_step_name', 'Background Check'),
+            'backgroundCheckStepInstructions' => Setting::getValue('background_check_step_instructions', 'Please be on the lookout for an email from Airbnb so that you can submit the required hold for incidentals. This hold is refunded after checkout.'),
             'checkinSteps'  => ($state === 'guide' && ! $booking->instructionsCompleted()) ? $this->checkinSteps($booking) : [],
             'checkoutSteps' => $this->checkoutSteps($booking),
             'parkingSteps'  => ($state === 'guide' && ! $booking->instructionsCompleted()) ? $this->parkingSteps($booking) : [],
@@ -100,6 +102,14 @@ class GuestController extends Controller
     {
         $booking = $this->booking($bookingId, $token);
 
+        // Effective parking answer after this request: the newly-submitted
+        // value if present, otherwise whatever's already on the booking.
+        // Vehicle info is only required once parking is confirmed "yes" —
+        // task 34.
+        $parkingAnswer = $request->filled('parking_needed')
+            ? filter_var($request->input('parking_needed'), FILTER_VALIDATE_BOOLEAN)
+            : $booking->parking_needed;
+
         $data = $request->validate([
             'guest_name' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'string', 'max:50'],
@@ -107,9 +117,17 @@ class GuestController extends Controller
             'parking_needed' => [is_null($booking->parking_needed) ? 'required' : 'nullable'],
             'checkin_time_preference' => ['required', 'string'],
             'checkout_time_preference' => ['nullable', 'string'],
+            'vehicle_make_model' => [
+                $parkingAnswer && ! $booking->vehicle_make_model ? 'required' : 'nullable',
+                'string', 'max:255',
+            ],
+            'license_plate_photo' => [
+                $parkingAnswer && ! $booking->license_plate_photo_path ? 'required' : 'nullable',
+                'image', 'max:8192',
+            ],
         ]);
 
-        $booking->update([
+        $updates = [
             'guest_name' => $data['guest_name'],
             'phone' => $data['phone'],
             'email' => $data['email'],
@@ -119,7 +137,19 @@ class GuestController extends Controller
             'checkin_time_preference' => $data['checkin_time_preference'],
             'checkout_time_preference' => $data['checkout_time_preference'] ?? null,
             'guest_authenticated_at' => now(),
-        ]);
+        ];
+
+        if ($parkingAnswer) {
+            $updates['vehicle_make_model'] = $data['vehicle_make_model'] ?? $booking->vehicle_make_model;
+        }
+
+        if ($request->hasFile('license_plate_photo')) {
+            $updates['license_plate_photo_path'] = $request->file('license_plate_photo')->store('license-plates');
+        }
+
+        $booking->update($updates);
+
+        $booking->recalculateParkingCharge();
 
         \App\Services\GuestSessionService::refreshCookie($booking);
 
@@ -171,7 +201,7 @@ class GuestController extends Controller
             'status'        => 'currently_hosting',
             'checked_in_at' => now(),
         ]);
-        \App\Services\SmsNotificationService::guestCheckedIn($booking);
+        \App\Services\GuestAlertService::send('checkin_completed', $booking);
         ActivityLogService::guest('guest_confirmed_checkin', "Guest {$booking->guest_name} confirmed check-in.", 'check', [
             'booking_id'  => $booking->id,
             'property_id' => $booking->property_id,
@@ -189,7 +219,7 @@ class GuestController extends Controller
             'status'         => 'checked_out',
             'checked_out_at' => now(),
         ]);
-        \App\Services\SmsNotificationService::guestCheckedOut($booking);
+        \App\Services\GuestAlertService::send('checkout_completed', $booking);
         ActivityLogService::guest('guest_confirmed_checkout', "Guest {$booking->guest_name} confirmed check-out.", 'check', [
             'booking_id'  => $booking->id,
             'property_id' => $booking->property_id,
@@ -203,11 +233,15 @@ class GuestController extends Controller
     public function submitIdentity(Request $request, string $bookingId, string $token)
     {
         $booking = $this->booking($bookingId, $token);
-        $photoRequired = ! $booking->photo_id_received;
+        // Each side is required only if that specific side is missing (never uploaded,
+        // or cleared out by an admin decline) — a decline on one side should never force
+        // re-upload of an already-approved other side.
+        $frontRequired = blank($booking->photo_id_path);
+        $backRequired = blank($booking->photo_id_back_path) && $booking->id_type !== 'passport';
 
         $data = $request->validate([
-            'photo_id' => [$photoRequired ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
-            'photo_id_back' => [($photoRequired && $booking->id_type !== 'passport') ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
+            'photo_id' => [$frontRequired ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
+            'photo_id_back' => [$backRequired ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
         ]);
 
         $advancedStatuses = ['guest_approved', 'awaiting_deposit', 'currently_hosting', 'checked_out'];
@@ -228,6 +262,7 @@ class GuestController extends Controller
                 );
             }
             $updates['photo_id_path'] = $request->file('photo_id')->store('photo-ids');
+            $updates['photo_id_front_declined_reason'] = null;
         }
         if ($request->hasFile('photo_id_back')) {
             if ($booking->photo_id_back_path && \Storage::disk('local')->exists($booking->photo_id_back_path)) {
@@ -237,6 +272,7 @@ class GuestController extends Controller
                 );
             }
             $updates['photo_id_back_path'] = $request->file('photo_id_back')->store('photo-ids');
+            $updates['photo_id_back_declined_reason'] = null;
         }
 
         $isFirstCompletion = $booking->status === 'pending';
@@ -244,7 +280,7 @@ class GuestController extends Controller
         $booking->update($updates);
 
         if ($isFirstCompletion) {
-            \App\Services\SmsNotificationService::preCheckinComplete($booking);
+            \App\Services\GuestAlertService::send('registration_received', $booking);
         }
 
         ActivityLogService::guest('photo_id_uploaded', "Guest {$booking->guest_name} submitted photo ID and pre-arrival details.", 'photo_id', [
@@ -266,6 +302,7 @@ class GuestController extends Controller
         $booking = $this->booking($bookingId, $token);
         $data    = $request->validate(['parking_needed' => ['required', 'boolean']]);
         $booking->update($data);
+        $booking->recalculateParkingCharge();
 
         ActivityLogService::guest('parking_answered', "Guest {$booking->guest_name} answered parking question: ".($data['parking_needed'] ? 'Yes' : 'No').".", 'guest_portal', [
             'booking_id'  => $booking->id,
@@ -572,12 +609,6 @@ class GuestController extends Controller
             return 'access_blocked';
         }
 
-        if ($booking->status !== 'checked_out' && $booking->isPastCheckoutTime()) {
-            $booking->update([
-                'status' => 'checked_out',
-                'checked_out_at' => now(),
-            ]);
-        }
         if (! $booking->isCheckedIn()) {
 
         if (! $booking->isIdentityComplete()) {
@@ -692,12 +723,17 @@ class GuestController extends Controller
 
     private function checkinTimeOptions(): array
     {
-        $options = [];
+        $recommendedHour = 16; // 4:00 PM — the system's actual check-in time
         $hours = array_merge(range(8, 23), [0]);
+
+        // Recommended time first, then the rest in chronological order.
+        usort($hours, fn ($a, $b) => ($a === $recommendedHour ? -1 : ($b === $recommendedHour ? 1 : $a <=> $b)));
+
+        $options = [];
         foreach ($hours as $hour) {
             $value = sprintf('%02d:00', $hour);
             $label = \Carbon\Carbon::createFromTime($hour, 0)->format('g:i A');
-            if ($hour === 10) {
+            if ($hour === $recommendedHour) {
                 $label .= ' (Recommended)';
             }
             $options[$value] = $label;
@@ -707,11 +743,17 @@ class GuestController extends Controller
 
     private function checkoutTimeOptions(): array
     {
+        $recommendedHour = 10; // 10:00 AM — the system's actual check-out time
+        $hours = range(7, 14); // 7:00 AM through 2:00 PM only
+
+        // Recommended time first, then the rest in chronological order.
+        usort($hours, fn ($a, $b) => ($a === $recommendedHour ? -1 : ($b === $recommendedHour ? 1 : $a <=> $b)));
+
         $options = [];
-        for ($hour = 10; $hour <= 20; $hour++) {
+        foreach ($hours as $hour) {
             $value = sprintf('%02d:00', $hour);
             $label = \Carbon\Carbon::createFromTime($hour, 0)->format('g:i A');
-            if ($hour === 10) {
+            if ($hour === $recommendedHour) {
                 $label .= ' (Recommended)';
             }
             $options[$value] = $label;

@@ -51,6 +51,21 @@
                                         <button type="button" onclick="openPhotoIdModal('{{ route('admin.guests.photo-id-view', $booking) }}', 'Photo ID front')" class="text-sm font-semibold text-teal-800">View full size</button>
                                         <a class="text-sm font-semibold text-teal-800" href="{{ route('admin.guests.photo-id', $booking) }}">Download original</a>
                                     </div>
+                                    <div class="mt-4 border-t border-slate-100 pt-4">
+                                        @if($booking->isFrontIdApproved())
+                                            <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">Front approved {{ $booking->photo_id_front_approved_at->format('M j, Y g:i A') }}</div>
+                                        @else
+                                            <div class="flex gap-2">
+                                                <form method="post" action="{{ route('admin.guests.id.approve', [$booking, 'front']) }}" class="flex-1">@csrf<button class="btn-primary w-full gap-2"><x-icon name="check" class="h-4 w-4" />Approve Front</button></form>
+                                                <button type="button" class="btn-danger flex-1 gap-2" onclick="document.getElementById('decline-form-front-{{ $booking->id }}').classList.toggle('hidden')"><x-icon name="x" class="h-4 w-4" />Decline</button>
+                                            </div>
+                                            <form id="decline-form-front-{{ $booking->id }}" method="post" action="{{ route('admin.guests.id.decline', [$booking, 'front']) }}" class="hidden mt-2 grid gap-2">
+                                                @csrf
+                                                <textarea name="decline_reason" class="input" rows="3" placeholder="Reason for declining the front (shown to guest)" required>{{ old('decline_reason') }}</textarea>
+                                                <button class="btn-secondary w-full">Submit Decline</button>
+                                            </form>
+                                        @endif
+                                    </div>
                                 </div>
                             @endif
                             @if($booking->photo_id_back_path)
@@ -62,6 +77,21 @@
                                         <button type="button" onclick="openPhotoIdModal('{{ route('admin.guests.photo-id-back-view', $booking) }}', 'Photo ID back')" class="text-sm font-semibold text-teal-800">View full size</button>
                                         <a class="text-sm font-semibold text-teal-800" href="{{ route('admin.guests.photo-id-back', $booking) }}">Download original</a>
                                     </div>
+                                    <div class="mt-4 border-t border-slate-100 pt-4">
+                                        @if($booking->isBackIdApproved())
+                                            <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">Back approved {{ $booking->photo_id_back_approved_at->format('M j, Y g:i A') }}</div>
+                                        @else
+                                            <div class="flex gap-2">
+                                                <form method="post" action="{{ route('admin.guests.id.approve', [$booking, 'back']) }}" class="flex-1">@csrf<button class="btn-primary w-full gap-2"><x-icon name="check" class="h-4 w-4" />Approve Back</button></form>
+                                                <button type="button" class="btn-danger flex-1 gap-2" onclick="document.getElementById('decline-form-back-{{ $booking->id }}').classList.toggle('hidden')"><x-icon name="x" class="h-4 w-4" />Decline</button>
+                                            </div>
+                                            <form id="decline-form-back-{{ $booking->id }}" method="post" action="{{ route('admin.guests.id.decline', [$booking, 'back']) }}" class="hidden mt-2 grid gap-2">
+                                                @csrf
+                                                <textarea name="decline_reason" class="input" rows="3" placeholder="Reason for declining the back (shown to guest)" required>{{ old('decline_reason') }}</textarea>
+                                                <button class="btn-secondary w-full">Submit Decline</button>
+                                            </form>
+                                        @endif
+                                    </div>
                                 </div>
                             @endif
                         </div>
@@ -69,24 +99,29 @@
                         <p class="mt-4 font-semibold text-slate-950">Not uploaded</p>
                     @endif
 
-                    @if($booking->photo_id_path || $booking->photo_id_back_path)
-                        <div class="mt-5 border-t border-slate-100 pt-4">
-                            @if($booking->isApproved())
-                                <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">Approved {{ $booking->approved_at->format('M j, Y g:i A') }}</div>
-                            @else
-                                <div class="flex gap-2">
-                                    <form method="post" action="{{ route('admin.guests.approve', $booking) }}" class="flex-1">@csrf<button class="btn-primary w-full gap-2"><x-icon name="check" class="h-4 w-4" />Approve</button></form>
-                                    <button type="button" class="btn-danger flex-1 gap-2" onclick="document.getElementById('decline-form-{{ $booking->id }}').classList.toggle('hidden')"><x-icon name="x" class="h-4 w-4" />Decline</button>
-                                </div>
-                                <form id="decline-form-{{ $booking->id }}" method="post" action="{{ route('admin.guests.decline', $booking) }}" class="hidden mt-2 grid gap-2">
-                                    @csrf
-                                    <textarea name="decline_reason" class="input" rows="3" placeholder="Reason for declining (shown to guest)" required>{{ old('decline_reason') }}</textarea>
-                                    <button class="btn-secondary w-full">Submit Decline</button>
-                                </form>
-                            @endif
-                        </div>
+                    @if($booking->isIdFullyApproved())
+                        <div class="mt-5 rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">All ID photos approved{{ $booking->approved_at ? ' — '.$booking->approved_at->format('M j, Y g:i A') : '' }}</div>
                     @endif
                 </section>
+
+                @if($booking->parking_needed)
+                {{-- Vehicle / license plate photo, task 34 --}}
+                <section class="card card-pad">
+                    <h2 class="section-title">Vehicle</h2>
+                    <p class="section-copy">Make/model and license plate photo, collected when the guest opted into parking.</p>
+                    @if($booking->license_plate_photo_path)
+                        <button type="button" onclick="openPhotoIdModal('{{ route('admin.guests.license-plate-view', $booking) }}', 'License plate')" class="mt-4 block w-full text-left">
+                            <img src="{{ route('admin.guests.license-plate-view', $booking) }}" alt="License plate" class="w-full max-h-64 rounded-lg border border-slate-200 object-contain bg-slate-50">
+                        </button>
+                        <div class="mt-3 flex flex-wrap gap-3">
+                            <button type="button" onclick="openPhotoIdModal('{{ route('admin.guests.license-plate-view', $booking) }}', 'License plate')" class="text-sm font-semibold text-teal-800">View full size</button>
+                            <a class="text-sm font-semibold text-teal-800" href="{{ route('admin.guests.license-plate', $booking) }}">Download original</a>
+                        </div>
+                    @else
+                        <p class="mt-4 font-semibold text-slate-950">Not uploaded</p>
+                    @endif
+                </section>
+                @endif
 
                 {{-- Guest Details --}}
                 <section class="card card-pad lg:col-span-2">
@@ -97,14 +132,19 @@
                     <dl class="mt-4 grid gap-0 text-sm">
                         @foreach([
                             ['calendar', 'Check-in Date', $booking->check_in_date ? $booking->check_in_date->format('M j, Y') : 'Not set'],
-                            ['calendar', 'Check-out Date', $booking->check_out_date ? $booking->check_out_date->format('M j, Y') : 'Not set'],
+                            ['calendar', 'Check-out Date', $booking->check_out_date ? $booking->check_out_date->format('M j, Y').' '.$booking->nightsLabel() : 'Not set'],
                             ['mail', 'Email', $booking->email ?: 'No email yet'],
                             ['contact-guest-services', 'Phone', $booking->phone ?: 'No phone on file'],
                             ['security', 'ID Type', $booking->id_type === 'passport' ? 'Passport' : 'State-issued ID'],
                             ['parking', 'Parking', is_null($booking->parking_needed) ? 'Unknown' : ($booking->parking_needed ? 'Needed' : 'Not needed')],
+                            ...($booking->parking_needed ? [['parking', 'Parking Charge', '$'.number_format($booking->effectiveParkingCharge() ?? 0, 2).($booking->parking_charge_override !== null ? ' (manual override)' : ' (auto-calculated)')]] : []),
+                            ...($booking->parking_needed ? [['parking', 'Vehicle', $booking->vehicle_make_model ?: 'Not provided']] : []),
+                            ['info', 'Incidentals Charge', $booking->incidentals_charge !== null ? '$'.number_format($booking->incidentals_charge, 2) : 'Not set'],
+                            ...($booking->early_checkin_tier ? [['calendar', 'Early Check-in Charge', '$'.number_format($booking->earlyCheckinCharge() ?? 0, 2).' ('.($booking->early_checkin_tier === '8am' ? '8:00 AM' : '12:00 PM').' tier)']] : []),
+                            ...($booking->late_checkout_type ? [['clock', 'Late Checkout Charge', '$'.number_format($booking->lateCheckoutCharge() ?? 0, 2).' ('.ucfirst($booking->late_checkout_type).')']] : []),
                             ['calendar', 'Early Check-in', $booking->early_checkin ? 'Enabled' : 'Disabled'],
-                            ['clock', 'Requested Check-in Time', $booking->checkin_time_preference ?: 'Not specified'],
-                            ['clock', 'Requested Check-out Time', $booking->checkout_time_preference ?: 'Not specified'],
+                            ['clock', 'Requested Check-in Time', $booking->checkinTimePreferenceFormatted() ?: 'Not specified'],
+                            ['clock', 'Requested Check-out Time', $booking->checkoutTimePreferenceFormatted() ?: 'Not specified'],
                             ['upload', 'Photo ID Already Received', $booking->photo_id_received ? 'Yes' : 'No'],
                             ['map', 'GPS', $booking->gps_verified ? 'Verified' : 'Not verified'],
                             ['contact-guest-services', 'Checked In At', $booking->checked_in_at ? $booking->checked_in_at->format('M j, Y g:i A') : 'Not yet'],
@@ -116,8 +156,11 @@
                             </div>
                         @endforeach
                     </dl>
-                    @if($booking->decline_reason && !$booking->isApproved())
-                        <div class="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800"><span class="font-semibold">Last decline reason:</span> {{ $booking->decline_reason }}</div>
+                    @if($booking->photo_id_front_declined_reason)
+                        <div class="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800"><span class="font-semibold">Front ID decline reason:</span> {{ $booking->photo_id_front_declined_reason }}</div>
+                    @endif
+                    @if($booking->photo_id_back_declined_reason)
+                        <div class="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800"><span class="font-semibold">Back ID decline reason:</span> {{ $booking->photo_id_back_declined_reason }}</div>
                     @endif
                     @if($booking->notes)
                         <div class="mt-4 rounded-lg bg-slate-50 border border-slate-200 p-3">
@@ -185,9 +228,9 @@
                 <div class="mt-5 grid gap-2.5">
                     @if($booking->isApproved())
                         @if($booking->isBackgroundCheckComplete())
-                            <div class="rounded-lg bg-indigo-50 border border-indigo-200 p-3 text-sm text-indigo-800 font-semibold">Background check completed {{ $booking->background_check_completed_at->format('M j, Y g:i A') }}</div>
+                            <div class="rounded-lg bg-indigo-50 border border-indigo-200 p-3 text-sm text-indigo-800 font-semibold">{{ \App\Models\Setting::getValue('background_check_step_name', 'Background Check') }} completed {{ $booking->background_check_completed_at->format('M j, Y g:i A') }}</div>
                         @else
-                            <form method="post" action="{{ route('admin.guests.background-check', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="shield-alert" class="h-4 w-4" />Mark Background Check Complete</button></form>
+                            <form method="post" action="{{ route('admin.guests.background-check', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="shield-alert" class="h-4 w-4" />Mark {{ \App\Models\Setting::getValue('background_check_step_name', 'Background Check') }} Complete</button></form>
                         @endif
                     @endif
                     @if($booking->isBackgroundCheckComplete())
@@ -228,7 +271,7 @@
                         'Email Received' => filled($booking->email),
                         'Photo ID Uploaded' => filled($booking->photo_id_path),
                         'Photo ID Approval' => $booking->isApproved(),
-                        'Background Check' => $booking->isBackgroundCheckComplete(),
+                        \App\Models\Setting::getValue('background_check_step_name', 'Background Check') => $booking->isBackgroundCheckComplete(),
                         'Deposit Verified' => $booking->isDepositVerified(),
                         'GPS Verified' => $booking->gps_verified,
                         'Currently Hosting' => $booking->isCheckedIn(),
@@ -269,7 +312,7 @@
                 ['mail', 'Email Submitted', $booking->updated_at, filled($booking->email)],
                 ['upload', 'Photo ID Uploaded', $booking->updated_at, filled($booking->photo_id_path)],
                 ['security', 'Photo ID Approval', $booking->approved_at, $booking->isApproved()],
-                ['shield-alert', 'Background Check', $booking->background_check_completed_at, $booking->isBackgroundCheckComplete()],
+                ['shield-alert', \App\Models\Setting::getValue('background_check_step_name', 'Background Check'), $booking->background_check_completed_at, $booking->isBackgroundCheckComplete()],
                 ['lock', 'Deposit Verified', $booking->deposit_verified_at, $booking->isDepositVerified()],
                 ['map', 'GPS Verified', $booking->checked_in_at, $booking->gps_verified],
                 ['contact-guest-services', 'Currently Hosting', $booking->checked_in_at, $booking->isCheckedIn()],

@@ -6,8 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Property;
 use App\Models\Setting;
+use App\Mail\PhotoIdDeclinedMail;
 use App\Services\ActivityLogService;
+use App\Services\SmsNotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -27,6 +30,7 @@ class BookingController extends Controller
             ->when($request->search, fn ($query, $search) => $query->where(fn ($inner) => $inner
                 ->where('guest_name', 'like', "%{$search}%")
                 ->orWhere('booking_id', 'like', "%{$search}%")
+                ->orWhere('reservation_id', 'like', "%{$search}%")
                 ->orWhere('email', 'like', "%{$search}%")
             ))
             ->when($request->status, fn ($query, $status) => $status === 'pending_check_in'
@@ -42,6 +46,14 @@ class BookingController extends Controller
             ->get();
 
         $currentlyHostingIds = $currentlyHosting->pluck('id');
+
+        $needsAttention = Booking::with('property')
+            ->notArchived()
+            ->whereNotNull('photo_id_path')
+            ->whereNull('approved_at')
+            ->orderBy('check_in_date')
+            ->limit(10)
+            ->get();
 
         $bookings = ($baseQuery)()
             ->when($currentlyHostingIds->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $currentlyHostingIds))
@@ -61,7 +73,7 @@ class BookingController extends Controller
                 ->count(),
         ];
 
-        return view('admin.bookings.index', compact('bookings', 'currentlyHosting', 'properties', 'showArchived', 'stats'));
+        return view('admin.bookings.index', compact('bookings', 'currentlyHosting', 'needsAttention', 'properties', 'showArchived', 'stats'));
     }
 
     public function create()
@@ -87,6 +99,7 @@ class BookingController extends Controller
             $data['approved_at'] = now();
         }
         $booking            = Booking::create($data);
+        $booking->recalculateParkingCharge();
 
         ActivityLogService::admin('booking_created', "Guest booking created for {$booking->guest_name} ({$booking->booking_id}).", 'guests', [
             'subject_type' => Booking::class,
@@ -196,6 +209,7 @@ class BookingController extends Controller
             $data['approved_at'] = now();
         }
         $booking->update($data);
+        $booking->recalculateParkingCharge();
 
         ActivityLogService::admin('booking_updated', auth()->user()->name." updated booking for {$booking->guest_name}.", 'guests', [
             'subject_type' => Booking::class,
@@ -358,6 +372,7 @@ class BookingController extends Controller
             'background_check_completed_at' => now(),
             'status' => 'awaiting_deposit',
         ]);
+        \App\Services\GuestAlertService::send('background_check_complete', $booking);
 
         ActivityLogService::admin('background_check_completed', auth()->user()->name." marked background check complete for {$booking->guest_name}.", 'guests', [
             'subject_type' => Booking::class,
@@ -399,6 +414,7 @@ class BookingController extends Controller
             'deposit_verified_at' => now(),
             'status' => 'guest_approved',
         ]);
+        \App\Services\GuestAlertService::send('fully_approved', $booking);
 
         ActivityLogService::admin('deposit_verified', auth()->user()->name." verified the deposit for {$booking->guest_name}.", 'guests', [
             'subject_type' => Booking::class,
@@ -411,20 +427,71 @@ class BookingController extends Controller
         return back()->with('success', 'Deposit verified — guest is now approved.');
     }
 
-    public function declineBooking(Request $request, Booking $booking)
+    /**
+     * Approve a single side of the guest's ID (front or back) independently.
+     * Overall booking approval (approved_at) is only set once every side on
+     * file is approved.
+     */
+    public function approveIdSide(Request $request, Booking $booking, string $side)
     {
+        abort_unless(in_array($side, ['front', 'back'], true), 404);
+
+        $field = $side === 'back' ? 'photo_id_back_approved_at' : 'photo_id_front_approved_at';
+        $reasonField = $side === 'back' ? 'photo_id_back_declined_reason' : 'photo_id_front_declined_reason';
+
+        $booking->update([
+            $field => now(),
+            $reasonField => null,
+        ]);
+
+        if ($booking->fresh()->isIdFullyApproved()) {
+            $booking->update([
+                'approved_at' => now(),
+                'decline_reason' => null,
+                'photo_id_received' => true,
+            ]);
+        }
+
+        ActivityLogService::admin('id_side_approved', auth()->user()->name." approved the {$side} of {$booking->guest_name}'s ID.", 'guests', [
+            'subject_type' => Booking::class,
+            'subject_id'   => $booking->id,
+            'booking_id'   => $booking->id,
+            'property_id'  => $booking->property_id,
+            'severity'     => 'success',
+        ]);
+
+        return back()->with('success', ucfirst($side).' of ID approved.');
+    }
+
+    /**
+     * Decline a single side of the guest's ID (front or back) independently.
+     * The declined side's uploaded photo is cleared so the guest is forced to
+     * re-upload only that side; the other side (if already approved) is left
+     * untouched. Triggers an email + SMS to the guest with the reason.
+     */
+    public function declineIdSide(Request $request, Booking $booking, string $side)
+    {
+        abort_unless(in_array($side, ['front', 'back'], true), 404);
+
         $data = $request->validate([
             'decline_reason' => ['required', 'string', 'max:1000'],
         ]);
 
+        $pathField = $side === 'back' ? 'photo_id_back_path' : 'photo_id_path';
+        $approvedField = $side === 'back' ? 'photo_id_back_approved_at' : 'photo_id_front_approved_at';
+        $reasonField = $side === 'back' ? 'photo_id_back_declined_reason' : 'photo_id_front_declined_reason';
+
         $booking->update([
+            $pathField => null,
+            $approvedField => null,
+            $reasonField => $data['decline_reason'],
             'approved_at' => null,
             'decline_reason' => $data['decline_reason'],
             'photo_id_received' => false,
             'status' => 'pending',
         ]);
 
-        ActivityLogService::admin('booking_declined', auth()->user()->name." declined ID for {$booking->guest_name}: {$data['decline_reason']}", 'guests', [
+        ActivityLogService::admin('id_side_declined', auth()->user()->name." declined the {$side} of {$booking->guest_name}'s ID: {$data['decline_reason']}", 'guests', [
             'subject_type' => Booking::class,
             'subject_id'   => $booking->id,
             'booking_id'   => $booking->id,
@@ -432,7 +499,17 @@ class BookingController extends Controller
             'severity'     => 'warning',
         ]);
 
-        return back();
+        if (filled($booking->email)) {
+            try {
+                Mail::to($booking->email)->send(new PhotoIdDeclinedMail($booking, $side, $data['decline_reason']));
+            } catch (\Throwable $e) {
+                \Illuminate\Support\Facades\Log::error('Failed to send photo ID declined email: '.$e->getMessage());
+            }
+        }
+
+        SmsNotificationService::photoIdDeclinedToGuest($booking, $side, $data['decline_reason']);
+
+        return back()->with('success', ucfirst($side).' of ID declined — guest has been notified and asked to re-upload.');
     }
 
     public function blockAccess(Request $request, Booking $booking)
@@ -473,8 +550,6 @@ class BookingController extends Controller
         ]);
 
         return back()->with('success', 'Guest access restored.');
-
-        return back()->with('success', 'Guest declined — they will be asked to re-upload their ID.');
     }
 
     public function photoId(Booking $booking)
@@ -532,6 +607,34 @@ class BookingController extends Controller
         return response()->file(\Storage::path($booking->photo_id_back_path));
     }
 
+    public function licensePlate(Booking $booking)
+    {
+        abort_unless($booking->license_plate_photo_path && Storage::disk('local')->exists($booking->license_plate_photo_path), 404);
+
+        ActivityLogService::security('license_plate_photo_viewed', auth()->user()->name." viewed license plate photo for {$booking->guest_name} ({$booking->booking_id}).", [
+            'subject_type' => Booking::class,
+            'subject_id'   => $booking->id,
+            'booking_id'   => $booking->id,
+            'property_id'  => $booking->property_id,
+            'severity'     => 'security',
+            'metadata'     => ['accessed_by' => auth()->user()->name],
+        ]);
+
+        $ext = pathinfo($booking->license_plate_photo_path, PATHINFO_EXTENSION) ?: 'jpg';
+
+        return response()->download(
+            \Storage::path($booking->license_plate_photo_path),
+            $booking->booking_id.'-license-plate.'.$ext
+        );
+    }
+
+    public function licensePlateView(Booking $booking)
+    {
+        abort_unless($booking->license_plate_photo_path && Storage::disk('local')->exists($booking->license_plate_photo_path), 404);
+
+        return response()->file(\Storage::path($booking->license_plate_photo_path));
+    }
+
     private function validated(Request $request, ?Booking $booking = null): array
     {
         return $request->validate([
@@ -545,7 +648,13 @@ class BookingController extends Controller
             'property_id'    => ['required', 'exists:properties,id'],
             'id_type'        => ['required', 'in:state_id,passport'],
             'parking_needed' => ['nullable', 'boolean'],
+            'parking_charge_override' => ['nullable', 'numeric', 'min:0'],
+            'incidentals_charge' => ['nullable', 'numeric', 'min:0'],
             'early_checkin'  => ['nullable', 'boolean'],
+            'early_checkin_tier' => ['nullable', 'in:8am,12pm'],
+            'late_checkout_type' => ['nullable', 'in:authorized,unauthorized'],
+            'late_checkout_hours' => ['nullable', 'numeric', 'min:0'],
+            'late_checkout_actual_time' => ['nullable', 'date'],
             'photo_id_received' => ['nullable', 'boolean'],
             'checkin_time_preference'  => ['nullable', 'date_format:H:i'],
             'checkout_time_preference' => ['nullable', 'date_format:H:i'],

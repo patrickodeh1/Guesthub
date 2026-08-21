@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Setting;
+use App\Services\GuestAlertService;
 use App\Services\MediaService;
 use Illuminate\Http\Request;
 
@@ -23,7 +24,12 @@ class SettingsController extends Controller
                 'default_intro' => Setting::getValue('default_intro', 'Your arrival details and local guide are ready when you are.'),
                 'gps_verify_message' => Setting::getValue('gps_verify_message', "It's Go Time!"),
                 'lock_message' => Setting::getValue('lock_message', "If you'd like quicker access to the unit, you can download the August Home app."),
+                'background_check_step_name' => Setting::getValue('background_check_step_name', 'Background Check'),
+                'background_check_step_instructions' => Setting::getValue('background_check_step_instructions', 'Please be on the lookout for an email from Airbnb so that you can submit the required hold for incidentals. This hold is refunded after checkout.'),
             ],
+            'alertEvents' => GuestAlertService::EVENTS,
+            'alertLabels' => GuestAlertService::labels(),
+            'alertConfig' => GuestAlertService::config(),
         ]);
     }
 
@@ -41,6 +47,8 @@ class SettingsController extends Controller
             'default_intro' => ['nullable', 'string'],
             'gps_verify_message' => ['nullable', 'string', 'max:500'],
             'lock_message' => ['nullable', 'string', 'max:500'],
+            'background_check_step_name' => ['nullable', 'string', 'max:100'],
+            'background_check_step_instructions' => ['nullable', 'string', 'max:1000'],
         ]);
 
         if ($request->hasFile('site_logo')) {
@@ -71,5 +79,42 @@ class SettingsController extends Controller
         ActivityLog::record('settings_updated', 'Brand and system settings were updated.', 'settings');
 
         return back()->with('success', 'Settings saved.');
+    }
+
+    /**
+     * Save the guest lifecycle alert templates and per-event send toggles
+     * (tasks 30/31). A separate form/route from the main settings save so
+     * this large structured section doesn't get tangled up with the
+     * brand/logo save, mirroring the pattern used for property-level
+     * per-section admin forms elsewhere (e.g. parking rates).
+     */
+    public function updateAlerts(Request $request)
+    {
+        $data = $request->validate([
+            'alerts' => ['required', 'array'],
+            'alerts.*.message' => ['required', 'string', 'max:1000'],
+            'alerts.*.guest_sms' => ['nullable', 'boolean'],
+            'alerts.*.guest_email' => ['nullable', 'boolean'],
+            'alerts.*.admin_sms' => ['nullable', 'boolean'],
+            'alerts.*.admin_email' => ['nullable', 'boolean'],
+        ]);
+
+        $config = [];
+        foreach (GuestAlertService::EVENTS as $key => $meta) {
+            $row = $data['alerts'][$key] ?? [];
+            $config[$key] = [
+                'message' => $row['message'] ?? $meta['default_message'],
+                'guest_sms' => (bool) ($row['guest_sms'] ?? false),
+                'guest_email' => (bool) ($row['guest_email'] ?? false),
+                'admin_sms' => (bool) ($row['admin_sms'] ?? false),
+                'admin_email' => (bool) ($row['admin_email'] ?? false),
+            ];
+        }
+
+        GuestAlertService::putConfig($config);
+
+        ActivityLog::record('guest_alerts_updated', 'Guest lifecycle alert messages and send preferences were updated.', 'settings');
+
+        return back()->with('success', 'Guest alert settings saved.');
     }
 }

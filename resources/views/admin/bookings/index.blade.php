@@ -8,36 +8,41 @@
         <a href="{{ route('admin.guests.create') }}" class="btn-primary">Add Guest</a>
     </div>
 
-    <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-5">
-        <div class="card card-pad flex items-center gap-4">
-            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-blue-100 text-blue-700"><x-icon name="users" class="h-6 w-6" /></div>
-            <div><p class="text-sm text-slate-500">Total Guests</p><p class="text-2xl font-bold text-slate-900">{{ number_format($stats['total_guests']) }}</p><p class="text-xs text-slate-400">All time</p></div>
-        </div>
-        <div class="card card-pad flex items-center gap-4">
-            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700"><x-icon name="calendar" class="h-6 w-6" /></div>
-            <div><p class="text-sm text-slate-500">Today's Arrivals</p><p class="text-2xl font-bold text-slate-900">{{ number_format($stats['todays_arrivals']) }}</p><p class="text-xs text-slate-400">Expected check-ins today</p></div>
-        </div>
-        <div class="card card-pad flex items-center gap-4">
-            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-amber-100 text-amber-700"><x-icon name="bell" class="h-6 w-6" /></div>
-            <div><p class="text-sm text-slate-500">Waiting Approval</p><p class="text-2xl font-bold text-slate-900">{{ number_format($stats['waiting_approval']) }}</p><p class="text-xs text-slate-400">Require your attention</p></div>
-        </div>
-        <div class="card card-pad flex items-center gap-4">
-            <div class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-700"><x-icon name="check" class="h-6 w-6" /></div>
-            <div><p class="text-sm text-slate-500">Checked In</p><p class="text-2xl font-bold text-slate-900">{{ number_format($stats['checked_in']) }}</p><p class="text-xs text-slate-400">Currently in-house</p></div>
-        </div>
-    </div>
     <div class="card card-pad mb-5">
-        <form id="guest-filter-form" class="grid gap-3 md:grid-cols-[1fr_200px_200px_auto]">
-            <div class="relative"><x-icon name="search" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input name="search" value="{{ request('search') }}" placeholder="Search guest, booking ID, or email" class="input mt-0 pl-9"></div>
-            <select name="status" class="input mt-0"><option value="">All statuses</option>@foreach(['pending','pre_checkin_complete','awaiting_deposit','guest_approved','pending_check_in','currently_hosting','checked_out'] as $status)<option @selected(request('status')===$status) value="{{ $status }}">{{ str($status)->replace('_',' ')->title() }}</option>@endforeach</select>
-            <select name="property_id" class="input mt-0"><option value="">All properties</option>@foreach($properties as $property)<option @selected((string) request('property_id')===(string) $property->id) value="{{ $property->id }}">{{ $property->name }}</option>@endforeach</select>
-            <div class="flex items-center gap-2">
-                <a href="{{ route('admin.guests.index') }}" class="btn-secondary gap-2"><x-icon name="refresh" class="h-4 w-4" />Reset</a>
-                <button class="btn-primary gap-2"><x-icon name="filter" class="h-4 w-4" />Filter</button>
-            </div>
+        <form id="guest-filter-form" class="flex flex-wrap items-center gap-3">
+            <div class="relative flex-1 min-w-[240px]"><x-icon name="search" class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" /><input name="search" value="{{ request('search') }}" placeholder="Search by guest name, booking ID, or reservation ID" class="input mt-0 pl-9"></div>
+            <button class="btn-primary gap-2"><x-icon name="search" class="h-4 w-4" />Search</button>
+            @if(request('search'))
+                <a href="{{ route('admin.guests.index') }}" class="btn-secondary gap-2"><x-icon name="refresh" class="h-4 w-4" />Clear</a>
+            @endif
         </form>
         <label class="mt-3 flex w-fit items-center gap-2 text-sm text-slate-600"><input type="checkbox" name="archived" value="1" form="guest-filter-form" @checked(request()->boolean('archived')) onchange="this.form.requestSubmit ? document.getElementById('guest-filter-form').requestSubmit() : document.getElementById('guest-filter-form').submit()"> Show archived</label>
     </div>
+
+    @if($needsAttention->isNotEmpty())
+    <div class="mb-3 flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-slate-950 flex items-center gap-2"><x-icon name="bell" class="h-5 w-5 text-amber-600" />Needs Attention</h2>
+        <span class="text-sm text-slate-500">{{ $needsAttention->count() }} action item{{ $needsAttention->count() === 1 ? '' : 's' }}</span>
+    </div>
+    <div class="table-wrap mb-8">
+        <div class="overflow-x-auto">
+            <table class="data-table">
+                <thead><tr><th>Guest</th><th>Property</th><th>Stay</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                    @foreach($needsAttention as $booking)
+                        <tr>
+                            <td><a class="font-semibold text-slate-950 hover:text-teal-800" href="{{ route('admin.guests.show', $booking) }}">{{ $booking->guest_name }}</a></td>
+                            <td>{{ $booking->property->name }}</td>
+                            <td>{{ $booking->stayRangeLabel() }}</td>
+                            <td><span class="badge badge-{{ $booking->effectiveStatus() }}">{{ $booking->statusLabel() }}</span></td>
+                            <td class="text-right"><a href="{{ route('admin.guests.show', $booking) }}" class="btn-primary gap-2"><x-icon name="security" class="h-4 w-4" />Review ID</a></td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    </div>
+    @endif
 
     @if($currentlyHosting->isNotEmpty())
     <div class="mb-3 flex items-center justify-between">
@@ -47,7 +52,7 @@
     <div class="table-wrap mb-8">
         <div class="overflow-x-auto">
             <table class="data-table">
-                <thead><tr><th>Guest</th><th>Property</th><th>Stay</th><th>Status</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Guest</th><th>Property</th><th>Stay</th><th>Status</th><th></th></tr></thead>
                 <tbody>
                     @foreach($currentlyHosting as $booking)
                         @include('admin.bookings.partials.guest-row', ['booking' => $booking])
@@ -64,7 +69,7 @@
     <div class="table-wrap">
         <div class="overflow-x-auto">
             <table class="data-table">
-                <thead><tr><th>Guest</th><th>Property</th><th>Stay</th><th>Status</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Guest</th><th>Property</th><th>Stay</th><th>Status</th><th></th></tr></thead>
                 <tbody>
                     @forelse($bookings as $booking)
                         @include('admin.bookings.partials.guest-row', ['booking' => $booking])

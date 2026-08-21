@@ -44,6 +44,7 @@
                     ['categories', 'Manage Categories', 'admin.categories.index',   'admin.categories.*'],
                     ['folder',     'Media Library',    'admin.media.index',        'admin.media.*'],
                     ['users',      'Users',             'admin.users.index',        'admin.users.*'],
+                    ['users',      'Early Access Signups', 'admin.early-access-leads.index', 'admin.early-access-leads.*'],
                     ['logs',       'Activity Logs',     'admin.logs.index',         'admin.logs.*'],
                     ['security',   'Security',          'admin.security',           'admin.security'],
                     ['guide',      'Admin Guide',       'admin.guide',              'admin.guide'],

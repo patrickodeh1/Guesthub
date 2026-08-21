@@ -10,6 +10,7 @@
         "intervention/image": "^3.11",
         "laravel/framework": "^12.0",
         "laravel/tinker": "^2.10.1",
+        "resend/resend-php": "^0.10.0|^1.0",
         "seamapi/seam": "^2.145",
         "svix/svix": "^1.99",
         "twilio/sdk": "^8.11"

@@ -125,6 +125,47 @@ class PropertyController extends Controller
         return back()->with('success', 'Lockbox code updated.');
     }
 
+    public function updateParkingRates(Request $request, Property $property)
+    {
+        $data = $request->validate([
+            'parking_rate_sunday'    => ['nullable', 'numeric', 'min:0'],
+            'parking_rate_monday'    => ['nullable', 'numeric', 'min:0'],
+            'parking_rate_tuesday'   => ['nullable', 'numeric', 'min:0'],
+            'parking_rate_wednesday' => ['nullable', 'numeric', 'min:0'],
+            'parking_rate_thursday'  => ['nullable', 'numeric', 'min:0'],
+            'parking_rate_friday'    => ['nullable', 'numeric', 'min:0'],
+            'parking_rate_saturday'  => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $property->update($data);
+
+        // Recalculate parking charges for any bookings that need it, since the
+        // rates that drive their auto-calculated charge just changed (task 20/25).
+        foreach ($property->bookings()->where('parking_needed', true)->get() as $booking) {
+            $booking->recalculateParkingCharge();
+        }
+
+        ActivityLog::record('property_updated', "{$property->name} parking rates were updated.", 'edit', $property);
+
+        return back()->with('success', 'Parking rates updated.');
+    }
+
+    public function updateCheckinCheckoutRates(Request $request, Property $property)
+    {
+        $data = $request->validate([
+            'early_checkin_rate_8am'    => ['nullable', 'numeric', 'min:0'],
+            'early_checkin_rate_12pm'   => ['nullable', 'numeric', 'min:0'],
+            'late_checkout_rate_authorized_hourly'   => ['nullable', 'numeric', 'min:0'],
+            'late_checkout_rate_unauthorized_hourly' => ['nullable', 'numeric', 'min:0'],
+        ]);
+
+        $property->update($data);
+
+        ActivityLog::record('property_updated', "{$property->name} early check-in / late checkout rates were updated.", 'edit', $property);
+
+        return back()->with('success', 'Early check-in / late checkout rates updated.');
+    }
+
     public function destroy(Property $property)
     {
         $property->delete();

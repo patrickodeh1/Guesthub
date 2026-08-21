@@ -6,15 +6,18 @@ use Twilio\Rest\Client;
 
 class SmsNotificationService
 {
-    protected static function send(string $message): void
+    /**
+     * Send an SMS to an arbitrary number (e.g. the guest's phone), as opposed to
+     * the fixed admin-notify number used by the existing admin-facing alerts.
+     */
+    protected static function sendTo(?string $to, string $message, string $context = 'guest'): void
     {
         $sid = config('services.twilio.sid');
         $authToken = config('services.twilio.auth_token');
         $from = config('services.twilio.from_number');
-        $to = config('services.twilio.admin_notify_number');
 
         if (! $sid || ! $authToken || ! $from || ! $to) {
-            Log::warning('SMS notification skipped: Twilio not fully configured.');
+            Log::warning("SMS notification skipped ({$context}): Twilio not fully configured or recipient missing.");
             return;
         }
 
@@ -25,22 +28,29 @@ class SmsNotificationService
                 'body' => $message,
             ]);
         } catch (\Throwable $e) {
-            Log::error('SMS notification failed: '.$e->getMessage());
+            Log::error("SMS notification failed ({$context}): ".$e->getMessage());
         }
     }
 
-    public static function preCheckinComplete(Booking $booking): void
+    /**
+     * Text the GUEST (not the admin) that a side of their ID was declined.
+     */
+    public static function photoIdDeclinedToGuest(Booking $booking, string $side, string $reason): void
     {
-        self::send("GuestHub: {$booking->guest_name} completed pre-check-in and uploaded their ID for {$booking->property->name}.");
+        $sideLabel = $side === 'back' ? 'back' : 'front';
+        self::sendTo(
+            $booking->phone,
+            "GuestHub: The {$sideLabel} of your ID was not approved. Reason: {$reason}. Please log back in to re-upload it.",
+            'guest'
+        );
     }
 
-    public static function guestCheckedIn(Booking $booking): void
+    /**
+     * Send an already-rendered lifecycle alert message (task 30) to an
+     * arbitrary number — the guest's phone, or the admin's notify number.
+     */
+    public static function guestAlert(string $to, string $message): void
     {
-        self::send("GuestHub: {$booking->guest_name} has checked in at {$booking->property->name}.");
-    }
-
-    public static function guestCheckedOut(Booking $booking): void
-    {
-        self::send("GuestHub: {$booking->guest_name} has checked out of {$booking->property->name}.");
+        self::sendTo($to, $message, 'guest_alert');
     }
 }

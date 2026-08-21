@@ -13,9 +13,8 @@ use App\Http\Controllers\GuestController;
 use App\Services\ActivityLogService;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/', function () {
-    return redirect()->route('login');
-});
+Route::get('/', [App\Http\Controllers\EarlyAccessController::class, 'show'])->name('early-access');
+Route::post('/early-access', [App\Http\Controllers\EarlyAccessController::class, 'store'])->name('early-access.store');
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.store');
@@ -82,6 +81,8 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     Route::resource('properties', PropertyController::class)->except(['show']);
     Route::post('properties/{property}/checkout-time', [PropertyController::class, 'updateCheckoutTime'])->name('properties.checkout-time');
     Route::post('properties/{property}/lockbox-code', [PropertyController::class, 'updateLockboxCode'])->name('properties.lockbox-code');
+    Route::post('properties/{property}/parking-rates', [PropertyController::class, 'updateParkingRates'])->name('properties.parking-rates');
+    Route::post('properties/{property}/checkin-checkout-rates', [PropertyController::class, 'updateCheckinCheckoutRates'])->name('properties.checkin-checkout-rates');
 
     // ─── Guests / Bookings ────────────────────────────────────────────────────
     Route::resource('guests', BookingController::class)->parameters(['guests' => 'booking']);
@@ -96,7 +97,8 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     Route::post('guests/{booking}/background-check', [BookingController::class, 'markBackgroundCheckComplete'])->name('guests.background-check');
     Route::post('guests/{booking}/deposit-verified', [BookingController::class, 'markDepositVerified'])->name('guests.deposit-verified');
     Route::post('guests/{booking}/update-status', [BookingController::class, 'updateStatus'])->name('guests.update-status');
-    Route::post('guests/{booking}/decline', [BookingController::class, 'declineBooking'])->name('guests.decline');
+    Route::post('guests/{booking}/id/{side}/approve', [BookingController::class, 'approveIdSide'])->whereIn('side', ['front', 'back'])->name('guests.id.approve');
+    Route::post('guests/{booking}/id/{side}/decline', [BookingController::class, 'declineIdSide'])->whereIn('side', ['front', 'back'])->name('guests.id.decline');
     Route::post('guests/{booking}/block-access', [BookingController::class, 'blockAccess'])->name('guests.block-access');
     Route::post('guests/{booking}/unblock-access', [BookingController::class, 'unblockAccess'])->name('guests.unblock-access');
     Route::put('guests/{booking}/welcome-message', [BookingController::class, 'updateWelcomeMessage'])->name('guests.welcome-message');
@@ -104,6 +106,8 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     Route::get('guests/{booking}/photo-id-back', [BookingController::class, 'photoIdBack'])->name('guests.photo-id-back');
     Route::get('guests/{booking}/photo-id/view', [BookingController::class, 'photoIdView'])->name('guests.photo-id-view');
     Route::get('guests/{booking}/photo-id-back/view', [BookingController::class, 'photoIdBackView'])->name('guests.photo-id-back-view');
+    Route::get('guests/{booking}/license-plate', [BookingController::class, 'licensePlate'])->name('guests.license-plate');
+    Route::get('guests/{booking}/license-plate/view', [BookingController::class, 'licensePlateView'])->name('guests.license-plate-view');
 
     // ─── Categories ───────────────────────────────────────────────────────────
     Route::post('categories/reorder', [CategoryController::class, 'reorder'])->name('categories.reorder');
@@ -145,12 +149,15 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     // ─── Settings ─────────────────────────────────────────────────────────────
     Route::get('settings', [SettingsController::class, 'edit'])->name('settings.edit');
     Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');
+    Route::put('settings/alerts', [SettingsController::class, 'updateAlerts'])->name('settings.alerts.update');
 
 
     // ─── Users / Team ─────────────────────────────────────────────────────────
     Route::middleware('role:owner')->group(function () {
         Route::resource('users', UserController::class);
         Route::post('users/{user}/toggle-status', [UserController::class, 'toggleStatus'])->name('users.toggle-status');
+        Route::get('early-access-leads', [App\Http\Controllers\Admin\EarlyAccessLeadController::class, 'index'])->name('early-access-leads.index');
+        Route::post('early-access-leads/{lead}/mark-contacted', [App\Http\Controllers\Admin\EarlyAccessLeadController::class, 'markContacted'])->name('early-access-leads.mark-contacted');
     });
 
     // ─── Activity Logs ────────────────────────────────────────────────────────

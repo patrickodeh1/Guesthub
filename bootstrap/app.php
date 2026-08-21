@@ -18,6 +18,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'webhooks/seam',
         ]);
+        // Trust the load balancer / reverse proxy in front of the app (if any) so
+        // Laravel correctly detects HTTPS. Without this, session/remember-me cookies
+        // can behave inconsistently behind a proxy that terminates SSL.
+        $middleware->trustProxies(at: '*');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (\Illuminate\Session\TokenMismatchException $e, $request) {
