@@ -12,7 +12,7 @@
     <div class="grid min-h-screen lg:grid-cols-2">
 
         {{-- Left: brand panel --}}
-        <div class="relative hidden flex-col justify-between overflow-hidden bg-[#f4ede4] px-12 py-10 lg:flex">
+        <div class="relative flex flex-col justify-between overflow-hidden bg-[#f4ede4] px-6 py-10 sm:px-12 lg:px-12">
             <div class="flex items-center gap-2.5">
                 @if($siteLogo)
                     <img src="{{ url('/img/'.$siteLogo) }}" alt="GuestHub" class="h-8 w-auto object-contain">
@@ -83,14 +83,6 @@
         {{-- Right: form --}}
         <div class="flex items-center justify-center px-6 py-14 sm:px-10">
             <div class="w-full max-w-md">
-                <div class="mb-8 lg:hidden">
-                    @if($siteLogo)
-                        <img src="{{ url('/img/'.$siteLogo) }}" alt="GuestHub" class="h-8 w-auto object-contain">
-                    @else
-                        <span class="text-lg font-semibold tracking-tight">GuestHub</span>
-                    @endif
-                </div>
-
                 <h2 class="text-2xl font-semibold tracking-tight text-slate-950">Get early access</h2>
                 <p class="mt-2 text-sm text-slate-600">A few details and we'll reach out.</p>
 
