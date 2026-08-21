@@ -104,6 +104,25 @@
                     @endif
                 </section>
 
+                @if($booking->parking_needed)
+                {{-- Vehicle / license plate photo, task 34 --}}
+                <section class="card card-pad">
+                    <h2 class="section-title">Vehicle</h2>
+                    <p class="section-copy">Make/model and license plate photo, collected when the guest opted into parking.</p>
+                    @if($booking->license_plate_photo_path)
+                        <button type="button" onclick="openPhotoIdModal('{{ route('admin.guests.license-plate-view', $booking) }}', 'License plate')" class="mt-4 block w-full text-left">
+                            <img src="{{ route('admin.guests.license-plate-view', $booking) }}" alt="License plate" class="w-full max-h-64 rounded-lg border border-slate-200 object-contain bg-slate-50">
+                        </button>
+                        <div class="mt-3 flex flex-wrap gap-3">
+                            <button type="button" onclick="openPhotoIdModal('{{ route('admin.guests.license-plate-view', $booking) }}', 'License plate')" class="text-sm font-semibold text-teal-800">View full size</button>
+                            <a class="text-sm font-semibold text-teal-800" href="{{ route('admin.guests.license-plate', $booking) }}">Download original</a>
+                        </div>
+                    @else
+                        <p class="mt-4 font-semibold text-slate-950">Not uploaded</p>
+                    @endif
+                </section>
+                @endif
+
                 {{-- Guest Details --}}
                 <section class="card card-pad lg:col-span-2">
                     <div class="flex items-center justify-between">
@@ -119,6 +138,7 @@
                             ['security', 'ID Type', $booking->id_type === 'passport' ? 'Passport' : 'State-issued ID'],
                             ['parking', 'Parking', is_null($booking->parking_needed) ? 'Unknown' : ($booking->parking_needed ? 'Needed' : 'Not needed')],
                             ...($booking->parking_needed ? [['parking', 'Parking Charge', '$'.number_format($booking->effectiveParkingCharge() ?? 0, 2).($booking->parking_charge_override !== null ? ' (manual override)' : ' (auto-calculated)')]] : []),
+                            ...($booking->parking_needed ? [['parking', 'Vehicle', $booking->vehicle_make_model ?: 'Not provided']] : []),
                             ['info', 'Incidentals Charge', $booking->incidentals_charge !== null ? '$'.number_format($booking->incidentals_charge, 2) : 'Not set'],
                             ...($booking->early_checkin_tier ? [['calendar', 'Early Check-in Charge', '$'.number_format($booking->earlyCheckinCharge() ?? 0, 2).' ('.($booking->early_checkin_tier === '8am' ? '8:00 AM' : '12:00 PM').' tier)']] : []),
                             ...($booking->late_checkout_type ? [['clock', 'Late Checkout Charge', '$'.number_format($booking->lateCheckoutCharge() ?? 0, 2).' ('.ucfirst($booking->late_checkout_type).')']] : []),

@@ -106,6 +106,8 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     Route::get('guests/{booking}/photo-id-back', [BookingController::class, 'photoIdBack'])->name('guests.photo-id-back');
     Route::get('guests/{booking}/photo-id/view', [BookingController::class, 'photoIdView'])->name('guests.photo-id-view');
     Route::get('guests/{booking}/photo-id-back/view', [BookingController::class, 'photoIdBackView'])->name('guests.photo-id-back-view');
+    Route::get('guests/{booking}/license-plate', [BookingController::class, 'licensePlate'])->name('guests.license-plate');
+    Route::get('guests/{booking}/license-plate/view', [BookingController::class, 'licensePlateView'])->name('guests.license-plate-view');
 
     // ─── Categories ───────────────────────────────────────────────────────────
     Route::post('categories/reorder', [CategoryController::class, 'reorder'])->name('categories.reorder');

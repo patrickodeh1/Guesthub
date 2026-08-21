@@ -18,6 +18,7 @@ class Booking extends Model
         'photo_id_front_approved_at', 'photo_id_front_declined_reason',
         'photo_id_back_approved_at', 'photo_id_back_declined_reason',
         'parking_charge', 'parking_charge_override', 'incidentals_charge', 'checkin_reminder_sent_at',
+        'vehicle_make_model', 'license_plate_photo_path',
     ];
 
     protected function casts(): array

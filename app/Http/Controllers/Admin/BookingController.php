@@ -607,6 +607,34 @@ class BookingController extends Controller
         return response()->file(\Storage::path($booking->photo_id_back_path));
     }
 
+    public function licensePlate(Booking $booking)
+    {
+        abort_unless($booking->license_plate_photo_path && Storage::disk('local')->exists($booking->license_plate_photo_path), 404);
+
+        ActivityLogService::security('license_plate_photo_viewed', auth()->user()->name." viewed license plate photo for {$booking->guest_name} ({$booking->booking_id}).", [
+            'subject_type' => Booking::class,
+            'subject_id'   => $booking->id,
+            'booking_id'   => $booking->id,
+            'property_id'  => $booking->property_id,
+            'severity'     => 'security',
+            'metadata'     => ['accessed_by' => auth()->user()->name],
+        ]);
+
+        $ext = pathinfo($booking->license_plate_photo_path, PATHINFO_EXTENSION) ?: 'jpg';
+
+        return response()->download(
+            \Storage::path($booking->license_plate_photo_path),
+            $booking->booking_id.'-license-plate.'.$ext
+        );
+    }
+
+    public function licensePlateView(Booking $booking)
+    {
+        abort_unless($booking->license_plate_photo_path && Storage::disk('local')->exists($booking->license_plate_photo_path), 404);
+
+        return response()->file(\Storage::path($booking->license_plate_photo_path));
+    }
+
     private function validated(Request $request, ?Booking $booking = null): array
     {
         return $request->validate([

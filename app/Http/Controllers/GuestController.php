@@ -102,6 +102,14 @@ class GuestController extends Controller
     {
         $booking = $this->booking($bookingId, $token);
 
+        // Effective parking answer after this request: the newly-submitted
+        // value if present, otherwise whatever's already on the booking.
+        // Vehicle info is only required once parking is confirmed "yes" —
+        // task 34.
+        $parkingAnswer = $request->filled('parking_needed')
+            ? filter_var($request->input('parking_needed'), FILTER_VALIDATE_BOOLEAN)
+            : $booking->parking_needed;
+
         $data = $request->validate([
             'guest_name' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'string', 'max:50'],
@@ -109,9 +117,17 @@ class GuestController extends Controller
             'parking_needed' => [is_null($booking->parking_needed) ? 'required' : 'nullable'],
             'checkin_time_preference' => ['required', 'string'],
             'checkout_time_preference' => ['nullable', 'string'],
+            'vehicle_make_model' => [
+                $parkingAnswer && ! $booking->vehicle_make_model ? 'required' : 'nullable',
+                'string', 'max:255',
+            ],
+            'license_plate_photo' => [
+                $parkingAnswer && ! $booking->license_plate_photo_path ? 'required' : 'nullable',
+                'image', 'max:8192',
+            ],
         ]);
 
-        $booking->update([
+        $updates = [
             'guest_name' => $data['guest_name'],
             'phone' => $data['phone'],
             'email' => $data['email'],
@@ -121,7 +137,17 @@ class GuestController extends Controller
             'checkin_time_preference' => $data['checkin_time_preference'],
             'checkout_time_preference' => $data['checkout_time_preference'] ?? null,
             'guest_authenticated_at' => now(),
-        ]);
+        ];
+
+        if ($parkingAnswer) {
+            $updates['vehicle_make_model'] = $data['vehicle_make_model'] ?? $booking->vehicle_make_model;
+        }
+
+        if ($request->hasFile('license_plate_photo')) {
+            $updates['license_plate_photo_path'] = $request->file('license_plate_photo')->store('license-plates');
+        }
+
+        $booking->update($updates);
 
         $booking->recalculateParkingCharge();
 
