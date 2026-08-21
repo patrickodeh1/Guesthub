@@ -68,15 +68,35 @@ class GuestAlertService
         ];
     }
 
+    /**
+     * Per-event overrides of defaultToggles(), for events that shouldn't use
+     * the global default. Photo ID uploads are an admin review step, not
+     * something the guest needs to be told about, so guest notifications
+     * default off while admin stays on.
+     */
+    public static function defaultToggleOverrides(): array
+    {
+        return [
+            'photo_id_uploaded' => [
+                'guest_sms' => false,
+                'guest_email' => false,
+                'admin_sms' => true,
+                'admin_email' => true,
+            ],
+        ];
+    }
+
     public static function config(): array
     {
         $stored = json_decode(Setting::getValue('guest_alerts_config', '') ?: '', true) ?: [];
         $config = [];
+        $overrides = self::defaultToggleOverrides();
 
         foreach (self::EVENTS as $key => $meta) {
             $config[$key] = array_merge(
                 ['message' => $meta['default_message']],
                 self::defaultToggles(),
+                $overrides[$key] ?? [],
                 $stored[$key] ?? []
             );
         }

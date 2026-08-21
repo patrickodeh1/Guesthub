@@ -1242,9 +1242,9 @@
                         var frontBlur = document.getElementById("front-blur-warning");
                         var backBlur = document.getElementById("back-blur-warning");
                         if (!front) { alert("Please take a photo of the front of your ID."); return; }
-                        if (!isPassport && !back) { alert("Please take a photo of the back of your ID."); return; }
+                        if (!isPassport && idwBackRequired && !back) { alert("Please take a photo of the back of your ID."); return; }
                         if (!frontBlur.classList.contains("hidden")) { alert("Front ID photo is blurry. Please retake."); return; }
-                        if (!isPassport && !backBlur.classList.contains("hidden")) { alert("Back ID photo is blurry. Please retake."); return; }
+                        if (!isPassport && idwBackRequired && !backBlur.classList.contains("hidden")) { alert("Back ID photo is blurry. Please retake."); return; }
                     }
 
                     function b64toBlob(b64) {
@@ -1258,7 +1258,7 @@
                     fd.append("_token", document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : "");
                     if (photoIdRequired) {
                         fd.set("photo_id", b64toBlob(document.getElementById("photo-id-data").value), "front.jpg");
-                        if (!isPassport) {
+                        if (!isPassport && idwBackRequired) {
                             fd.set("photo_id_back", b64toBlob(document.getElementById("photo-id-back-data").value), "back.jpg");
                         }
                     }
