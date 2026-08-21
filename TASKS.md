@@ -195,9 +195,16 @@ or client confirmation — do not guess at prod state.
     but fully wired for when enabled. Built as global toggles, not per
     individual admin user account — matches every other Setting in this
     single-tenant app; confirmed with client before building.
-32. Customizable name + instructions for extra verification steps; name reflected in alert settings
+32. ~~Customizable name + instructions for extra verification steps; name reflected in alert settings~~ — DONE.
+    Added background_check_step_name / background_check_step_instructions
+    Settings fields. Custom name now flows through the guest waiting screen,
+    admin quick-action button, status checklist, progress timeline, and —
+    per the client's specific ask — the label for that event's row in the
+    Guest lifecycle alerts settings (task 30/31), plus a {step_name} token
+    usable inside alert message templates. Tests in
+    BackgroundCheckStepNamingTest.php and GuestAlertServiceTest.php.
 33. ~~Fix: marking deposit paid re-triggers "checked in" status incorrectly (no undo path)~~
     — RESOLVED, no fix needed (undo exists via booking edit page, client already informed)
 34. Parking flow: collect make/model + license plate photo when guest opts in
 
-Status: 30/33 done, 1 resolved as no-op, 2 remaining
+Status: 31/33 done, 1 resolved as no-op, 1 remaining
