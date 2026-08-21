@@ -2,9 +2,12 @@
 
 namespace App\Http\Controllers;
 
+use App\Mail\EarlyAccessAdminNotificationMail;
+use App\Mail\EarlyAccessConfirmationMail;
 use App\Models\EarlyAccessLead;
 use App\Models\Setting;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Mail;
 
 class EarlyAccessController extends Controller
 {
@@ -25,10 +28,14 @@ class EarlyAccessController extends Controller
             'message' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        EarlyAccessLead::create($data);
+        $lead = EarlyAccessLead::create($data);
 
-        // TODO: once Resend is wired up, notify the admin by email here as well
-        // (see PROD_INSTRUCTIONS.md / TASKS.md — deferred until Resend task).
+        $adminEmail = Setting::getValue('contact_email');
+        if ($adminEmail) {
+            Mail::to($adminEmail)->send(new EarlyAccessAdminNotificationMail($lead));
+        }
+
+        Mail::to($lead->email)->send(new EarlyAccessConfirmationMail($lead));
 
         return back()->with('success', "Thanks. We've received your info and will be in touch soon.");
     }
