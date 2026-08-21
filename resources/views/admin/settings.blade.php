@@ -17,6 +17,8 @@
                 <label class="field-label">Brand color<input type="color" name="brand_color" value="{{ old('brand_color', $settings['brand_color']) }}" class="input h-12"></label>
                 <label class="field-label">Contact phone<input name="contact_phone" value="{{ old('contact_phone', $settings['contact_phone']) }}" class="input"></label>
                 <label class="field-label">Contact email<input name="contact_email" value="{{ old('contact_email', $settings['contact_email']) }}" class="input"></label>
+                <label class="field-label">Background check step name<input name="background_check_step_name" value="{{ old('background_check_step_name', $settings['background_check_step_name']) }}" class="input"><span class="field-help">Shown to guests waiting on this step, and used to label this step's alert in the "Guest lifecycle alerts" section below.</span></label>
+                <label class="field-label">Background check step instructions<textarea name="background_check_step_instructions" rows="2" class="input">{{ old('background_check_step_instructions', $settings['background_check_step_instructions']) }}</textarea><span class="field-help">Shown to guests on the waiting screen for this step.</span></label>
                 <div class="md:col-span-2">
                     @php
                         $messageFields = [
@@ -75,12 +77,12 @@
             @foreach($alertEvents as $key => $meta)
                 @php($row = $alertConfig[$key])
                 <details class="rounded-xl border border-slate-200 p-4" {{ $loop->first ? 'open' : '' }}>
-                    <summary class="cursor-pointer font-bold text-slate-800">{{ $meta['label'] }}</summary>
+                    <summary class="cursor-pointer font-bold text-slate-800">{{ $alertLabels[$key] }}</summary>
                     <div class="mt-4 grid gap-4">
                         <label class="field-label">
                             Message
                             <textarea name="alerts[{{ $key }}][message]" rows="3" class="input">{{ old("alerts.$key.message", $row['message']) }}</textarea>
-                            <span class="field-help">Available tokens: {guest_name}, {property_name}, {check_in_date}, {check_in_time}, {check_out_date}, {check_out_time}, {parking_status}</span>
+                            <span class="field-help">Available tokens: {guest_name}, {property_name}, {check_in_date}, {check_in_time}, {check_out_date}, {check_out_time}, {parking_status}, {step_name}</span>
                         </label>
                         <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
                             <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">

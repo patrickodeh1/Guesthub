@@ -55,8 +55,8 @@
                 </div>
                 <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="w-full block rounded-xl mt-4">
                 <div class="p-6 md:p-10 text-center">
-                    <h1 class="guest-status-title">That's all for now!</h1>
-                    <p class="mt-2 text-sm leading-6 text-slate-600">Please be on the lookout for an email from Airbnb so that you can submit the required hold for incidentals. This hold is refunded after checkout.</p>
+                    <h1 class="guest-status-title">{{ $backgroundCheckStepName }}</h1>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">{{ $backgroundCheckStepInstructions }}</p>
                 </div>
             </div>
         @elseif($state === 'identity')

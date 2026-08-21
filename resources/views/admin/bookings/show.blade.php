@@ -208,9 +208,9 @@
                 <div class="mt-5 grid gap-2.5">
                     @if($booking->isApproved())
                         @if($booking->isBackgroundCheckComplete())
-                            <div class="rounded-lg bg-indigo-50 border border-indigo-200 p-3 text-sm text-indigo-800 font-semibold">Background check completed {{ $booking->background_check_completed_at->format('M j, Y g:i A') }}</div>
+                            <div class="rounded-lg bg-indigo-50 border border-indigo-200 p-3 text-sm text-indigo-800 font-semibold">{{ \App\Models\Setting::getValue('background_check_step_name', 'Background Check') }} completed {{ $booking->background_check_completed_at->format('M j, Y g:i A') }}</div>
                         @else
-                            <form method="post" action="{{ route('admin.guests.background-check', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="shield-alert" class="h-4 w-4" />Mark Background Check Complete</button></form>
+                            <form method="post" action="{{ route('admin.guests.background-check', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="shield-alert" class="h-4 w-4" />Mark {{ \App\Models\Setting::getValue('background_check_step_name', 'Background Check') }} Complete</button></form>
                         @endif
                     @endif
                     @if($booking->isBackgroundCheckComplete())
@@ -251,7 +251,7 @@
                         'Email Received' => filled($booking->email),
                         'Photo ID Uploaded' => filled($booking->photo_id_path),
                         'Photo ID Approval' => $booking->isApproved(),
-                        'Background Check' => $booking->isBackgroundCheckComplete(),
+                        \App\Models\Setting::getValue('background_check_step_name', 'Background Check') => $booking->isBackgroundCheckComplete(),
                         'Deposit Verified' => $booking->isDepositVerified(),
                         'GPS Verified' => $booking->gps_verified,
                         'Currently Hosting' => $booking->isCheckedIn(),
@@ -292,7 +292,7 @@
                 ['mail', 'Email Submitted', $booking->updated_at, filled($booking->email)],
                 ['upload', 'Photo ID Uploaded', $booking->updated_at, filled($booking->photo_id_path)],
                 ['security', 'Photo ID Approval', $booking->approved_at, $booking->isApproved()],
-                ['shield-alert', 'Background Check', $booking->background_check_completed_at, $booking->isBackgroundCheckComplete()],
+                ['shield-alert', \App\Models\Setting::getValue('background_check_step_name', 'Background Check'), $booking->background_check_completed_at, $booking->isBackgroundCheckComplete()],
                 ['lock', 'Deposit Verified', $booking->deposit_verified_at, $booking->isDepositVerified()],
                 ['map', 'GPS Verified', $booking->checked_in_at, $booking->gps_verified],
                 ['contact-guest-services', 'Currently Hosting', $booking->checked_in_at, $booking->isCheckedIn()],

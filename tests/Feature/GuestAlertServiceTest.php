@@ -104,4 +104,28 @@ class GuestAlertServiceTest extends TestCase
         Mail::assertNothingSent();
         $this->assertTrue(true); // no exception thrown
     }
+
+    public function test_custom_background_check_step_name_is_reflected_in_alert_label_and_message(): void
+    {
+        // Task 32: the customizable "background check" step name must flow
+        // through to (a) the label used for its alert in Settings/emails,
+        // and (b) the {step_name} token available in message templates.
+        Mail::fake();
+        Setting::putValue('background_check_step_name', 'ID Verification');
+
+        $config = GuestAlertService::config();
+        $config['background_check_complete']['message'] = 'Your {step_name} is done, {guest_name}.';
+        $config['background_check_complete']['guest_email'] = true;
+        GuestAlertService::putConfig($config);
+
+        $this->assertSame('ID Verification complete', GuestAlertService::labels()['background_check_complete']);
+
+        $booking = $this->makeBooking();
+        GuestAlertService::send('background_check_complete', $booking);
+
+        Mail::assertSent(GuestAlertMail::class, function (GuestAlertMail $mail) {
+            return $mail->eventLabel === 'ID Verification complete'
+                && str_contains($mail->message, 'Your ID Verification is done, Jane Doe.');
+        });
+    }
 }

@@ -24,8 +24,11 @@ class SettingsController extends Controller
                 'default_intro' => Setting::getValue('default_intro', 'Your arrival details and local guide are ready when you are.'),
                 'gps_verify_message' => Setting::getValue('gps_verify_message', "It's Go Time!"),
                 'lock_message' => Setting::getValue('lock_message', "If you'd like quicker access to the unit, you can download the August Home app."),
+                'background_check_step_name' => Setting::getValue('background_check_step_name', 'Background Check'),
+                'background_check_step_instructions' => Setting::getValue('background_check_step_instructions', 'Please be on the lookout for an email from Airbnb so that you can submit the required hold for incidentals. This hold is refunded after checkout.'),
             ],
             'alertEvents' => GuestAlertService::EVENTS,
+            'alertLabels' => GuestAlertService::labels(),
             'alertConfig' => GuestAlertService::config(),
         ]);
     }
@@ -44,6 +47,8 @@ class SettingsController extends Controller
             'default_intro' => ['nullable', 'string'],
             'gps_verify_message' => ['nullable', 'string', 'max:500'],
             'lock_message' => ['nullable', 'string', 'max:500'],
+            'background_check_step_name' => ['nullable', 'string', 'max:100'],
+            'background_check_step_instructions' => ['nullable', 'string', 'max:1000'],
         ]);
 
         if ($request->hasFile('site_logo')) {

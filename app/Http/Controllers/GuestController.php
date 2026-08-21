@@ -42,6 +42,8 @@ class GuestController extends Controller
             'welcomeMessage' => $booking->welcome_message ?: \App\Models\Setting::getValue('default_intro', 'We are glad to have you. Please complete the following details prior to check-in.'),
             'gpsRadius'     => (int) Setting::getValue('gps_radius_meters', 150),
             'gpsVerifyMessage' => Setting::getValue('gps_verify_message', "It's Go Time!"),
+            'backgroundCheckStepName' => Setting::getValue('background_check_step_name', 'Background Check'),
+            'backgroundCheckStepInstructions' => Setting::getValue('background_check_step_instructions', 'Please be on the lookout for an email from Airbnb so that you can submit the required hold for incidentals. This hold is refunded after checkout.'),
             'checkinSteps'  => ($state === 'guide' && ! $booking->instructionsCompleted()) ? $this->checkinSteps($booking) : [],
             'checkoutSteps' => $this->checkoutSteps($booking),
             'parkingSteps'  => ($state === 'guide' && ! $booking->instructionsCompleted()) ? $this->parkingSteps($booking) : [],

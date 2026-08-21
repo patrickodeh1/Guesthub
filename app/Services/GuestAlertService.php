@@ -27,7 +27,7 @@ class GuestAlertService
         ],
         'background_check_complete' => [
             'label' => 'Background check complete',
-            'default_message' => 'GuestHub: Hi {guest_name}, your background check for {property_name} is complete.',
+            'default_message' => 'GuestHub: Hi {guest_name}, your {step_name} for {property_name} is complete.',
         ],
         'fully_approved' => [
             'label' => 'Fully approved',
@@ -77,6 +77,26 @@ class GuestAlertService
         return $config;
     }
 
+    /**
+     * Event labels for display, with the "background check" step's name
+     * substituted in wherever it's admin-customizable (task 32: "whatever
+     * the name for that step is for registration will need to appear in
+     * the user settings under text alerts as that stepped name").
+     */
+    public static function labels(): array
+    {
+        $stepName = Setting::getValue('background_check_step_name', 'Background Check');
+        $labels = [];
+
+        foreach (self::EVENTS as $key => $meta) {
+            $labels[$key] = $key === 'background_check_complete'
+                ? "{$stepName} complete"
+                : $meta['label'];
+        }
+
+        return $labels;
+    }
+
     public static function putConfig(array $config): void
     {
         $clean = [];
@@ -114,7 +134,7 @@ class GuestAlertService
         }
 
         if ($row['guest_email'] && $booking->email) {
-            Mail::to($booking->email)->send(new GuestAlertMail(self::EVENTS[$event]['label'], $message));
+            Mail::to($booking->email)->send(new GuestAlertMail(self::labels()[$event], $message));
         }
 
         $adminNumber = config('services.twilio.admin_notify_number');
@@ -125,7 +145,7 @@ class GuestAlertService
         }
 
         if ($row['admin_email'] && $adminEmail) {
-            Mail::to($adminEmail)->send(new GuestAlertMail(self::EVENTS[$event]['label'], "[{$booking->guest_name}] ".$message));
+            Mail::to($adminEmail)->send(new GuestAlertMail(self::labels()[$event], "[{$booking->guest_name}] ".$message));
         }
     }
 
@@ -143,6 +163,7 @@ class GuestAlertService
             '{check_in_time}' => $booking->effectiveCheckinTimeFormatted(),
             '{check_out_time}' => $booking->effectiveCheckoutTimeFormatted(),
             '{parking_status}' => $parkingStatus,
+            '{step_name}' => Setting::getValue('background_check_step_name', 'Background Check'),
         ]);
     }
 }

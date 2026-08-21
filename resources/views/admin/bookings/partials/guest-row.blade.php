@@ -19,7 +19,7 @@
                     <form method="post" action="{{ route('admin.guests.approve', $booking) }}">@csrf<button class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><x-icon name="check" class="h-4 w-4" />Approve for Check-In</button></form>
                 @endif
                 @if($booking->isApproved() && ! $booking->isBackgroundCheckComplete())
-                    <form method="post" action="{{ route('admin.guests.background-check', $booking) }}">@csrf<button class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><x-icon name="shield-alert" class="h-4 w-4" />Mark Background Check Complete</button></form>
+                    <form method="post" action="{{ route('admin.guests.background-check', $booking) }}">@csrf<button class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><x-icon name="shield-alert" class="h-4 w-4" />Mark {{ \App\Models\Setting::getValue('background_check_step_name', 'Background Check') }} Complete</button></form>
                 @endif
                 @if($booking->isBackgroundCheckComplete() && ! $booking->isDepositVerified())
                     <form method="post" action="{{ route('admin.guests.deposit-verified', $booking) }}">@csrf<button class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><x-icon name="lock" class="h-4 w-4" />Mark Deposit Verified</button></form>
