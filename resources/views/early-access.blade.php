@@ -21,6 +21,20 @@
                 @endif
             </div>
 
+            <svg viewBox="0 0 400 260" class="mx-auto mt-6 h-28 w-auto opacity-90 lg:hidden" xmlns="http://www.w3.org/2000/svg">
+                <ellipse cx="230" cy="235" rx="150" ry="18" fill="#e8dcc8"/>
+                <rect x="120" y="60" width="120" height="90" rx="6" fill="#082b49"/>
+                <rect x="132" y="72" width="40" height="30" rx="2" fill="#f4ede4"/>
+                <rect x="180" y="72" width="40" height="30" rx="2" fill="#f4ede4"/>
+                <rect x="132" y="112" width="40" height="30" rx="2" fill="#f4ede4"/>
+                <rect x="180" y="112" width="24" height="38" rx="2" fill="#c9622a"/>
+                <path d="M110 60 L180 15 L250 60 Z" fill="#0a3a63"/>
+                <rect x="270" y="150" width="10" height="70" rx="2" fill="#5b8a5a"/>
+                <ellipse cx="275" cy="145" rx="28" ry="34" fill="#6ea56a"/>
+                <circle cx="60" cy="80" r="26" fill="#e3c48a"/>
+                <rect x="40" y="180" width="40" height="12" rx="3" fill="#0a3a63"/>
+            </svg>
+
             <div class="max-w-sm">
                 <h1 class="text-4xl font-semibold leading-tight tracking-tight text-slate-950">
                     Run your rentals from one place.
@@ -65,7 +79,7 @@
                 Built for hosts managing one property or many.
             </p>
 
-            <svg viewBox="0 0 400 260" class="mx-auto mt-8 h-32 w-auto opacity-90 lg:absolute lg:bottom-0 lg:right-0 lg:mx-0 lg:mt-0 lg:h-56" xmlns="http://www.w3.org/2000/svg">
+            <svg viewBox="0 0 400 260" class="absolute bottom-0 right-0 hidden h-56 w-auto opacity-90 lg:block" xmlns="http://www.w3.org/2000/svg">
                 <ellipse cx="230" cy="235" rx="150" ry="18" fill="#e8dcc8"/>
                 <rect x="120" y="60" width="120" height="90" rx="6" fill="#082b49"/>
                 <rect x="132" y="72" width="40" height="30" rx="2" fill="#f4ede4"/>
