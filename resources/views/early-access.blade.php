@@ -12,7 +12,7 @@
     <div class="grid min-h-screen lg:grid-cols-2">
 
         {{-- Left: brand panel --}}
-        <div class="relative flex flex-col justify-between overflow-hidden bg-[#f4ede4] px-6 py-10 sm:px-12 lg:px-12">
+        <div class="relative flex flex-col justify-between overflow-hidden bg-[#f4ede4] px-6 pb-10 pt-6 sm:px-12 sm:py-10 lg:px-12">
             <div class="flex items-center gap-2.5">
                 @if($siteLogo)
                     <img src="{{ url('/img/'.$siteLogo) }}" alt="GuestHub" class="h-8 w-auto object-contain">
@@ -65,7 +65,7 @@
                 Built for hosts managing one property or many.
             </p>
 
-            <svg viewBox="0 0 400 260" class="absolute bottom-0 right-0 hidden h-56 w-auto opacity-90 lg:block" xmlns="http://www.w3.org/2000/svg">
+            <svg viewBox="0 0 400 260" class="mx-auto mt-8 h-32 w-auto opacity-90 lg:absolute lg:bottom-0 lg:right-0 lg:mx-0 lg:mt-0 lg:h-56" xmlns="http://www.w3.org/2000/svg">
                 <ellipse cx="230" cy="235" rx="150" ry="18" fill="#e8dcc8"/>
                 <rect x="120" y="60" width="120" height="90" rx="6" fill="#082b49"/>
                 <rect x="132" y="72" width="40" height="30" rx="2" fill="#f4ede4"/>
@@ -119,7 +119,7 @@
                         @error('role')<p class="mt-1 text-xs text-red-700">{{ $message }}</p>@enderror
                     </div>
                     <div>
-                        <label class="field-label">Message (optional)</label>
+                        <label class="field-label">Message</label>
                         <textarea name="message" rows="3" class="input mt-1.5">{{ old('message') }}</textarea>
                         @error('message')<p class="mt-1 text-xs text-red-700">{{ $message }}</p>@enderror
                     </div>
