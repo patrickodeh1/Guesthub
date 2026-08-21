@@ -350,33 +350,53 @@ document.addEventListener('DOMContentLoaded', () => {
     // for horizontal scrolling on small screens, which also clips vertical
     // overflow, cutting off an absolutely-positioned panel and forcing a
     // scroll to see it. Instead, move the panel to <body> and position it
-    // with `fixed` coordinates computed from the trigger button, so it
-    // renders above everything and is never clipped by an ancestor's scroll
-    // container.
+    // with fixed coordinates computed from the trigger button, so it renders
+    // above everything and is never clipped by an ancestor's scroll
+    // container. A WeakMap tracks each button's panel (rather than relying
+    // on nextElementSibling, which stops finding it once the panel has been
+    // moved out from beside the button).
+    const rowMenuPanels = new WeakMap();
     function closeAllRowMenus() {
         document.querySelectorAll('[data-row-menu-panel]').forEach((panel) => {
             panel.classList.add('hidden');
         });
     }
     window.toggleRowMenu = function toggleRowMenu(btn) {
-        const panel = btn.nextElementSibling;
+        let panel = rowMenuPanels.get(btn);
+        if (!panel) {
+            panel = btn.nextElementSibling;
+            rowMenuPanels.set(btn, panel);
+        }
         const isOpen = !panel.classList.contains('hidden');
         closeAllRowMenus();
         if (isOpen) return;
         if (panel.parentElement !== document.body) {
-            panel._originalParent = btn.parentElement;
             document.body.appendChild(panel);
         }
-        const rect = btn.getBoundingClientRect();
+        // Measure the panel's real size first (off-screen, still hidden from
+        // view) so we can decide whether it fits below the button or needs
+        // to open upward instead.
+        panel.classList.remove('hidden');
+        panel.style.visibility = 'hidden';
         panel.style.position = 'fixed';
-        panel.style.top = `${rect.bottom + 4}px`;
-        const panelWidth = panel.offsetWidth || 224;
-        let left = rect.right - panelWidth;
-        left = Math.max(8, Math.min(left, window.innerWidth - panelWidth - 8));
-        panel.style.left = `${left}px`;
+        panel.style.top = '0px';
+        panel.style.left = '0px';
         panel.style.right = 'auto';
         panel.style.margin = '0';
-        panel.classList.remove('hidden');
+        const panelWidth = panel.offsetWidth || 224;
+        const panelHeight = panel.offsetHeight || 0;
+
+        const rect = btn.getBoundingClientRect();
+        let top = rect.bottom + 4;
+        if (top + panelHeight > window.innerHeight - 8) {
+            top = Math.max(8, rect.top - panelHeight - 4);
+        }
+        let left = rect.right - panelWidth;
+        left = Math.max(8, Math.min(left, window.innerWidth - panelWidth - 8));
+
+        panel.style.top = `${top}px`;
+        panel.style.left = `${left}px`;
+        panel.style.visibility = 'visible';
     };
     document.addEventListener('click', (e) => {
         if (e.target.closest('[data-row-menu]') || e.target.closest('[data-row-menu-panel]')) return;
