@@ -26,21 +26,37 @@
                     Run your rentals from one place.
                 </h1>
                 <p class="mt-4 text-base leading-relaxed text-slate-700">
-                    GuestHub manages guest verification, bookings, and check-in for short-term rental hosts.
+                    GuestHub manages guest verification, properties, bookings, and check-in for
+                    short-term rental hosts.
                 </p>
 
-                <div class="mt-10 space-y-5 border-t border-black/10 pt-8">
-                    <div>
-                        <p class="text-sm font-semibold text-slate-950">Verify guests before they arrive</p>
-                        <p class="mt-0.5 text-sm leading-relaxed text-slate-600">ID checks and approvals happen ahead of check-in day.</p>
+                <div class="mt-10 space-y-6">
+                    <div class="flex items-start gap-4">
+                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#082b49]/10">
+                            <svg class="h-4.5 w-4.5 text-[#082b49]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 22V22C22 17.5817 18.4183 14 14 14H10C5.58172 14 2 17.5817 2 22V22"/><circle cx="12" cy="7" r="4"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-slate-950">Verify guests before they arrive</p>
+                            <p class="mt-0.5 text-sm leading-relaxed text-slate-600">ID checks and approvals happen ahead of check-in day.</p>
+                        </div>
                     </div>
-                    <div>
-                        <p class="text-sm font-semibold text-slate-950">Track every booking in one view</p>
-                        <p class="mt-0.5 text-sm leading-relaxed text-slate-600">See who's checked in, who's due, and what needs attention.</p>
+                    <div class="flex items-start gap-4">
+                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#082b49]/10">
+                            <svg class="h-4.5 w-4.5 text-[#082b49]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-slate-950">Track every booking in one view</p>
+                            <p class="mt-0.5 text-sm leading-relaxed text-slate-600">See who's checked in, who's due, and what needs attention.</p>
+                        </div>
                     </div>
-                    <div>
-                        <p class="text-sm font-semibold text-slate-950">Automatic guest communication</p>
-                        <p class="mt-0.5 text-sm leading-relaxed text-slate-600">Reminders and updates go out without you sending them.</p>
+                    <div class="flex items-start gap-4">
+                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#082b49]/10">
+                            <svg class="h-4.5 w-4.5 text-[#082b49]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                        </div>
+                        <div>
+                            <p class="text-sm font-semibold text-slate-950">Automatic guest communication</p>
+                            <p class="mt-0.5 text-sm leading-relaxed text-slate-600">Reminders and updates go out without you sending them.</p>
+                        </div>
                     </div>
                 </div>
             </div>
