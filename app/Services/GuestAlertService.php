@@ -45,6 +45,10 @@ class GuestAlertService
             'label' => 'Check-out completed',
             'default_message' => 'GuestHub: Hi {guest_name}, thanks for staying at {property_name}. You are now checked out.',
         ],
+        'photo_id_uploaded' => [
+            'label' => 'Photo ID uploaded',
+            'default_message' => 'GuestHub: {guest_name} uploaded a photo ID for {property_name}. Please review it.',
+        ],
     ];
 
     /**

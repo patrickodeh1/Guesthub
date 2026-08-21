@@ -283,6 +283,13 @@ class GuestController extends Controller
             \App\Services\GuestAlertService::send('registration_received', $booking);
         }
 
+        // Notify admin (and, per settings, the guest) every time a photo ID is
+        // submitted — including re-uploads after a decline — not just on the
+        // guest's very first completion.
+        if ($request->hasFile('photo_id') || $request->hasFile('photo_id_back')) {
+            \App\Services\GuestAlertService::send('photo_id_uploaded', $booking);
+        }
+
         ActivityLogService::guest('photo_id_uploaded', "Guest {$booking->guest_name} submitted photo ID and pre-arrival details.", 'photo_id', [
             'booking_id'  => $booking->id,
             'property_id' => $booking->property_id,

@@ -290,6 +290,13 @@
                             <p class="mt-1 text-sm text-slate-500">No need to upload it again, you're all set to continue.</p>
                         </div>
                         @else
+                        @php
+                            // Only require (and show a capture tile for) a side that's actually
+                            // missing — cleared by an admin decline, or never uploaded. A decline
+                            // on one side should never re-prompt an already-approved other side.
+                            $idwFrontRequired = blank($booking->photo_id_path);
+                            $idwBackRequired = blank($booking->photo_id_back_path) && $booking->id_type !== 'passport';
+                        @endphp
                         <div class="mt-5" id="id-capture-section">
                             @if($booking->photo_id_front_declined_reason)
                                 <div class="guest-detail-banner mb-4" style="background:#fef3c7;border-color:#fde68a;">
@@ -351,7 +358,7 @@
                                 <p id="back-blur-warning" class="mt-1 hidden text-xs font-semibold text-red-500">Image is blurry. Please retake.</p>
                                 <button type="button" id="retake-back-btn" class="mt-2 text-xs font-semibold text-blue-600 underline">Retake back</button>
                             </div>
-                            <div id="upload-zone-trigger" class="guest-upload guest-upload-id mt-3 cursor-pointer{{ $booking->id_type === 'passport' ? ' is-passport' : '' }}" onclick="startCamera('front')">
+                            <div id="upload-zone-trigger" class="guest-upload guest-upload-id mt-3 cursor-pointer{{ $booking->id_type === 'passport' ? ' is-passport' : '' }}{{ $idwFrontRequired ? '' : ' hidden' }}" onclick="startCamera('front')">
                                 @if($booking->id_type === 'passport')
                                 <img src="{{ asset('id_icons/passportID.png') }}" alt="Passport example">
                                 @else
@@ -359,14 +366,14 @@
                                 @endif
                             </div>
                             @if($booking->id_type === 'passport')
-                            <p id="upload-zone-trigger-front-label" class="mt-2 text-center font-bold">Tap to take photo of passport data page</p>
+                            <p id="upload-zone-trigger-front-label" class="mt-2 text-center font-bold{{ $idwFrontRequired ? '' : ' hidden' }}">Tap to take photo of passport data page</p>
                             @else
-                            <p id="upload-zone-trigger-front-label" class="mt-2 text-center font-bold">Tap to take photo of front of ID</p>
+                            <p id="upload-zone-trigger-front-label" class="mt-2 text-center font-bold{{ $idwFrontRequired ? '' : ' hidden' }}">Tap to take photo of front of ID</p>
                             @endif
-                            <div id="upload-zone-trigger-back" class="guest-upload guest-upload-id mt-3 cursor-pointer hidden" onclick="startCamera('back')">
+                            <div id="upload-zone-trigger-back" class="guest-upload guest-upload-id mt-3 cursor-pointer{{ $idwBackRequired && ! $idwFrontRequired ? '' : ' hidden' }}" onclick="startCamera('back')">
                                 <img src="{{ asset('id_icons/backID.jpg') }}" alt="Back of ID example">
                             </div>
-                            <p id="upload-zone-trigger-back-label" class="mt-2 text-center font-bold hidden">Tap to take photo of back of ID</p>
+                            <p id="upload-zone-trigger-back-label" class="mt-2 text-center font-bold{{ $idwBackRequired && ! $idwFrontRequired ? '' : ' hidden' }}">Tap to take photo of back of ID</p>
                             <input type="hidden" name="photo_id" id="photo-id-data">
                             <input type="hidden" name="photo_id_back" id="photo-id-back-data">
                             </div>
@@ -463,7 +470,7 @@
                                 document.getElementById("front-preview-block").classList.remove("hidden");
                                 if (uploadTrigger) uploadTrigger.classList.add("hidden");
                                 if (uploadTriggerLabel) uploadTriggerLabel.classList.add("hidden");
-                                if (saved.photo_id_back || isPassportGlobal()) {
+                                if (idwBackRequired && (saved.photo_id_back || isPassportGlobal())) {
                                     if (uploadTriggerBack) uploadTriggerBack.classList.remove("hidden");
                                     if (uploadTriggerBackLabel) uploadTriggerBackLabel.classList.remove("hidden");
                                 }
@@ -613,6 +620,11 @@
                 var stream = null;
                 var photoIdRequired = {{ $booking->photo_id_received ? 'false' : 'true' }};
                 var isPassport = {{ $booking->id_type === 'passport' ? 'true' : 'false' }};
+                // Which side(s) actually need a (re)capture right now — a side that's
+                // already approved (or not cleared by a decline) should never be
+                // re-prompted, even after the guest finishes capturing the other side.
+                var idwFrontRequired = {{ $idwFrontRequired ? 'true' : 'false' }};
+                var idwBackRequired = {{ $idwBackRequired ? 'true' : 'false' }};
 
                 // ── Device detection (mobile/tablet vs desktop) ────────────────────
                 // Deliberately NOT a screen-width check — that's trivially spoofed by
@@ -1056,7 +1068,7 @@
                                 if (ok) {
                                     document.getElementById("photo-id-data").value = dataUrl;
                                     idwSaveState({ photo_id: dataUrl });
-                                    if (!isPassport) {
+                                    if (!isPassport && idwBackRequired) {
                                         document.getElementById("upload-zone-trigger-back").classList.remove("hidden");
                                         document.getElementById("upload-zone-trigger-back-label").classList.remove("hidden");
                                     }
