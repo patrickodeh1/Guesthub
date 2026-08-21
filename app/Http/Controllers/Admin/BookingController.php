@@ -372,6 +372,7 @@ class BookingController extends Controller
             'background_check_completed_at' => now(),
             'status' => 'awaiting_deposit',
         ]);
+        \App\Services\GuestAlertService::send('background_check_complete', $booking);
 
         ActivityLogService::admin('background_check_completed', auth()->user()->name." marked background check complete for {$booking->guest_name}.", 'guests', [
             'subject_type' => Booking::class,
@@ -413,6 +414,7 @@ class BookingController extends Controller
             'deposit_verified_at' => now(),
             'status' => 'guest_approved',
         ]);
+        \App\Services\GuestAlertService::send('fully_approved', $booking);
 
         ActivityLogService::admin('deposit_verified', auth()->user()->name." verified the deposit for {$booking->guest_name}.", 'guests', [
             'subject_type' => Booking::class,

@@ -215,4 +215,32 @@ unauthorized late checkout. This was a deliberate choice to keep the two
 systems from interfering with each other; flagging here in case the client
 expects it to populate automatically.
 
+## 10. Guest lifecycle alerts need Twilio + email delivery configured (task 30)
+
+Task 30 added a new `bookings:send-checkin-reminders` scheduled command (the
+"time to check in" alert, sent once per booking on its check-in day at 8am
+server time). It's covered by the same cron entry from item 7 above — no new
+cron line needed if that's already set up.
+
+The other 5 alerts (registration received, background check complete, fully
+approved, check-in completed, check-out completed) fire immediately at the
+relevant point in the existing flow — no scheduler involved.
+
+**Action needed:** all 6 alerts are configured in Settings → "Guest lifecycle
+alerts" with default messages and default toggles (text to guest + text to
+owner, both on; email off). Nothing will actually send until:
+- Twilio env vars are set (`TWILIO_SID`, `TWILIO_AUTH_TOKEN`,
+  `TWILIO_FROM_NUMBER`, and `TWILIO_ADMIN_NOTIFY_NUMBER` for owner texts) —
+  same vars the rest of the app's SMS features already depend on.
+- `MAIL_MAILER` and its credentials are set for real outbound email (currently
+  defaults to `log`, meaning "emails" just get written to the log file) if any
+  of the "Email guest" / "Email owner" checkboxes are turned on for any alert.
+- The "Contact email" field in Settings is filled in, since that's the address
+  used for "Email owner" alerts.
+
+Without Twilio configured, SMS sends fail silently (logged, not thrown) so
+this won't break the guest portal — it just means no texts go out until those
+env vars are in place. Review the default message wording in Settings before
+going live; it's generic placeholder copy.
+
 Status: living doc, update as items are resolved.

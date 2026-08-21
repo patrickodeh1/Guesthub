@@ -1,0 +1,148 @@
+<?php
+
+namespace App\Services;
+
+use App\Mail\GuestAlertMail;
+use App\Models\Booking;
+use App\Models\Setting;
+use Illuminate\Support\Facades\Mail;
+
+/**
+ * Sends the 6 guest lifecycle alerts requested in task 30, with globally
+ * customizable message templates and per-event checkboxes (task 31) for
+ * whether the guest and/or the admin/owner receive each one, over SMS
+ * and/or email. Client confirmed: "text are preferred" but both channels
+ * are needed and are owner-selectable per alert, not guest-selectable.
+ *
+ * All settings live under a single Setting key ('guest_alerts_config') as
+ * one JSON blob, since this is really one coherent settings unit (a table
+ * of 6 rows x several toggles) rather than several independent values.
+ */
+class GuestAlertService
+{
+    public const EVENTS = [
+        'registration_received' => [
+            'label' => 'Registration received',
+            'default_message' => "GuestHub: Hi {guest_name}, we've received your registration for {property_name}. We'll be in touch as the next steps are ready.",
+        ],
+        'background_check_complete' => [
+            'label' => 'Background check complete',
+            'default_message' => 'GuestHub: Hi {guest_name}, your background check for {property_name} is complete.',
+        ],
+        'fully_approved' => [
+            'label' => 'Fully approved',
+            'default_message' => "GuestHub: Hi {guest_name}, you're fully approved for {property_name}! Check-in: {check_in_time} on {check_in_date}. Check-out: {check_out_time} on {check_out_date}. Parking: {parking_status}.",
+        ],
+        'time_to_check_in' => [
+            'label' => 'Time to check in',
+            'default_message' => "GuestHub: Hi {guest_name}, today's the day! Check-in at {property_name} opens at {check_in_time}.",
+        ],
+        'checkin_completed' => [
+            'label' => 'Check-in completed',
+            'default_message' => "GuestHub: Hi {guest_name}, you're checked in at {property_name}. Enjoy your stay!",
+        ],
+        'checkout_completed' => [
+            'label' => 'Check-out completed',
+            'default_message' => 'GuestHub: Hi {guest_name}, thanks for staying at {property_name}. You are now checked out.',
+        ],
+    ];
+
+    /**
+     * Default toggle state for an event when nothing has been configured yet.
+     * Text preferred per the client, both guest and admin notified by default.
+     */
+    public static function defaultToggles(): array
+    {
+        return [
+            'guest_sms' => true,
+            'guest_email' => false,
+            'admin_sms' => true,
+            'admin_email' => false,
+        ];
+    }
+
+    public static function config(): array
+    {
+        $stored = json_decode(Setting::getValue('guest_alerts_config', '') ?: '', true) ?: [];
+        $config = [];
+
+        foreach (self::EVENTS as $key => $meta) {
+            $config[$key] = array_merge(
+                ['message' => $meta['default_message']],
+                self::defaultToggles(),
+                $stored[$key] ?? []
+            );
+        }
+
+        return $config;
+    }
+
+    public static function putConfig(array $config): void
+    {
+        $clean = [];
+
+        foreach (self::EVENTS as $key => $meta) {
+            $row = $config[$key] ?? [];
+            $clean[$key] = [
+                'message' => trim((string) ($row['message'] ?? $meta['default_message'])) ?: $meta['default_message'],
+                'guest_sms' => (bool) ($row['guest_sms'] ?? false),
+                'guest_email' => (bool) ($row['guest_email'] ?? false),
+                'admin_sms' => (bool) ($row['admin_sms'] ?? false),
+                'admin_email' => (bool) ($row['admin_email'] ?? false),
+            ];
+        }
+
+        Setting::putValue('guest_alerts_config', json_encode($clean));
+    }
+
+    /**
+     * Send the alert for a given lifecycle event, per the current settings.
+     * Safe to call even if the event key is unknown (no-op) so call sites
+     * never need to guard against typos causing a hard failure.
+     */
+    public static function send(string $event, Booking $booking): void
+    {
+        if (! array_key_exists($event, self::EVENTS)) {
+            return;
+        }
+
+        $row = self::config()[$event];
+        $message = self::render($row['message'], $booking);
+
+        if ($row['guest_sms'] && $booking->phone) {
+            SmsNotificationService::guestAlert($booking->phone, $message);
+        }
+
+        if ($row['guest_email'] && $booking->email) {
+            Mail::to($booking->email)->send(new GuestAlertMail(self::EVENTS[$event]['label'], $message));
+        }
+
+        $adminNumber = config('services.twilio.admin_notify_number');
+        $adminEmail = Setting::getValue('contact_email');
+
+        if ($row['admin_sms'] && $adminNumber) {
+            SmsNotificationService::guestAlert($adminNumber, "[{$booking->guest_name}] ".$message);
+        }
+
+        if ($row['admin_email'] && $adminEmail) {
+            Mail::to($adminEmail)->send(new GuestAlertMail(self::EVENTS[$event]['label'], "[{$booking->guest_name}] ".$message));
+        }
+    }
+
+    protected static function render(string $template, Booking $booking): string
+    {
+        $parkingStatus = is_null($booking->parking_needed)
+            ? 'not yet specified'
+            : ($booking->parking_needed ? 'confirmed' : 'not needed');
+
+        return strtr($template, [
+            '{guest_name}' => $booking->guest_name,
+            '{property_name}' => $booking->property?->name ?? 'your property',
+            '{check_in_date}' => $booking->check_in_date?->format('M j, Y') ?? '',
+            '{check_out_date}' => $booking->check_out_date?->format('M j, Y') ?? '',
+            '{check_in_time}' => $booking->effectiveCheckinTimeFormatted(),
+            '{check_out_time}' => $booking->effectiveCheckoutTimeFormatted(),
+            '{parking_status}' => $parkingStatus,
+        ]);
+    }
+}

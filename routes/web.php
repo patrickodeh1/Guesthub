@@ -147,6 +147,7 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     // ─── Settings ─────────────────────────────────────────────────────────────
     Route::get('settings', [SettingsController::class, 'edit'])->name('settings.edit');
     Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');
+    Route::put('settings/alerts', [SettingsController::class, 'updateAlerts'])->name('settings.alerts.update');
 
 
     // ─── Users / Team ─────────────────────────────────────────────────────────

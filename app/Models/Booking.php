@@ -17,7 +17,7 @@ class Booking extends Model
         'access_blocked_at', 'access_blocked_reason',
         'photo_id_front_approved_at', 'photo_id_front_declined_reason',
         'photo_id_back_approved_at', 'photo_id_back_declined_reason',
-        'parking_charge', 'parking_charge_override', 'incidentals_charge',
+        'parking_charge', 'parking_charge_override', 'incidentals_charge', 'checkin_reminder_sent_at',
     ];
 
     protected function casts(): array
@@ -45,6 +45,7 @@ class Booking extends Model
             'parking_charge' => 'decimal:2',
             'parking_charge_override' => 'decimal:2',
             'incidentals_charge' => 'decimal:2',
+            'checkin_reminder_sent_at' => 'datetime',
                     ];
     }
 

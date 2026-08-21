@@ -66,6 +66,52 @@
         </aside>
     </form>
 
+    <form method="post" action="{{ route('admin.settings.alerts.update') }}" class="card card-pad mt-6">
+        @csrf @method('put')
+        <h2 class="section-title">Guest lifecycle alerts</h2>
+        <p class="section-copy">Customize the message sent for each stage of a booking, and choose who gets it (guest and/or owner) and over which channel(s). Text is sent from your Twilio number; email uses the contact email above for owner alerts.</p>
+
+        <div class="mt-6 flex flex-col gap-3">
+            @foreach($alertEvents as $key => $meta)
+                @php($row = $alertConfig[$key])
+                <details class="rounded-xl border border-slate-200 p-4" {{ $loop->first ? 'open' : '' }}>
+                    <summary class="cursor-pointer font-bold text-slate-800">{{ $meta['label'] }}</summary>
+                    <div class="mt-4 grid gap-4">
+                        <label class="field-label">
+                            Message
+                            <textarea name="alerts[{{ $key }}][message]" rows="3" class="input">{{ old("alerts.$key.message", $row['message']) }}</textarea>
+                            <span class="field-help">Available tokens: {guest_name}, {property_name}, {check_in_date}, {check_in_time}, {check_out_date}, {check_out_time}, {parking_status}</span>
+                        </label>
+                        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                            <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                <input type="hidden" name="alerts[{{ $key }}][guest_sms]" value="0">
+                                <input type="checkbox" name="alerts[{{ $key }}][guest_sms]" value="1" {{ old("alerts.$key.guest_sms", $row['guest_sms']) ? 'checked' : '' }}>
+                                Text guest
+                            </label>
+                            <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                <input type="hidden" name="alerts[{{ $key }}][guest_email]" value="0">
+                                <input type="checkbox" name="alerts[{{ $key }}][guest_email]" value="1" {{ old("alerts.$key.guest_email", $row['guest_email']) ? 'checked' : '' }}>
+                                Email guest
+                            </label>
+                            <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                <input type="hidden" name="alerts[{{ $key }}][admin_sms]" value="0">
+                                <input type="checkbox" name="alerts[{{ $key }}][admin_sms]" value="1" {{ old("alerts.$key.admin_sms", $row['admin_sms']) ? 'checked' : '' }}>
+                                Text owner
+                            </label>
+                            <label class="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                <input type="hidden" name="alerts[{{ $key }}][admin_email]" value="0">
+                                <input type="checkbox" name="alerts[{{ $key }}][admin_email]" value="1" {{ old("alerts.$key.admin_email", $row['admin_email']) ? 'checked' : '' }}>
+                                Email owner
+                            </label>
+                        </div>
+                    </div>
+                </details>
+            @endforeach
+        </div>
+
+        <button class="btn-primary mt-6">Save alert settings</button>
+    </form>
+
     {{-- Media Picker Modal (for editor image insert) --}}
     <div id="media-picker-modal" class="fixed inset-0 hidden items-center justify-center bg-slate-950/40 p-4" style="z-index:2147483000;">
         <div class="w-full max-w-2xl rounded-xl bg-white p-5 shadow-xl">

@@ -173,7 +173,7 @@ class GuestController extends Controller
             'status'        => 'currently_hosting',
             'checked_in_at' => now(),
         ]);
-        \App\Services\SmsNotificationService::guestCheckedIn($booking);
+        \App\Services\GuestAlertService::send('checkin_completed', $booking);
         ActivityLogService::guest('guest_confirmed_checkin', "Guest {$booking->guest_name} confirmed check-in.", 'check', [
             'booking_id'  => $booking->id,
             'property_id' => $booking->property_id,
@@ -191,7 +191,7 @@ class GuestController extends Controller
             'status'         => 'checked_out',
             'checked_out_at' => now(),
         ]);
-        \App\Services\SmsNotificationService::guestCheckedOut($booking);
+        \App\Services\GuestAlertService::send('checkout_completed', $booking);
         ActivityLogService::guest('guest_confirmed_checkout', "Guest {$booking->guest_name} confirmed check-out.", 'check', [
             'booking_id'  => $booking->id,
             'property_id' => $booking->property_id,
@@ -252,7 +252,7 @@ class GuestController extends Controller
         $booking->update($updates);
 
         if ($isFirstCompletion) {
-            \App\Services\SmsNotificationService::preCheckinComplete($booking);
+            \App\Services\GuestAlertService::send('registration_received', $booking);
         }
 
         ActivityLogService::guest('photo_id_uploaded', "Guest {$booking->guest_name} submitted photo ID and pre-arrival details.", 'photo_id', [
