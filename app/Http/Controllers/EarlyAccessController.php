@@ -30,6 +30,6 @@ class EarlyAccessController extends Controller
         // TODO: once Resend is wired up, notify the admin by email here as well
         // (see PROD_INSTRUCTIONS.md / TASKS.md — deferred until Resend task).
 
-        return back()->with('success', "Thanks — we've received your info and will be in touch soon.");
+        return back()->with('success', "Thanks. We've received your info and will be in touch soon.");
     }
 }
