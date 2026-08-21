@@ -21,7 +21,7 @@ class EarlyAccessController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30'],
-            'role' => ['nullable', 'in:host,guest,other'],
+            'role' => ['required', 'in:host,guest,other'],
             'message' => ['nullable', 'string', 'max:2000'],
         ]);
 
@@ -30,6 +30,6 @@ class EarlyAccessController extends Controller
         // TODO: once Resend is wired up, notify the admin by email here as well
         // (see PROD_INSTRUCTIONS.md / TASKS.md — deferred until Resend task).
 
-        return back()->with('success', "Thanks. We've received your info and will be in touch soon.");
+        return back()->with('success', "Thanks — we've received your info and will be in touch soon.");
     }
 }
