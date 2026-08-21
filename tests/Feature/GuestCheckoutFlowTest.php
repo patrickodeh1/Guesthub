@@ -89,6 +89,7 @@ class GuestCheckoutFlowTest extends TestCase
     }
 
 
+    public function test_auto_checkout_respects_grace_period(): void
     {
         // 10 minutes past checkout time — inside the default 30-minute grace period.
         $withinGrace = $this->makeCheckedInBooking([
