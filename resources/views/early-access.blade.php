@@ -108,32 +108,21 @@
                         @error('phone')<p class="mt-1 text-xs text-red-700">{{ $message }}</p>@enderror
                     </div>
 
-                    <details class="group rounded-md border border-slate-200">
-                        <summary class="flex cursor-pointer list-none items-center justify-between px-3.5 py-2.5 text-sm font-medium text-slate-800">
-                            <span class="flex items-center gap-1.5">
-                                <svg class="h-4 w-4 text-slate-500 transition-transform group-open:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-                                Optional details
-                            </span>
-                            <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">Host type, notes</span>
-                        </summary>
-                        <div class="space-y-4 border-t border-slate-200 px-3.5 pb-4 pt-4">
-                            <div>
-                                <label class="field-label">I'm a</label>
-                                <select name="role" class="input mt-1.5">
-                                    <option value="">Select one</option>
-                                    <option value="host" @selected(old('role') === 'host')>Property host</option>
-                                    <option value="guest" @selected(old('role') === 'guest')>Guest</option>
-                                    <option value="other" @selected(old('role') === 'other')>Other</option>
-                                </select>
-                                @error('role')<p class="mt-1 text-xs text-red-700">{{ $message }}</p>@enderror
-                            </div>
-                            <div>
-                                <label class="field-label">Message</label>
-                                <textarea name="message" rows="3" class="input mt-1.5">{{ old('message') }}</textarea>
-                                @error('message')<p class="mt-1 text-xs text-red-700">{{ $message }}</p>@enderror
-                            </div>
-                        </div>
-                    </details>
+                    <div>
+                        <label class="field-label">I'm a</label>
+                        <select name="role" class="input mt-1.5">
+                            <option value="">Select one</option>
+                            <option value="host" @selected(old('role') === 'host')>Property host</option>
+                            <option value="guest" @selected(old('role') === 'guest')>Guest</option>
+                            <option value="other" @selected(old('role') === 'other')>Other</option>
+                        </select>
+                        @error('role')<p class="mt-1 text-xs text-red-700">{{ $message }}</p>@enderror
+                    </div>
+                    <div>
+                        <label class="field-label">Message (optional)</label>
+                        <textarea name="message" rows="3" class="input mt-1.5">{{ old('message') }}</textarea>
+                        @error('message')<p class="mt-1 text-xs text-red-700">{{ $message }}</p>@enderror
+                    </div>
 
                     <button class="w-full rounded-md bg-[#082b49] px-6 py-3 text-sm font-semibold text-white hover:bg-[#0a3a63]">Reserve my spot</button>
                 </form>
