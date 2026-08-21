@@ -25,6 +25,53 @@
     </div>
 
         <div class="mt-3 grid content-start gap-3 lg:col-span-3 order-3 lg:order-none">
+            {{-- Guest Details --}}
+            <section class="card card-pad">
+                <div class="flex items-center justify-between">
+                    <h2 class="section-title">Guest Details</h2>
+                    <a href="{{ route('admin.guests.edit', $booking) }}" class="text-sm font-semibold text-teal-800">Edit Details</a>
+                </div>
+                <dl class="mt-4 columns-1 gap-x-10 text-sm sm:columns-2 sm:[column-rule:1px_solid_theme(colors.slate.200)]">
+                    @foreach([
+                        ['calendar', 'Check-in Date', $booking->check_in_date ? $booking->check_in_date->format('M j, Y') : 'Not set'],
+                        ['calendar', 'Check-out Date', $booking->check_out_date ? $booking->check_out_date->format('M j, Y').' '.$booking->nightsLabel() : 'Not set'],
+                        ['mail', 'Email', $booking->email ?: 'No email yet'],
+                        ['contact-guest-services', 'Phone', $booking->phone ?: 'No phone on file'],
+                        ['security', 'ID Type', $booking->id_type === 'passport' ? 'Passport' : 'State-issued ID'],
+                        ['parking', 'Parking', is_null($booking->parking_needed) ? 'Unknown' : ($booking->parking_needed ? 'Needed' : 'Not needed')],
+                        ...($booking->parking_needed ? [['parking', 'Parking Charge', '$'.number_format($booking->effectiveParkingCharge() ?? 0, 2).($booking->parking_charge_override !== null ? ' (manual override)' : ' (auto-calculated)')]] : []),
+                        ...($booking->parking_needed ? [['parking', 'Vehicle', $booking->vehicle_make_model ?: 'Not provided']] : []),
+                        ['info', 'Incidentals Charge', $booking->incidentals_charge !== null ? '$'.number_format($booking->incidentals_charge, 2) : 'Not set'],
+                        ...($booking->early_checkin_tier ? [['calendar', 'Early Check-in Charge', '$'.number_format($booking->earlyCheckinCharge() ?? 0, 2).' ('.($booking->early_checkin_tier === '8am' ? '8:00 AM' : '12:00 PM').' tier)']] : []),
+                        ...($booking->late_checkout_type ? [['clock', 'Late Checkout Charge', '$'.number_format($booking->lateCheckoutCharge() ?? 0, 2).' ('.ucfirst($booking->late_checkout_type).')']] : []),
+                        ['calendar', 'Early Check-in', $booking->early_checkin ? 'Enabled' : 'Disabled'],
+                        ['clock', 'Requested Check-in Time', $booking->checkinTimePreferenceFormatted() ?: 'Not specified'],
+                        ['clock', 'Requested Check-out Time', $booking->checkoutTimePreferenceFormatted() ?: 'Not specified'],
+                        ['upload', 'Photo ID Already Received', $booking->photo_id_received ? 'Yes' : 'No'],
+                        ['map', 'GPS', $booking->gps_verified ? 'Verified' : 'Not verified'],
+                        ['contact-guest-services', 'Checked In At', $booking->checked_in_at ? $booking->checked_in_at->format('M j, Y g:i A') : 'Not yet'],
+                        ['contact-guest-services', 'Checked Out At', $booking->checked_out_at ? $booking->checked_out_at->format('M j, Y g:i A') : 'Not yet'],
+                    ] as [$icon, $label, $value])
+                        <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3 break-inside-avoid last:border-0">
+                            <span class="flex items-center gap-2.5 text-slate-500"><x-icon :name="$icon" class="h-4 w-4 shrink-0 text-slate-400" />{{ $label }}</span>
+                            <span class="font-semibold text-slate-950 text-right">{{ $value }}</span>
+                        </div>
+                    @endforeach
+                </dl>
+                @if($booking->photo_id_front_declined_reason)
+                    <div class="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800"><span class="font-semibold">Front ID decline reason:</span> {{ $booking->photo_id_front_declined_reason }}</div>
+                @endif
+                @if($booking->photo_id_back_declined_reason)
+                    <div class="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800"><span class="font-semibold">Back ID decline reason:</span> {{ $booking->photo_id_back_declined_reason }}</div>
+                @endif
+                @if($booking->notes)
+                    <div class="mt-4 rounded-lg bg-slate-50 border border-slate-200 p-3">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Internal notes</p>
+                        <p class="mt-1 whitespace-pre-line text-sm leading-6 text-slate-600">{{ $booking->notes }}</p>
+                    </div>
+                @endif
+            </section>
+
             <div class="grid gap-6 lg:grid-cols-5">
                 {{-- Photo ID --}}
                 <section class="card card-pad {{ $booking->parking_needed ? 'lg:col-span-3' : 'lg:col-span-5' }}">
@@ -123,53 +170,6 @@
                 </section>
                 @endif
             </div>
-
-            {{-- Guest Details --}}
-            <section class="card card-pad">
-                <div class="flex items-center justify-between">
-                    <h2 class="section-title">Guest Details</h2>
-                    <a href="{{ route('admin.guests.edit', $booking) }}" class="text-sm font-semibold text-teal-800">Edit Details</a>
-                </div>
-                <dl class="mt-4 columns-1 gap-x-10 text-sm sm:columns-2">
-                    @foreach([
-                        ['calendar', 'Check-in Date', $booking->check_in_date ? $booking->check_in_date->format('M j, Y') : 'Not set'],
-                        ['calendar', 'Check-out Date', $booking->check_out_date ? $booking->check_out_date->format('M j, Y').' '.$booking->nightsLabel() : 'Not set'],
-                        ['mail', 'Email', $booking->email ?: 'No email yet'],
-                        ['contact-guest-services', 'Phone', $booking->phone ?: 'No phone on file'],
-                        ['security', 'ID Type', $booking->id_type === 'passport' ? 'Passport' : 'State-issued ID'],
-                        ['parking', 'Parking', is_null($booking->parking_needed) ? 'Unknown' : ($booking->parking_needed ? 'Needed' : 'Not needed')],
-                        ...($booking->parking_needed ? [['parking', 'Parking Charge', '$'.number_format($booking->effectiveParkingCharge() ?? 0, 2).($booking->parking_charge_override !== null ? ' (manual override)' : ' (auto-calculated)')]] : []),
-                        ...($booking->parking_needed ? [['parking', 'Vehicle', $booking->vehicle_make_model ?: 'Not provided']] : []),
-                        ['info', 'Incidentals Charge', $booking->incidentals_charge !== null ? '$'.number_format($booking->incidentals_charge, 2) : 'Not set'],
-                        ...($booking->early_checkin_tier ? [['calendar', 'Early Check-in Charge', '$'.number_format($booking->earlyCheckinCharge() ?? 0, 2).' ('.($booking->early_checkin_tier === '8am' ? '8:00 AM' : '12:00 PM').' tier)']] : []),
-                        ...($booking->late_checkout_type ? [['clock', 'Late Checkout Charge', '$'.number_format($booking->lateCheckoutCharge() ?? 0, 2).' ('.ucfirst($booking->late_checkout_type).')']] : []),
-                        ['calendar', 'Early Check-in', $booking->early_checkin ? 'Enabled' : 'Disabled'],
-                        ['clock', 'Requested Check-in Time', $booking->checkinTimePreferenceFormatted() ?: 'Not specified'],
-                        ['clock', 'Requested Check-out Time', $booking->checkoutTimePreferenceFormatted() ?: 'Not specified'],
-                        ['upload', 'Photo ID Already Received', $booking->photo_id_received ? 'Yes' : 'No'],
-                        ['map', 'GPS', $booking->gps_verified ? 'Verified' : 'Not verified'],
-                        ['contact-guest-services', 'Checked In At', $booking->checked_in_at ? $booking->checked_in_at->format('M j, Y g:i A') : 'Not yet'],
-                        ['contact-guest-services', 'Checked Out At', $booking->checked_out_at ? $booking->checked_out_at->format('M j, Y g:i A') : 'Not yet'],
-                    ] as [$icon, $label, $value])
-                        <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3 break-inside-avoid last:border-0">
-                            <span class="flex items-center gap-2.5 text-slate-500"><x-icon :name="$icon" class="h-4 w-4 shrink-0 text-slate-400" />{{ $label }}</span>
-                            <span class="font-semibold text-slate-950 text-right">{{ $value }}</span>
-                        </div>
-                    @endforeach
-                </dl>
-                @if($booking->photo_id_front_declined_reason)
-                    <div class="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800"><span class="font-semibold">Front ID decline reason:</span> {{ $booking->photo_id_front_declined_reason }}</div>
-                @endif
-                @if($booking->photo_id_back_declined_reason)
-                    <div class="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800"><span class="font-semibold">Back ID decline reason:</span> {{ $booking->photo_id_back_declined_reason }}</div>
-                @endif
-                @if($booking->notes)
-                    <div class="mt-4 rounded-lg bg-slate-50 border border-slate-200 p-3">
-                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Internal notes</p>
-                        <p class="mt-1 whitespace-pre-line text-sm leading-6 text-slate-600">{{ $booking->notes }}</p>
-                    </div>
-                @endif
-            </section>
 
             {{-- Communication (collapsible) --}}
             <section class="card card-pad">
