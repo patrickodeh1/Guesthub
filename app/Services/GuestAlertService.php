@@ -137,16 +137,43 @@ class GuestAlertService
             Mail::to($booking->email)->send(new GuestAlertMail(self::labels()[$event], $message));
         }
 
-        $adminNumber = config('services.twilio.admin_notify_number');
+        $envAdminNumber = config('services.twilio.admin_notify_number');
+        $settingsAdminNumber = self::normalizePhoneForSms(Setting::getValue('contact_phone'));
         $adminEmail = Setting::getValue('contact_email');
 
-        if ($row['admin_sms'] && $adminNumber) {
-            SmsNotificationService::guestAlert($adminNumber, "[{$booking->guest_name}] ".$message);
+        if ($row['admin_sms']) {
+            // Send to both the .env-configured number and the admin Settings number,
+            // if both are present and different, so existing .env-based setups keep
+            // working while the Settings page becomes the primary source going forward.
+            $adminNumbers = collect([$envAdminNumber, $settingsAdminNumber])
+                ->filter()
+                ->unique()
+                ->values();
+
+            foreach ($adminNumbers as $adminNumber) {
+                SmsNotificationService::guestAlert($adminNumber, "[{$booking->guest_name}] ".$message);
+            }
         }
 
         if ($row['admin_email'] && $adminEmail) {
             Mail::to($adminEmail)->send(new GuestAlertMail(self::labels()[$event], "[{$booking->guest_name}] ".$message));
         }
+    }
+
+    /**
+     * Strip formatting characters (spaces, dashes, parens) from a phone number
+     * pulled from Settings so it's in a Twilio-friendly format. Returns null
+     * if the input is empty so callers can skip sending cleanly.
+     */
+    protected static function normalizePhoneForSms(?string $number): ?string
+    {
+        if (! $number) {
+            return null;
+        }
+
+        $normalized = preg_replace('/[^\d+]/', '', $number);
+
+        return $normalized ?: null;
     }
 
     protected static function render(string $template, Booking $booking): string
