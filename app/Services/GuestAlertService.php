@@ -54,15 +54,17 @@ class GuestAlertService
 
     /**
      * Default toggle state for an event when nothing has been configured yet.
-     * Text preferred per the client, both guest and admin notified by default.
+     * Both SMS and email, for both guest and admin, are on by default so a
+     * fresh install notifies both parties over both channels out of the box;
+     * each can still be turned off per event from Settings.
      */
     public static function defaultToggles(): array
     {
         return [
             'guest_sms' => true,
-            'guest_email' => false,
+            'guest_email' => true,
             'admin_sms' => true,
-            'admin_email' => false,
+            'admin_email' => true,
         ];
     }
 
