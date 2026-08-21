@@ -10,7 +10,7 @@
         $build = function ($parentId, $depth) use (&$build, $allFolders) {
             $out = [];
             foreach ($allFolders->where('parent_id', $parentId) as $f) {
-                $out[] = ['id' => $f->id, 'label' => str_repeat('— ', $depth) . $f->name];
+                $out[] = ['id' => $f->id, 'label' => str_repeat('- ', $depth) . $f->name];
                 $out = array_merge($out, $build($f->id, $depth + 1));
             }
             return $out;
@@ -20,7 +20,7 @@
     $folderOptions = $flatFolderOptions();
 
     $formatSize = function (?int $bytes): string {
-        if (!$bytes) return '—';
+        if (!$bytes) return '-';
         if ($bytes >= 1048576) return number_format($bytes / 1048576, 1) . ' MB';
         return number_format($bytes / 1024, 1) . ' KB';
     };
@@ -140,7 +140,7 @@
                                             'url' => $file->url(),
                                             'name' => $file->original_name,
                                             'size' => $formatSize($file->size),
-                                            'date' => $file->created_at?->format('M j, Y g:i A') ?? '—',
+                                            'date' => $file->created_at?->format('M j, Y g:i A') ?? '-',
                                             'deleteUrl' => route('admin.media.files.destroy', $file),
                                         ]) }})"
                                         class="block w-full text-left focus:outline-none">

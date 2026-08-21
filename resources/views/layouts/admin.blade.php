@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>{{ $title ?? 'Admin' }} — Welcome Guide</title>
+    <title>{{ $title ?? 'Admin' }} &middot; Welcome Guide</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @php
         $siteLogo = \App\Models\Setting::getValue('site_logo');
@@ -201,7 +201,7 @@
                         @if($notifCount === 0)
                             <div class="p-5 text-center text-sm text-slate-500">
                                 <x-icon name="check" class="mx-auto mb-2 h-6 w-6 text-emerald-500" />
-                                All caught up — nothing pending.
+                                All caught up. Nothing pending.
                             </div>
                         @endif
                     </div>
@@ -465,12 +465,12 @@ document.addEventListener('change', function(e) {
         $tourSteps = [
             ['target' => null,               'title' => 'Welcome to your command centre', 'body' => 'This platform manages your property guest check-ins with professional tools. This short tour highlights each key module. Use the arrow keys or buttons to navigate.'],
             ['target' => 'sidebar-brand',    'title' => 'Your brand identity',            'body' => 'Upload your logo in Settings. It appears here in the sidebar and on all guest-facing pages for a fully branded experience.'],
-            ['target' => 'sidebar-nav',      'title' => 'Main navigation',                'body' => 'Every module lives here — Properties, Guests, Categories, Content, Team, Logs, Settings, and Security. You are always one click away.'],
+            ['target' => 'sidebar-nav',      'title' => 'Main navigation',                'body' => 'Every module lives here: Properties, Guests, Categories, Content, Team, Logs, Settings, and Security. You are always one click away.'],
             ['target' => 'nav-properties',   'title' => 'Properties',                     'body' => 'Add your rental properties with address, GPS coordinates, check-in instructions, parking notes, and hero images.'],
             ['target' => 'nav-guests',       'title' => 'Guest Bookings',                 'body' => 'Create bookings to generate a secure guest URL. Each guest self-checks in via photo ID upload and GPS verification.'],
-            ['target' => 'nav-categories',   'title' => 'Guide Categories',               'body' => 'Customise the welcome guide your guests see after check-in — WiFi, parking, restaurants, checkout, contacts, and more.'],
+            ['target' => 'nav-categories',   'title' => 'Guide Categories',               'body' => 'Customise the welcome guide your guests see after check-in: WiFi, parking, restaurants, checkout, contacts, and more.'],
             ['target' => 'nav-users',        'title' => 'Team Management',               'body' => 'Invite team members as Manager, Staff, or Viewer. Each role has carefully scoped permissions to keep your data safe.'],
-            ['target' => 'nav-logs',         'title' => 'Activity Logs',                  'body' => 'Every admin and guest action is logged here — logins, overrides, ID views, GPS events, and security alerts.'],
+            ['target' => 'nav-logs',         'title' => 'Activity Logs',                  'body' => 'Every admin and guest action is logged here: logins, overrides, ID views, GPS events, and security alerts.'],
             ['target' => 'global-search',    'title' => 'Global Search',                  'body' => 'Search guests, properties, categories, and team members instantly from any page in the admin panel.'],
             ['target' => 'notifications',    'title' => 'Notification Bell',              'body' => 'Shows pending photo IDs, today\'s check-ins, and other important operational reminders at a glance.'],
             ['target' => 'user-menu',        'title' => 'Your profile menu',             'body' => 'Access your security settings, team management, restart this tour, and sign out from your profile button.'],

@@ -41,23 +41,23 @@
                     </div>
                     <div>
                         <dt class="field-label">Actor ID</dt>
-                        <dd class="mt-1 text-slate-700">{{ $log->actor_id ?? '—' }}</dd>
+                        <dd class="mt-1 text-slate-700">{{ $log->actor_id ?? '-' }}</dd>
                     </div>
                     <div>
                         <dt class="field-label">Name</dt>
-                        <dd class="mt-1 text-slate-700">{{ $log->actor_name ?? '—' }}</dd>
+                        <dd class="mt-1 text-slate-700">{{ $log->actor_name ?? '-' }}</dd>
                     </div>
                     <div>
                         <dt class="field-label">Email</dt>
-                        <dd class="mt-1 text-slate-700">{{ $log->actor_email ?? '—' }}</dd>
+                        <dd class="mt-1 text-slate-700">{{ $log->actor_email ?? '-' }}</dd>
                     </div>
                     <div>
                         <dt class="field-label">IP address</dt>
-                        <dd class="mt-1 font-mono text-slate-700">{{ $log->ip_address ?? '—' }}</dd>
+                        <dd class="mt-1 font-mono text-slate-700">{{ $log->ip_address ?? '-' }}</dd>
                     </div>
                     <div>
                         <dt class="field-label">User agent</dt>
-                        <dd class="mt-1 break-all text-xs text-slate-500">{{ $log->user_agent ?? '—' }}</dd>
+                        <dd class="mt-1 break-all text-xs text-slate-500">{{ $log->user_agent ?? '-' }}</dd>
                     </div>
                 </dl>
             </div>

@@ -456,7 +456,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (fallbackCopy(value.trim())) {
                 showCopied();
             } else {
-                window.Toast?.error('Could not copy — please copy manually.');
+                window.Toast?.error('Could not copy. Please copy manually.');
             }
         });
     });

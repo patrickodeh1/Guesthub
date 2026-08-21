@@ -9,7 +9,7 @@
     <section class="card card-pad mb-6">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
-                <p class="eyebrow">Guest {{ $booking->booking_id }} &middot; RID: {{ $booking->reservation_id ?: 'Not set' }}</p>
+                <p class="eyebrow">Booking {{ $booking->booking_id }} &middot; RID: {{ $booking->reservation_id ?: 'Not set' }}</p>
                 <h1 class="page-title !mt-0.5">{{ $booking->guest_name }}</h1>
                 <p class="page-subtitle !mt-1">{{ $booking->property->name }} · {{ $booking->stayRangeLabel() }}</p>
             </div>
@@ -147,7 +147,7 @@
                     @endif
 
                     @if($booking->isIdFullyApproved())
-                        <div class="mt-5 rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">All ID photos approved{{ $booking->approved_at ? ' — '.$booking->approved_at->format('M j, Y g:i A') : '' }}</div>
+                        <div class="mt-5 rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">All ID photos approved{{ $booking->approved_at ? ' on '.$booking->approved_at->format('M j, Y g:i A') : '' }}</div>
                     @endif
                 </section>
 
