@@ -177,11 +177,27 @@ or client confirmation — do not guess at prod state.
     the next navigation. Now the checkout wizard reloads the page on success,
     so the server's already-correct state renders immediately. Check-in and
     parking wizards untouched. Test added to GuestCheckoutFlowTest.php.
-30. Text alert system: 6 lifecycle messages, globally customizable templates
-31. Settings: per-alert checkboxes (owner receives / guest receives)
+30. ~~Text alert system: 6 lifecycle messages, globally customizable templates~~ — DONE.
+    GuestAlertService covers registration received, background check
+    complete, fully approved, time to check in, check-in completed, and
+    check-out completed. Templates are globally editable in Settings with
+    token substitution (guest name, property, check-in/out date+time,
+    parking status). "Time to check in" is a new daily 8am scheduled
+    command (covered by the existing task-23 cron entry), guarded by a
+    checkin_reminder_sent_at flag so it only fires once per booking. The
+    other 5 fire immediately at their existing trigger points, replacing
+    the old admin-only SMS helpers they superseded. See PROD_INSTRUCTIONS.md
+    #10 for the Twilio/email setup needed before anything actually sends.
+31. ~~Settings: per-alert checkboxes (owner receives / guest receives)~~ — DONE,
+    built together with task 30 above (same settings section). Each of the 6
+    alerts has 4 independent toggles: text guest, email guest, text owner,
+    email owner. Text defaults on (client: "text are preferred"), email off
+    but fully wired for when enabled. Built as global toggles, not per
+    individual admin user account — matches every other Setting in this
+    single-tenant app; confirmed with client before building.
 32. Customizable name + instructions for extra verification steps; name reflected in alert settings
 33. ~~Fix: marking deposit paid re-triggers "checked in" status incorrectly (no undo path)~~
     — RESOLVED, no fix needed (undo exists via booking edit page, client already informed)
 34. Parking flow: collect make/model + license plate photo when guest opts in
 
-Status: 28/33 done, 1 resolved as no-op, 4 remaining
+Status: 30/33 done, 1 resolved as no-op, 2 remaining
