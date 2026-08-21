@@ -26,52 +26,28 @@
                     Run your rentals from one place.
                 </h1>
                 <p class="mt-4 text-base leading-relaxed text-slate-700">
-                    GuestHub is a property management platform. Manage guests, bookings, and check-in
-                    from one dashboard.
+                    GuestHub manages guest verification, bookings, and check-in for short-term rental hosts.
                 </p>
 
-                <ul class="mt-10 space-y-6">
-                    <li class="flex gap-3">
-                        <svg class="mt-0.5 h-5 w-5 shrink-0 text-[#082b49]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                        <div>
-                            <p class="text-sm font-semibold text-slate-950">ID verification and arrival check</p>
-                            <p class="mt-0.5 text-sm leading-relaxed text-slate-600">Guests confirm their identity before check-in details unlock.</p>
-                        </div>
-                    </li>
-                    <li class="flex gap-3">
-                        <svg class="mt-0.5 h-5 w-5 shrink-0 text-[#082b49]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                        <div>
-                            <p class="text-sm font-semibold text-slate-950">Keyless entry</p>
-                            <p class="mt-0.5 text-sm leading-relaxed text-slate-600">Guests unlock the door from their phone for the length of their stay.</p>
-                        </div>
-                    </li>
-                    <li class="flex gap-3">
-                        <svg class="mt-0.5 h-5 w-5 shrink-0 text-[#082b49]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-                        <div>
-                            <p class="text-sm font-semibold text-slate-950">A dashboard for every booking</p>
-                            <p class="mt-0.5 text-sm leading-relaxed text-slate-600">Track guests, properties, and open tasks without switching tools.</p>
-                        </div>
-                    </li>
-                </ul>
+                <div class="mt-10 space-y-5 border-t border-black/10 pt-8">
+                    <div>
+                        <p class="text-sm font-semibold text-slate-950">Verify guests before they arrive</p>
+                        <p class="mt-0.5 text-sm leading-relaxed text-slate-600">ID checks and approvals happen ahead of check-in day.</p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-slate-950">Track every booking in one view</p>
+                        <p class="mt-0.5 text-sm leading-relaxed text-slate-600">See who's checked in, who's due, and what needs attention.</p>
+                    </div>
+                    <div>
+                        <p class="text-sm font-semibold text-slate-950">Automatic guest communication</p>
+                        <p class="mt-0.5 text-sm leading-relaxed text-slate-600">Reminders and updates go out without you sending them.</p>
+                    </div>
+                </div>
             </div>
 
             <p class="max-w-sm text-xs text-slate-500">
                 Built for hosts managing one property or many.
             </p>
-
-            <svg viewBox="0 0 400 260" class="absolute bottom-0 right-0 h-56 w-auto opacity-90" xmlns="http://www.w3.org/2000/svg">
-                <ellipse cx="230" cy="235" rx="150" ry="18" fill="#e8dcc8"/>
-                <rect x="120" y="60" width="120" height="90" rx="6" fill="#082b49"/>
-                <rect x="132" y="72" width="40" height="30" rx="2" fill="#f4ede4"/>
-                <rect x="180" y="72" width="40" height="30" rx="2" fill="#f4ede4"/>
-                <rect x="132" y="112" width="40" height="30" rx="2" fill="#f4ede4"/>
-                <rect x="180" y="112" width="24" height="38" rx="2" fill="#c9622a"/>
-                <path d="M110 60 L180 15 L250 60 Z" fill="#0a3a63"/>
-                <rect x="270" y="150" width="10" height="70" rx="2" fill="#5b8a5a"/>
-                <ellipse cx="275" cy="145" rx="28" ry="34" fill="#6ea56a"/>
-                <circle cx="60" cy="80" r="26" fill="#e3c48a"/>
-                <rect x="40" y="180" width="40" height="12" rx="3" fill="#0a3a63"/>
-            </svg>
         </div>
 
         {{-- Right: form --}}
