@@ -18,7 +18,7 @@ class EarlyAccessAdminNotificationMail extends Mailable
     public function build()
     {
         return $this->subject('New early access signup: ' . $this->lead->name)
-            ->view('emails.early-access-admin-notification')
+            ->markdown('emails.early-access-admin-notification')
             ->with([
                 'lead' => $this->lead,
             ]);
