@@ -346,11 +346,44 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Row action menus (kebab dropdowns) — close any open one when clicking outside
+    // Row action menus (kebab dropdowns) — table wrappers use overflow-x-auto
+    // for horizontal scrolling on small screens, which also clips vertical
+    // overflow, cutting off an absolutely-positioned panel and forcing a
+    // scroll to see it. Instead, move the panel to <body> and position it
+    // with `fixed` coordinates computed from the trigger button, so it
+    // renders above everything and is never clipped by an ancestor's scroll
+    // container.
+    function closeAllRowMenus() {
+        document.querySelectorAll('[data-row-menu-panel]').forEach((panel) => {
+            panel.classList.add('hidden');
+        });
+    }
+    window.toggleRowMenu = function toggleRowMenu(btn) {
+        const panel = btn.nextElementSibling;
+        const isOpen = !panel.classList.contains('hidden');
+        closeAllRowMenus();
+        if (isOpen) return;
+        if (panel.parentElement !== document.body) {
+            panel._originalParent = btn.parentElement;
+            document.body.appendChild(panel);
+        }
+        const rect = btn.getBoundingClientRect();
+        panel.style.position = 'fixed';
+        panel.style.top = `${rect.bottom + 4}px`;
+        const panelWidth = panel.offsetWidth || 224;
+        let left = rect.right - panelWidth;
+        left = Math.max(8, Math.min(left, window.innerWidth - panelWidth - 8));
+        panel.style.left = `${left}px`;
+        panel.style.right = 'auto';
+        panel.style.margin = '0';
+        panel.classList.remove('hidden');
+    };
     document.addEventListener('click', (e) => {
-        if (e.target.closest('[data-row-menu]')) return;
-        document.querySelectorAll('[data-row-menu-panel]').forEach((panel) => panel.classList.add('hidden'));
+        if (e.target.closest('[data-row-menu]') || e.target.closest('[data-row-menu-panel]')) return;
+        closeAllRowMenus();
     });
+    window.addEventListener('scroll', closeAllRowMenus, true);
+    window.addEventListener('resize', closeAllRowMenus);
     // Copy-to-clipboard buttons
     document.querySelectorAll('[data-copy]').forEach((btn) => {
         btn.addEventListener('click', async () => {

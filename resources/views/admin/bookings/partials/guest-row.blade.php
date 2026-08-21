@@ -5,7 +5,7 @@
     <td><span class="badge badge-{{ $booking->effectiveStatus() }}">{{ $booking->statusLabel() }}</span></td>
     <td><div class="flex items-center justify-end gap-2">
         <div class="relative" data-row-menu>
-            <button type="button" class="btn-secondary gap-2" onclick="const p=this.nextElementSibling; document.querySelectorAll('[data-row-menu-panel]').forEach(el=>el!==p&&el.classList.add('hidden')); p.classList.toggle('hidden')"><x-icon name="more-vertical" class="h-4 w-4" />Actions</button>
+            <button type="button" class="btn-secondary gap-2" onclick="toggleRowMenu(this)"><x-icon name="more-vertical" class="h-4 w-4" />Actions</button>
             <div data-row-menu-panel class="hidden absolute right-0 z-10 mt-1 w-56 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
                 <a href="{{ route('admin.guests.show', $booking) }}" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><x-icon name="eye" class="h-4 w-4" />View Details</a>
                 <a href="{{ route('admin.guests.edit', $booking) }}" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><x-icon name="edit" class="h-4 w-4" />Edit</a>
