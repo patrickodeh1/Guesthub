@@ -7,7 +7,9 @@ return new class extends Migration
 {
     public function up(): void
     {
-        DB::statement("ALTER TABLE categories MODIFY action ENUM('content', 'door_lock', 'local_events') NOT NULL DEFAULT 'content'");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE categories MODIFY action ENUM('content', 'door_lock', 'local_events') NOT NULL DEFAULT 'content'");
+        }
 
         DB::table('categories')->updateOrInsert(
             ['slug' => 'local-events'],
@@ -27,6 +29,9 @@ return new class extends Migration
     public function down(): void
     {
         DB::table('categories')->where('slug', 'local-events')->delete();
-        DB::statement("ALTER TABLE categories MODIFY action ENUM('content', 'door_lock') NOT NULL DEFAULT 'content'");
+
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE categories MODIFY action ENUM('content', 'door_lock') NOT NULL DEFAULT 'content'");
+        }
     }
 };
