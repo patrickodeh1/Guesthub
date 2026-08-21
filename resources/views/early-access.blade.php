@@ -30,28 +30,28 @@
                     short-term rental hosts.
                 </p>
 
-                <div class="mt-10 space-y-6">
-                    <div class="flex items-start gap-4">
-                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#082b49]/10">
-                            <svg class="h-4.5 w-4.5 text-[#082b49]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 22V22C22 17.5817 18.4183 14 14 14H10C5.58172 14 2 17.5817 2 22V22"/><circle cx="12" cy="7" r="4"/></svg>
+                <div class="mt-10 space-y-5 sm:space-y-6">
+                    <div class="flex items-start gap-3 sm:gap-4">
+                        <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#082b49]/10 sm:h-9 sm:w-9">
+                            <svg class="h-3.5 w-3.5 text-[#082b49] sm:h-4.5 sm:w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 22V22C22 17.5817 18.4183 14 14 14H10C5.58172 14 2 17.5817 2 22V22"/><circle cx="12" cy="7" r="4"/></svg>
                         </div>
                         <div>
                             <p class="text-sm font-semibold text-slate-950">Verify guests before they arrive</p>
                             <p class="mt-0.5 text-sm leading-relaxed text-slate-600">ID checks and approvals happen ahead of check-in day.</p>
                         </div>
                     </div>
-                    <div class="flex items-start gap-4">
-                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#082b49]/10">
-                            <svg class="h-4.5 w-4.5 text-[#082b49]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
+                    <div class="flex items-start gap-3 sm:gap-4">
+                        <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#082b49]/10 sm:h-9 sm:w-9">
+                            <svg class="h-3.5 w-3.5 text-[#082b49] sm:h-4.5 sm:w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4"/><path d="M8 2v4"/><path d="M3 10h18"/></svg>
                         </div>
                         <div>
                             <p class="text-sm font-semibold text-slate-950">Track every booking in one view</p>
                             <p class="mt-0.5 text-sm leading-relaxed text-slate-600">See who's checked in, who's due, and what needs attention.</p>
                         </div>
                     </div>
-                    <div class="flex items-start gap-4">
-                        <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#082b49]/10">
-                            <svg class="h-4.5 w-4.5 text-[#082b49]" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+                    <div class="flex items-start gap-3 sm:gap-4">
+                        <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#082b49]/10 sm:h-9 sm:w-9">
+                            <svg class="h-3.5 w-3.5 text-[#082b49] sm:h-4.5 sm:w-4.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
                         </div>
                         <div>
                             <p class="text-sm font-semibold text-slate-950">Automatic guest communication</p>
@@ -81,7 +81,7 @@
         </div>
 
         {{-- Right: form --}}
-        <div class="flex items-center justify-center bg-[#f4ede4] px-6 py-14 sm:px-10 lg:bg-white">
+        <div class="flex items-center justify-center bg-[#f4ede4] px-6 py-14 sm:px-10">
             <div class="w-full max-w-md rounded-2xl bg-white p-8 shadow-[0_4px_20px_-4px_rgba(15,23,42,0.1)] sm:p-10">
                 <h2 class="text-2xl font-semibold tracking-tight text-slate-950">Get early access</h2>
                 <p class="mt-2 text-sm text-slate-600">Be the first to know when we launch.</p>
