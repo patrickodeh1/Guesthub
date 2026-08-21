@@ -424,7 +424,7 @@ class BookingController extends Controller
             'severity'     => 'success',
         ]);
 
-        return back()->with('success', 'Deposit verified — guest is now approved.');
+        return back()->with('success', 'Deposit verified. Guest is now approved.');
     }
 
     /**
@@ -509,7 +509,7 @@ class BookingController extends Controller
 
         SmsNotificationService::photoIdDeclinedToGuest($booking, $side, $data['decline_reason']);
 
-        return back()->with('success', ucfirst($side).' of ID declined — guest has been notified and asked to re-upload.');
+        return back()->with('success', ucfirst($side).' of ID declined. Guest has been notified and asked to re-upload.');
     }
 
     public function blockAccess(Request $request, Booking $booking)

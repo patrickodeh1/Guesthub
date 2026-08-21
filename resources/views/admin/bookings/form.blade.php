@@ -15,7 +15,7 @@
             <p class="section-copy">Booking ID may be left blank to generate one automatically.</p>
             <div class="mt-6 grid gap-5 md:grid-cols-2">
                 <label class="field-label">Booking ID<input name="booking_id" value="{{ old('booking_id', $booking->booking_id) }}" placeholder="Auto-generated if blank" class="input"></label>
-                <label class="field-label">Reservation ID (Airbnb/VRBO) <span class="text-red-600">*</span><input name="reservation_id" value="{{ old('reservation_id', $booking->reservation_id) }}" placeholder="Required — from Airbnb/VRBO" required class="input"></label>
+                <label class="field-label">Reservation ID (Airbnb/VRBO) <span class="text-red-600">*</span><input name="reservation_id" value="{{ old('reservation_id', $booking->reservation_id) }}" placeholder="Required, from Airbnb/VRBO" required class="input"></label>
                 <label class="field-label">Guest name <span class="text-red-600">*</span><input name="guest_name" value="{{ old('guest_name', $booking->guest_name) }}" required placeholder="Jordan Taylor" class="input"></label>
                 <label class="field-label">Phone<input name="phone" value="{{ old('phone', $booking->phone) }}" placeholder="+1 555 555 0199" class="input"></label>
                 <label class="field-label">Email<input name="email" value="{{ old('email', $booking->email) }}" placeholder="guest@example.com" class="input"></label>
@@ -64,7 +64,7 @@
                 @if($booking->exists && $booking->early_checkin_tier)
                     <span class="field-help">Charge: ${{ number_format($booking->earlyCheckinCharge() ?? 0, 2) }} (from the property's rate for this tier).</span>
                 @else
-                    <span class="field-help">Independent of the exception checkbox above — set this if the early check-in should be billed.</span>
+                    <span class="field-help">Independent of the exception checkbox above; set this if the early check-in should be billed.</span>
                 @endif
             </label>
             <div class="field-label mt-5">
@@ -76,7 +76,7 @@
                 </select>
                 <label class="field-label mt-3">Hours late (authorized only)<input type="number" step="0.25" min="0" name="late_checkout_hours" value="{{ old('late_checkout_hours', $booking->late_checkout_hours) }}" placeholder="e.g. 2" class="input"></label>
                 <label class="field-label mt-3">Actual checkout time (unauthorized only)<input type="datetime-local" name="late_checkout_actual_time" value="{{ old('late_checkout_actual_time', optional($booking->late_checkout_actual_time)->format('Y-m-d\TH:i')) }}" class="input"></label>
-                <span class="field-help">Separate from the system's automatic checkout timestamp — enter what time the guest actually left for an unauthorized late checkout, so hours can be calculated.</span>
+                <span class="field-help">Separate from the system's automatic checkout timestamp; enter what time the guest actually left for an unauthorized late checkout, so hours can be calculated.</span>
                 @if($booking->exists && $booking->late_checkout_type)
                     <span class="field-help font-semibold">Charge: ${{ number_format($booking->lateCheckoutCharge() ?? 0, 2) }}</span>
                 @endif

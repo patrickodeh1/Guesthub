@@ -124,13 +124,13 @@
                             @if($log->module)
                                 <span class="badge badge-inactive">{{ $log->module }}</span>
                             @else
-                                <span class="text-slate-400">—</span>
+                                <span class="text-slate-400">-</span>
                             @endif
                         </td>
                         <td>
                             <span class="badge {{ $log->severityClass() }}">{{ $log->severity }}</span>
                         </td>
-                        <td class="font-mono text-xs text-slate-500">{{ $log->ip_address ?? '—' }}</td>
+                        <td class="font-mono text-xs text-slate-500">{{ $log->ip_address ?? '-' }}</td>
                         <td class="text-sm text-slate-500">
                             <span title="{{ $log->created_at->format('d M Y H:i:s') }}">
                                 {{ $log->created_at->diffForHumans() }}

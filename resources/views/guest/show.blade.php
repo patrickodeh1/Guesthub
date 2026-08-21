@@ -75,9 +75,9 @@
                 {{-- Step indicator: big circled current step, dash-separated others. Hidden on welcome (step 0). --}}
                 <div class="px-6 pt-5 step-indicator hidden" id="step-indicator-wrapper">
                     <span class="step-num" data-num="1" id="step-num-1">1</span>
-                    <span class="step-dash">&mdash;</span>
+                    <span class="step-dash">-</span>
                     <span class="step-num" data-num="2" id="step-num-2">2</span>
-                    <span class="step-dash">&mdash;</span>
+                    <span class="step-dash">-</span>
                     <span class="step-num" data-num="3" id="step-num-3">3</span>
                 </div>
             </div>

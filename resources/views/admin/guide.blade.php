@@ -19,7 +19,7 @@
     {{-- Quick actions --}}
     <div class="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4" data-tour="guide-quick-actions">
         @foreach([
-            ['properties', 'Add Property',    route('admin.properties.create'), 'Start here — add your first rental property.'],
+            ['properties', 'Add Property',    route('admin.properties.create'), 'Start here: add your first rental property.'],
             ['guests',     'Add Guest',       route('admin.guests.create'),   'Create a guest and generate a guest URL.'],
             ['users',      'Add Team Member', route('admin.users.create'),      'Invite staff with role-based permissions.'],
             ['logs',       'View Logs',       route('admin.logs.index'),        'Review the full system audit trail.'],
@@ -67,7 +67,7 @@
             {{-- Guest flow --}}
             <section class="card card-pad">
                 <h3 class="section-title">Complete guest flow</h3>
-                <p class="section-copy">How a guest moves from guest creation to checkout — step by step.</p>
+                <p class="section-copy">How a guest moves from guest creation to checkout, step by step.</p>
                 <div class="mt-5 grid gap-3">
                     @foreach([
                         ['1', 'Admin creates guest',       'You add the guest in the Guests module. A secure URL is generated with a unique private token.',                        'guests'],
@@ -164,10 +164,10 @@
                 <h3 class="section-title">Troubleshooting common issues</h3>
                 <div class="mt-5 grid gap-4">
                     @foreach([
-                        ['Guest says the link doesn\'t work',       'Verify the guest URL in the guest detail. Regenerate the token if needed — the old URL is invalidated and a new one is created. Check that the booking status is not checked_out.'],
+                        ['Guest says the link doesn\'t work',       'Verify the guest URL in the guest detail. Regenerate the token if needed; the old URL is invalidated and a new one is created. Check that the booking status is not checked_out.'],
                         ['GPS verification keeps failing',           'Confirm property GPS coordinates are set in the Properties module. Ask the guest to allow location access in their browser. Use manual override if time-sensitive.'],
                         ['Photo ID upload fails for guest',          'File must be JPG, PNG, WEBP, or PDF under 5MB. Ask the guest to compress the image or try a different browser (Safari on iOS sometimes blocks uploads).'],
-                        ['Guest can\'t see the welcome guide',       'The guide only unlocks after successful GPS verification or manual check-in approval. Check the booking status — it must be "checked_in".'],
+                        ['Guest can\'t see the welcome guide',       'The guide only unlocks after successful GPS verification or manual check-in approval. Check the booking status; it must be "checked_in".'],
                         ['Team member can\'t access a section',      'Review their role in Team Management. Manager and Staff roles have restricted access. Only Owner accounts can access Users and Settings.'],
                         ['Activity log shows repeated failed logins','This may indicate a brute-force attempt. Review the IP address in the log and consider blocking at your hosting firewall level.'],
                     ] as [$q, $a])
