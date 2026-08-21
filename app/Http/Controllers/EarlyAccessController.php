@@ -21,7 +21,7 @@ class EarlyAccessController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:30'],
-            'role' => ['nullable', 'in:host,guest,other'],
+            'role' => ['required', 'in:host,guest,other'],
             'message' => ['nullable', 'string', 'max:2000'],
         ]);
 
