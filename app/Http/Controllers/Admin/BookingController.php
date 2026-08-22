@@ -6,11 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Booking;
 use App\Models\Property;
 use App\Models\Setting;
-use App\Mail\PhotoIdDeclinedMail;
 use App\Services\ActivityLogService;
-use App\Services\SmsNotificationService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -499,15 +496,12 @@ class BookingController extends Controller
             'severity'     => 'warning',
         ]);
 
-        if (filled($booking->email)) {
-            try {
-                Mail::to($booking->email)->send(new PhotoIdDeclinedMail($booking, $side, $data['decline_reason']));
-            } catch (\Throwable $e) {
-                \Illuminate\Support\Facades\Log::error('Failed to send photo ID declined email: '.$e->getMessage());
-            }
-        }
+        $sideLabel = $side === 'back' ? 'back' : 'front';
 
-        SmsNotificationService::photoIdDeclinedToGuest($booking, $side, $data['decline_reason']);
+        \App\Services\GuestAlertService::send('photo_id_declined', $booking, [
+            'id_side' => $sideLabel,
+            'decline_reason' => $data['decline_reason'],
+        ]);
 
         return back()->with('success', ucfirst($side).' of ID declined. Guest has been notified and asked to re-upload.');
     }
