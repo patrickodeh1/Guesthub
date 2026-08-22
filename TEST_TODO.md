@@ -135,3 +135,40 @@ misleading).
   guide" link — there's no guide to go back to at that point.
 - Confirm the check-in wizard and parking wizard are unaffected (no back
   link, unchanged behavior).
+
+---
+
+## Todo 4: Checkout notice visibility
+
+**What it is:** The "Check-out is coming up" / "You're checking out today"
+banner (shown in `checkout_notice` and `checkout_available` states, on both
+the main guest page and any category detail page since they share the same
+layout) was small, low-contrast text. Restyled to a larger, bolder card with
+an icon and stronger amber background so it's clearly noticeable.
+
+**How to test:**
+- View the guest portal in `checkout_notice` state (day before checkout,
+  after 6pm) — confirm the banner is prominent, not easy to miss.
+- View it in `checkout_available` state (checkout day) — same check.
+- Navigate into a guide category detail page while in either state — confirm
+  the same prominent banner appears there too (shared layout).
+- Confirm the correct time and copy still show for each state.
+
+---
+
+## Todo 5: Checkout wizard final button label
+
+**What it is:** Client explicitly requested (task 29) that the last button in
+the checkout wizard say "Check out" — it was showing "All Done" instead.
+Fixed to "Check out". The rest of task 29 (immediate status change + reload
+so the guest sees the real locked-out page right away, no stale
+guide/menu access) was already correctly implemented — only the label was
+wrong.
+
+**How to test:**
+- Walk a test booking through checkout steps to the last step.
+- Confirm the final button reads "Check out" (not "All Done").
+- Click it, confirm the "Ready to check out?" modal appears as before.
+- Confirm "Yes, I'm Checked Out" still triggers the reload → guest lands on
+  the locked-out/checked-out page immediately, no way to get back to the
+  guide/menu.

@@ -64,7 +64,7 @@
             <button type="button" id="wizard-next-{{ $type }}" class="guest-primary-btn flex-1" @if($total === 1) style="display:none" @endif>Next</button>
             <button type="button" id="wizard-done-{{ $type }}" class="guest-primary-btn is-go flex-1" @if($total > 1) style="display:none" @endif>
                 <x-icon name="check" class="h-4 w-4" />
-                {{ $type === "checkout" ? "All Done" : ($type === "checkin" ? "I'm Checked In!" : "Continue to Guide") }}
+                {{ $type === "checkout" ? "Check out" : ($type === "checkin" ? "I'm Checked In!" : "Continue to Guide") }}
             </button>
         </div>
     </div>
