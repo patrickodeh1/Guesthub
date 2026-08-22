@@ -158,14 +158,16 @@ class GuestAlertService
     /**
      * Map an older stored row (single "message" shared by guest and staff,
      * and "admin_sms"/"admin_email" instead of per-role toggles) onto the
-     * current shape, so existing installs keep working after this upgrade
-     * without losing their saved wording or on/off choices.
+     * current shape. Only guest_message is carried over from the old
+     * "message" field, since that's what an admin actually saw and
+     * customized in the old single-textarea form; staff_message is left
+     * unset here so config() falls back to the new, distinct staff default
+     * rather than duplicating the guest wording onto staff.
      */
     protected static function migrateLegacyRow(array $row): array
     {
-        if (isset($row['message']) && ! isset($row['guest_message']) && ! isset($row['staff_message'])) {
+        if (isset($row['message']) && ! isset($row['guest_message'])) {
             $row['guest_message'] = $row['message'];
-            $row['staff_message'] = $row['message'];
         }
         unset($row['message']);
 
