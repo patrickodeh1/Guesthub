@@ -18,7 +18,7 @@ class GuestAlertMail extends Mailable
     public function build()
     {
         return $this->subject("GuestHub: {$this->eventLabel}")
-            ->view('emails.guest-alert')
+            ->markdown('emails.guest-alert')
             ->with([
                 'eventLabel' => $this->eventLabel,
                 'message' => $this->message,

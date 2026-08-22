@@ -18,7 +18,7 @@ class EarlyAccessConfirmationMail extends Mailable
     public function build()
     {
         return $this->subject('We received your request for early access')
-            ->view('emails.early-access-confirmation')
+            ->markdown('emails.early-access-confirmation')
             ->with([
                 'lead' => $this->lead,
             ]);
