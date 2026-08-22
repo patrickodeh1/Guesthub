@@ -23,7 +23,7 @@
                             'default_intro' => ['label' => 'Default Welcome Message', 'help' => 'Fallback shown on the pre-check-in welcome step when a booking has no custom welcome message set.', 'rows' => 5],
                             'gps_verify_message' => ['label' => 'GPS Verify Message', 'help' => 'Shown above the map on the location verification step.', 'rows' => 3],
                             'lock_message' => ['label' => 'Smart Lock Message', 'help' => 'Shown on the smart lock step when a property has a lock configured.', 'rows' => 3],
-                            'background_check_step_instructions' => ['label' => 'Background Check Message', 'help' => 'Shown to guests on the waiting screen for this step.', 'rows' => 3],
+                            'background_check_step_instructions' => ['label' => \App\Models\Setting::getValue('background_check_step_name', 'Background Check'), 'help' => 'Shown to guests on the waiting screen for this step.', 'rows' => 3],
                         ];
                     @endphp
                     <div class="mb-3 flex flex-wrap gap-2">
