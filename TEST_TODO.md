@@ -172,3 +172,24 @@ wrong.
 - Confirm "Yes, I'm Checked Out" still triggers the reload → guest lands on
   the locked-out/checked-out page immediately, no way to get back to the
   guide/menu.
+
+---
+
+## Todo 6: Guest list search — exact match for IDs, pattern for names
+
+**What it is:** The admin guest list search treated booking ID, reservation
+ID, and email the same as guest name — all partial/pattern (`LIKE %term%`)
+matches. Per instruction, only `guest_name` should use pattern matching now;
+`booking_id`, `reservation_id`, and `email` use exact matches.
+
+**How to test:**
+- Search by a full, exact booking ID → confirm the matching guest is found.
+- Search by a partial/substring of a booking ID → confirm NO results come
+  back for that partial ID (previously this would have matched).
+- Same two checks for reservation ID.
+- Same two checks for email (exact address returns a match, a partial/substring
+  of an email returns nothing).
+- Search by a partial guest name (e.g. first few letters of a name) → confirm
+  it still matches, since name search remains pattern-based.
+- Confirm search results still respect existing filters (status, property)
+  and pagination, unaffected by this change.

@@ -26,9 +26,9 @@ class BookingController extends Controller
         $baseQuery = fn () => Booking::with('property')
             ->when($request->search, fn ($query, $search) => $query->where(fn ($inner) => $inner
                 ->where('guest_name', 'like', "%{$search}%")
-                ->orWhere('booking_id', 'like', "%{$search}%")
-                ->orWhere('reservation_id', 'like', "%{$search}%")
-                ->orWhere('email', 'like', "%{$search}%")
+                ->orWhere('booking_id', $search)
+                ->orWhere('reservation_id', $search)
+                ->orWhere('email', $search)
             ))
             ->when($request->status, fn ($query, $status) => $status === 'pending_check_in'
                 ? $query->where('status', 'guest_approved')->whereDate('check_in_date', '<=', today())
