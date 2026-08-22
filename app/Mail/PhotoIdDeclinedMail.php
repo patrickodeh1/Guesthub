@@ -22,7 +22,7 @@ class PhotoIdDeclinedMail extends Mailable
         $sideLabel = $this->side === 'back' ? 'back' : 'front';
 
         return $this->subject('Action needed: your ID photo was not approved')
-            ->view('emails.photo-id-declined')
+            ->markdown('emails.photo-id-declined')
             ->with([
                 'guestName' => $this->booking->guest_name,
                 'propertyName' => $this->booking->property?->name,
