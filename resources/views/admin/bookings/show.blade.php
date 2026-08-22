@@ -45,8 +45,8 @@
                         ...($booking->early_checkin_tier ? [['calendar', 'Early Check-in Charge', '$'.number_format($booking->earlyCheckinCharge() ?? 0, 2).' ('.($booking->early_checkin_tier === '8am' ? '8:00 AM' : '12:00 PM').' tier)']] : []),
                         ...($booking->late_checkout_type ? [['clock', 'Late Checkout Charge', '$'.number_format($booking->lateCheckoutCharge() ?? 0, 2).' ('.ucfirst($booking->late_checkout_type).')']] : []),
                         ['calendar', 'Early Check-in', $booking->early_checkin ? 'Enabled' : 'Disabled'],
-                        ['clock', 'Requested Check-in Time', $booking->checkinTimePreferenceFormatted() ?: 'Not specified'],
-                        ['clock', 'Requested Check-out Time', $booking->checkoutTimePreferenceFormatted() ?: 'Not specified'],
+                        ['clock', 'Requested Check-in Time', ($booking->checkinTimePreferenceFormatted() ?: 'Not specified').($booking->checkin_time_status ? ' ('.ucfirst($booking->checkin_time_status).')' : '')],
+                        ['clock', 'Requested Check-out Time', ($booking->checkoutTimePreferenceFormatted() ?: 'Not specified').($booking->checkout_time_status ? ' ('.ucfirst($booking->checkout_time_status).')' : '')],
                         ['upload', 'Photo ID Already Received', $booking->photo_id_received ? 'Yes' : 'No'],
                         ['map', 'GPS', $booking->gps_verified ? 'Verified' : 'Not verified'],
                         ['contact-guest-services', 'Checked In At', $booking->checked_in_at ? $booking->checked_in_at->format('M j, Y g:i A') : 'Not yet'],
@@ -150,6 +150,56 @@
                         <div class="mt-5 rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">All ID photos approved{{ $booking->approved_at ? ' on '.$booking->approved_at->format('M j, Y g:i A') : '' }}</div>
                     @endif
                 </section>
+
+                @if($booking->checkin_time_status === 'pending' || $booking->checkout_time_status === 'pending')
+                {{-- Task 0: guest-requested non-standard time needs admin review before it applies; may carry a charge (see task 26 billing). Manual review only, no auto-notification. --}}
+                <section class="card card-pad lg:col-span-2">
+                    <h2 class="section-title">Time Preference Review</h2>
+                    <p class="section-copy">The guest requested a non-standard time below. It will not take effect until approved — the system will keep using the property's standard time in the meantime. Approving does not automatically apply a charge; set the early check-in / late checkout billing fields separately if one applies. No automatic notification is sent to the guest.</p>
+
+                    @if($booking->checkin_time_status === 'pending')
+                    <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                        <div>
+                            <p class="text-sm text-slate-500">Requested Check-in Time</p>
+                            <p class="font-semibold text-slate-950">{{ $booking->checkinTimePreferenceFormatted() }} <span class="text-slate-500 font-normal">(standard: {{ $booking->standardCheckinTimeFormatted() }})</span></p>
+                        </div>
+                        <div class="flex gap-2">
+                            <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkin']) }}">
+                                @csrf
+                                <input type="hidden" name="decision" value="approved">
+                                <button type="submit" class="btn-primary">Approve</button>
+                            </form>
+                            <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkin']) }}">
+                                @csrf
+                                <input type="hidden" name="decision" value="denied">
+                                <button type="submit" class="btn-secondary">Deny</button>
+                            </form>
+                        </div>
+                    </div>
+                    @endif
+
+                    @if($booking->checkout_time_status === 'pending')
+                    <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
+                        <div>
+                            <p class="text-sm text-slate-500">Requested Check-out Time</p>
+                            <p class="font-semibold text-slate-950">{{ $booking->checkoutTimePreferenceFormatted() }} <span class="text-slate-500 font-normal">(standard: {{ $booking->standardCheckoutTimeFormatted() }})</span></p>
+                        </div>
+                        <div class="flex gap-2">
+                            <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkout']) }}">
+                                @csrf
+                                <input type="hidden" name="decision" value="approved">
+                                <button type="submit" class="btn-primary">Approve</button>
+                            </form>
+                            <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkout']) }}">
+                                @csrf
+                                <input type="hidden" name="decision" value="denied">
+                                <button type="submit" class="btn-secondary">Deny</button>
+                            </form>
+                        </div>
+                    </div>
+                    @endif
+                </section>
+                @endif
 
                 @if($booking->parking_needed)
                 {{-- Vehicle / license plate photo, task 34 --}}

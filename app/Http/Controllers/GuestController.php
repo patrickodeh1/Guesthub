@@ -127,6 +127,9 @@ class GuestController extends Controller
             ],
         ]);
 
+        $newCheckinPreference = $data['checkin_time_preference'];
+        $newCheckoutPreference = $data['checkout_time_preference'] ?? null;
+
         $updates = [
             'guest_name' => $data['guest_name'],
             'phone' => $data['phone'],
@@ -134,10 +137,27 @@ class GuestController extends Controller
             'parking_needed' => array_key_exists('parking_needed', $data) && $data['parking_needed'] !== null
                 ? filter_var($data['parking_needed'], FILTER_VALIDATE_BOOLEAN)
                 : $booking->parking_needed,
-            'checkin_time_preference' => $data['checkin_time_preference'],
-            'checkout_time_preference' => $data['checkout_time_preference'] ?? null,
+            'checkin_time_preference' => $newCheckinPreference,
+            'checkout_time_preference' => $newCheckoutPreference,
             'guest_authenticated_at' => now(),
         ];
+
+        // Task 0: a non-standard time request needs admin approval before it
+        // takes effect (a charge may apply — see task 26 billing fields). A
+        // request matching the property's standard time needs no review. If
+        // the guest resubmits the same value as before, don't clobber an
+        // existing admin decision (approved/denied) back to pending.
+        if ($newCheckinPreference !== $booking->checkin_time_preference) {
+            $updates['checkin_time_status'] = $newCheckinPreference && $newCheckinPreference !== $booking->standardCheckinTime()
+                ? 'pending'
+                : null;
+        }
+
+        if ($newCheckoutPreference !== $booking->checkout_time_preference) {
+            $updates['checkout_time_status'] = $newCheckoutPreference && $newCheckoutPreference !== $booking->standardCheckoutTime()
+                ? 'pending'
+                : null;
+        }
 
         if ($parkingAnswer) {
             $updates['vehicle_make_model'] = $data['vehicle_make_model'] ?? $booking->vehicle_make_model;

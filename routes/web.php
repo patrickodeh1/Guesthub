@@ -81,6 +81,7 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     // ─── Properties ──────────────────────────────────────────────────────────
     Route::resource('properties', PropertyController::class)->except(['show']);
     Route::post('properties/{property}/checkout-time', [PropertyController::class, 'updateCheckoutTime'])->name('properties.checkout-time');
+    Route::post('properties/{property}/checkin-time', [PropertyController::class, 'updateCheckinTime'])->name('properties.checkin-time');
     Route::post('properties/{property}/lockbox-code', [PropertyController::class, 'updateLockboxCode'])->name('properties.lockbox-code');
     Route::post('properties/{property}/parking-rates', [PropertyController::class, 'updateParkingRates'])->name('properties.parking-rates');
     Route::post('properties/{property}/checkin-checkout-rates', [PropertyController::class, 'updateCheckinCheckoutRates'])->name('properties.checkin-checkout-rates');
@@ -100,6 +101,7 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     Route::post('guests/{booking}/update-status', [BookingController::class, 'updateStatus'])->name('guests.update-status');
     Route::post('guests/{booking}/id/{side}/approve', [BookingController::class, 'approveIdSide'])->whereIn('side', ['front', 'back'])->name('guests.id.approve');
     Route::post('guests/{booking}/id/{side}/decline', [BookingController::class, 'declineIdSide'])->whereIn('side', ['front', 'back'])->name('guests.id.decline');
+    Route::post('guests/{booking}/time-preference/{type}', [BookingController::class, 'updateTimePreferenceStatus'])->whereIn('type', ['checkin', 'checkout'])->name('guests.time-preference.update');
     Route::post('guests/{booking}/block-access', [BookingController::class, 'blockAccess'])->name('guests.block-access');
     Route::post('guests/{booking}/unblock-access', [BookingController::class, 'unblockAccess'])->name('guests.unblock-access');
     Route::put('guests/{booking}/welcome-message', [BookingController::class, 'updateWelcomeMessage'])->name('guests.welcome-message');

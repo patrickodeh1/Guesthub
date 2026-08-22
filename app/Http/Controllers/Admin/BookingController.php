@@ -429,6 +429,45 @@ class BookingController extends Controller
      * Overall booking approval (approved_at) is only set once every side on
      * file is approved.
      */
+    /**
+     * Approve or deny a guest's requested non-standard check-in/check-out
+     * time (task 0). Manual only — no automatic guest notification is sent;
+     * approving does not itself set a charge, admin still fills in the
+     * task 26 billing fields (early_checkin_tier / late_checkout_type etc.)
+     * as needed.
+     */
+    public function updateTimePreferenceStatus(Request $request, Booking $booking, string $type)
+    {
+        abort_unless(in_array($type, ['checkin', 'checkout'], true), 404);
+
+        $data = $request->validate([
+            'decision' => ['required', 'in:approved,denied'],
+        ]);
+
+        $statusField = $type === 'checkin' ? 'checkin_time_status' : 'checkout_time_status';
+
+        $booking->update([
+            $statusField => $data['decision'],
+        ]);
+
+        $label = $type === 'checkin' ? 'check-in' : 'check-out';
+
+        ActivityLogService::admin(
+            'time_preference_'.$data['decision'],
+            auth()->user()->name." {$data['decision']} {$booking->guest_name}'s requested {$label} time.",
+            'guests',
+            [
+                'subject_type' => Booking::class,
+                'subject_id'   => $booking->id,
+                'booking_id'   => $booking->id,
+                'property_id'  => $booking->property_id,
+                'severity'     => $data['decision'] === 'approved' ? 'success' : 'warning',
+            ]
+        );
+
+        return back()->with('success', ucfirst($label)." time request {$data['decision']}.");
+    }
+
     public function approveIdSide(Request $request, Booking $booking, string $side)
     {
         abort_unless(in_array($side, ['front', 'back'], true), 404);

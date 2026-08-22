@@ -112,6 +112,19 @@ class PropertyController extends Controller
         return response()->json(['ok' => true, 'checkout_time' => $property->checkout_time]);
     }
 
+    public function updateCheckinTime(Request $request, Property $property)
+    {
+        $data = $request->validate([
+            'checkin_time' => ['required', 'date_format:H:i'],
+        ]);
+
+        $property->update(['checkin_time' => $data['checkin_time']]);
+
+        ActivityLog::record('property_updated', "{$property->name} check-in time was updated.", 'edit', $property);
+
+        return response()->json(['ok' => true, 'checkin_time' => $property->checkin_time]);
+    }
+
     public function updateLockboxCode(Request $request, Property $property)
     {
         $data = $request->validate([
@@ -265,6 +278,7 @@ class PropertyController extends Controller
             'active' => ['nullable', 'boolean'],
             'timezone' => ['nullable', 'string', 'max:100'],
             'checkout_time' => ['nullable', 'date_format:H:i'],
+            'checkin_time' => ['nullable', 'date_format:H:i'],
         ]);
 
         $data['slug'] = $data['slug'] ?: Str::slug($data['name']);

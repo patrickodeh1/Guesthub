@@ -92,6 +92,43 @@
                         });
                     });
                 </script>
+            </section>
+            <section class="card card-pad">
+                <h2 class="section-title">Check-in time</h2>
+                <p class="section-copy">Standard check-in time for this property. Address is released to the guest 1 hour before this time. Saves independently of the form above.</p>
+                <form id="checkin-time-form" class="mt-4 flex items-end gap-3">
+                    <label class="field-label flex-1">
+                        Check-in time
+                        <input type="time" name="checkin_time" id="checkin_time_input" value="{{ $property->checkin_time ?? '16:00' }}" class="input mt-1">
+                    </label>
+                    <button type="submit" class="btn-secondary">Save</button>
+                    <span id="checkin-time-status" class="text-sm font-semibold"></span>
+                </form>
+                <script>
+                    document.getElementById('checkin-time-form').addEventListener('submit', function(e) {
+                        e.preventDefault();
+                        var statusEl = document.getElementById('checkin-time-status');
+                        var value = document.getElementById('checkin_time_input').value;
+                        statusEl.textContent = 'Saving...';
+                        statusEl.className = 'text-sm font-semibold text-slate-500';
+                        fetch("{{ route('admin.properties.checkin-time', $property) }}", {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Content-Type': 'application/json',
+                            },
+                            body: JSON.stringify({ checkin_time: value }),
+                        }).then(function(response) {
+                            if (!response.ok) throw new Error('Save failed');
+                            statusEl.textContent = 'Saved';
+                            statusEl.className = 'text-sm font-semibold text-emerald-600';
+                        }).catch(function() {
+                            statusEl.textContent = 'Failed to save. Try again.';
+                            statusEl.className = 'text-sm font-semibold text-red-600';
+                        });
+                    });
+                </script>
+            </section>
 @endif
         </aside>
 
