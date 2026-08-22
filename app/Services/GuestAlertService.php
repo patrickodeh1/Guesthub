@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Mail\GuestAlertMail;
 use App\Models\Booking;
 use App\Models\Setting;
+use App\Models\User;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
@@ -160,11 +161,15 @@ class GuestAlertService
             SmsNotificationService::guestAlert($booking->phone, $message);
         }
 
-        if ($row['guest_email'] && $booking->email) {
-            try {
-                Mail::to($booking->email)->send(new GuestAlertMail(self::labels()[$event], $message));
-            } catch (\Throwable $e) {
-                Log::error("Guest alert email failed (guest, {$event}): ".$e->getMessage());
+        if ($row['guest_email']) {
+            if ($booking->email) {
+                try {
+                    Mail::to($booking->email)->send(new GuestAlertMail(self::labels()[$event], $message));
+                } catch (\Throwable $e) {
+                    Log::error("Guest alert email failed (guest, {$event}): ".$e->getMessage());
+                }
+            } else {
+                Log::warning("Guest alert guest email skipped ({$event}): guest_email is enabled but booking {$booking->booking_id} has no email on file.");
             }
         }
 
@@ -186,11 +191,23 @@ class GuestAlertService
             }
         }
 
-        if ($row['admin_email'] && $adminEmail) {
-            try {
-                Mail::to($adminEmail)->send(new GuestAlertMail(self::labels()[$event], "[{$booking->guest_name}] ".$message));
-            } catch (\Throwable $e) {
-                Log::error("Guest alert email failed (admin, {$event}): ".$e->getMessage());
+        if ($row['admin_email']) {
+            $adminEmails = collect([$adminEmail])
+                ->merge(User::where('role', 'owner')->pluck('email'))
+                ->filter()
+                ->unique()
+                ->values();
+
+            if ($adminEmails->isNotEmpty()) {
+                foreach ($adminEmails as $recipient) {
+                    try {
+                        Mail::to($recipient)->send(new GuestAlertMail(self::labels()[$event], "[{$booking->guest_name}] ".$message));
+                    } catch (\Throwable $e) {
+                        Log::error("Guest alert email failed (admin, {$event}, {$recipient}): ".$e->getMessage());
+                    }
+                }
+            } else {
+                Log::warning("Guest alert admin email skipped ({$event}): admin_email is enabled but no Contact Email is set in Settings > General and no Owner users have an email on file.");
             }
         }
     }
