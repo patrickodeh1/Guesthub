@@ -25,27 +25,27 @@ get sign-off, then implement. See PROD_INSTRUCTIONS.md for anything requiring pr
 or client confirmation — do not guess at prod state.
 
 ## Critical fixes
-1. ~~Session/"page doesn't exist" after inactivity~~ — DIAGNOSED, no code bug found;
+✔️1. ~~Session/"page doesn't exist" after inactivity~~ — DIAGNOSED, no code bug found;
    added trustProxies() fix; rest is a prod .env checklist (see PROD_INSTRUCTIONS.md #5)
-2. ~~Root domain shows admin login instead of coming-soon page — NEW landing page (Q4/Q5)~~ — DONE
+✔️2. ~~Root domain shows admin login instead of coming-soon page — NEW landing page (Q4/Q5)~~ — DONE
    (payment deferred per direction; contact form + admin leads list built instead)
-3. Inner iframe/scroll issue on steps pages
-4. Text alerts not working (Q2)
-5. ~~Check-in time showed system's checkout time (10am) as recommended~~ — DONE.
+✔️3. Inner iframe/scroll issue on steps pages
+✔️4. Text alerts not working (Q2)
+✔️5. ~~Check-in time showed system's checkout time (10am) as recommended~~ — DONE.
    Guest check-in dropdown now recommends 4pm (shown first), helper text corrected.
    Handled together with task 7.
-6. ~~Pending check-in page missing property image header~~ — DONE. The "arrival"
+✔️6. ~~Pending check-in page missing property image header~~ — DONE. The "arrival"
    state (check-in day page, "We Can't Wait To See You!", before GPS check-in) was
    the only guest-facing state missing the property hero image — added it, matching
    the same image treatment already used on the other status pages.
-7. ~~Checkout time picker should only allow 7am–2pm~~ — DONE (with task 5). Range
+✔️7. ~~Checkout time picker should only allow 7am–2pm~~ — DONE (with task 5). Range
    narrowed to 7am-2pm, 10am recommended and shown first.
-8. ~~Flip front/back ID review + independent approve/reject + resubmit alert~~ — DONE (merged with 22)
-9. ~~ID capture: auto-fill frame + auto-capture, no manual button~~ — DONE (combined
+✔️8. ~~Flip front/back ID review + independent approve/reject + resubmit alert~~ — DONE (merged with 22)
+✔️9. ~~ID capture: auto-fill frame + auto-capture, no manual button~~ — DONE (combined
    with 10 + 11, see PROD_INSTRUCTIONS.md for tuning/self-hosting follow-ups)
-10. ~~ID photos showing overlay/haze ("Hayes film") on every guest~~ — DONE (combined
+✔️10. ~~ID photos showing overlay/haze ("Hayes film") on every guest~~ — DONE (combined
     with 9). Root cause: capture fired before camera autofocus/exposure settled.
-11. ~~ID photos blurry — blur detection not working~~ — DONE (combined with 9). Replaced
+✔️11. ~~ID photos blurry — blur detection not working~~ — DONE (combined with 9). Replaced
     untested hand-rolled threshold with OpenCV.js-based detection; needs real-world
     threshold tuning (see PROD_INSTRUCTIONS.md).
 12. ~~Checkout status not updating day-before / warning before final "checked out"
