@@ -47,7 +47,6 @@ class SettingsController extends Controller
             'default_intro' => ['nullable', 'string'],
             'gps_verify_message' => ['nullable', 'string', 'max:500'],
             'lock_message' => ['nullable', 'string', 'max:500'],
-            'background_check_step_name' => ['nullable', 'string', 'max:100'],
             'background_check_step_instructions' => ['nullable', 'string', 'max:1000'],
         ]);
 
