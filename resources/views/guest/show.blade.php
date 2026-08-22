@@ -338,6 +338,7 @@
                                     <div class="w-[88%] rounded-lg border-4 border-white" style="aspect-ratio:1.586/1;box-shadow:0 0 0 9999px rgba(0,0,0,0.45)"></div>
                                 </div>
                                 <p id="camera-instruction-label" class="pointer-events-none absolute top-2 left-0 right-0 text-center text-white text-sm font-bold" style="text-shadow:0 1px 3px rgba(0,0,0,0.8)"></p>
+                                <p class="pointer-events-none absolute bottom-2 left-0 right-0 text-center text-white text-xs font-semibold px-3" style="text-shadow:0 1px 3px rgba(0,0,0,0.8)">Use a contrasting background so all edges show</p>
                             </div>
                             <div id="capture-btn-wrapper" class="hidden mt-3 flex flex-col items-center gap-2">
                                 <p id="idw-capture-status" class="text-sm font-semibold text-slate-700 text-center">Loading camera…</p>
@@ -1241,9 +1242,9 @@
                         var back = document.getElementById("photo-id-back-data").value;
                         var frontBlur = document.getElementById("front-blur-warning");
                         var backBlur = document.getElementById("back-blur-warning");
-                        if (!front) { alert("Please take a photo of the front of your ID."); return; }
+                        if (idwFrontRequired && !front) { alert("Please take a photo of the front of your ID."); return; }
                         if (!isPassport && idwBackRequired && !back) { alert("Please take a photo of the back of your ID."); return; }
-                        if (!frontBlur.classList.contains("hidden")) { alert("Front ID photo is blurry. Please retake."); return; }
+                        if (idwFrontRequired && !frontBlur.classList.contains("hidden")) { alert("Front ID photo is blurry. Please retake."); return; }
                         if (!isPassport && idwBackRequired && !backBlur.classList.contains("hidden")) { alert("Back ID photo is blurry. Please retake."); return; }
                     }
 
@@ -1257,7 +1258,9 @@
                     var fd = new FormData();
                     fd.append("_token", document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : "");
                     if (photoIdRequired) {
-                        fd.set("photo_id", b64toBlob(document.getElementById("photo-id-data").value), "front.jpg");
+                        if (idwFrontRequired) {
+                            fd.set("photo_id", b64toBlob(document.getElementById("photo-id-data").value), "front.jpg");
+                        }
                         if (!isPassport && idwBackRequired) {
                             fd.set("photo_id_back", b64toBlob(document.getElementById("photo-id-back-data").value), "back.jpg");
                         }

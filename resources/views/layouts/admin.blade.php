@@ -40,7 +40,6 @@
         @php
             $navSections = [
                 'Settings' => [
-                    ['settings',   'Settings',          'admin.settings.edit',      'admin.settings.*'],
                     ['categories', 'Manage Categories', 'admin.categories.index',   'admin.categories.*'],
                     ['folder',     'Media Library',    'admin.media.index',        'admin.media.*'],
                     ['users',      'Users',             'admin.users.index',        'admin.users.*'],
@@ -94,6 +93,26 @@
                         </div>
                     </div>
                 @endforeach
+            </div>
+        </div>
+
+        @php
+            $settingsActive = request()->routeIs('admin.settings.*');
+        @endphp
+        <p class="mt-4 mb-1 px-3 text-xs font-bold uppercase tracking-widest text-slate-400">Settings</p>
+        <div>
+            <div class="flex items-center rounded-sm {{ $settingsActive ? 'bg-white/10 text-white' : 'text-slate-200' }}">
+                <a href="{{ route('admin.settings.edit') }}" data-tour="nav-settings" class="flex flex-1 items-center gap-2.5 px-3 py-2.5 transition hover:text-white">
+                    <span class="grid h-5 w-5 shrink-0 place-items-center"><x-icon name="settings" class="h-4 w-4" /></span>
+                    <span class="font-medium">Settings</span>
+                </a>
+                <button type="button" onclick="document.getElementById('nav-settings-submenu').classList.toggle('hidden'); this.classList.toggle('rotate-90')" class="px-2 py-2.5 transition hover:text-white {{ $settingsActive ? 'rotate-90' : '' }}">
+                    <x-icon name="chevron-right" class="h-3.5 w-3.5" />
+                </button>
+            </div>
+            <div id="nav-settings-submenu" class="ml-2 grid min-w-0 gap-1 border-l border-white/10 pl-2 {{ $settingsActive ? '' : 'hidden' }}">
+                <a href="{{ route('admin.settings.edit') }}" class="block rounded-sm px-2 py-1.5 text-xs leading-snug transition {{ request()->routeIs('admin.settings.edit') ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white' }}">General</a>
+                <a href="{{ route('admin.settings.notifications.edit') }}" class="block rounded-sm px-2 py-1.5 text-xs leading-snug transition {{ request()->routeIs('admin.settings.notifications.*') ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white' }}">Notifications</a>
             </div>
         </div>
 
