@@ -107,3 +107,31 @@ checkout time vs. the standard checkout time.
 Text-only UI change (added the missing "alerts the cleaning staff that it's OK
 to come in" line to the modal). No behavioral logic changed — nothing to test
 here beyond a visual check that the new copy renders correctly.
+
+---
+
+## Todo 3: "Back to guide" from checkout wizard
+
+**What it is:** In the `checkout_available` state, clicking "Thanks for
+staying. Time to check out. Click here to begin." hides the guide and shows
+the checkout step wizard, with no way back — a guest who wasn't ready to
+check out was stuck until they refreshed the page. Added a "Back to guide"
+button inside the wizard, but only enabled at the `checkout_available` call
+site (where the wizard's `next-section` genuinely points back to the guide),
+not at the `checkout_locked` call site (where `next-section` points to the
+post-checkout completion screen, not the guide — a back link there would be
+misleading).
+
+**How to test:**
+- On a checkout-day booking before the effective checkout time, click "Click
+  here to begin" to enter the checkout wizard.
+- Confirm a "Back to guide" link/button appears near the top of the wizard.
+- Click it → confirm the wizard hides and the guide (with all its tiles,
+  locks, weather badge, etc.) reappears exactly as before.
+- Confirm normal wizard navigation (Next/Previous/All Done → confirm modal)
+  still works after using Back to guide and re-entering the wizard.
+- Separately, confirm the `checkout_locked` state's wizard (guest is past
+  checkout time and steps still need completing) does NOT show a "Back to
+  guide" link — there's no guide to go back to at that point.
+- Confirm the check-in wizard and parking wizard are unaffected (no back
+  link, unchanged behavior).
