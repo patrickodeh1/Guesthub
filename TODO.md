@@ -51,7 +51,32 @@ behavior is intentional. No existing task covers this gap.
    preferences, positioned to feed naturally into the task 26 billing fields. No
    automatic guest notification — manual only, per client instruction.
 
-**Status:** Not yet implemented on this branch.
+**Status:** Implemented on this branch (`fix/task-0-checkin-checkout-approval`), not yet reviewed/tested by client.
+
+- `database/migrations/2026_08_22_120000_add_checkin_time_to_properties.php` — new
+  nullable `properties.checkin_time`, no DB default.
+- `database/migrations/2026_08_22_120100_add_time_preference_status_to_bookings.php`
+  — new `bookings.checkin_time_status` / `checkout_time_status`, with backfill to
+  `approved` for any existing preference.
+- `app/Models/Property.php` — `checkin_time` added to fillable.
+- `app/Models/Booking.php` — `standardCheckinTime()`/`standardCheckoutTime()`
+  (+ formatted variants) added; `effectiveCheckinTime()`/`effectiveCheckoutTime()`
+  gated behind `*_time_status === 'approved'`.
+- `app/Http/Controllers/GuestController.php` — sets `pending`/`null` status on
+  submission, preserves existing decision on resubmission of the same value.
+- `app/Http/Controllers/Admin/PropertyController.php` + `routes/web.php` —
+  `updateCheckinTime` action mirroring `updateCheckoutTime`.
+- `app/Http/Controllers/Admin/BookingController.php` + `routes/web.php` —
+  `updateTimePreferenceStatus` approve/deny action, no auto-notification.
+- `resources/views/admin/properties/form.blade.php` — check-in time mini-form.
+- `resources/views/admin/bookings/show.blade.php` — status shown inline;
+  "Time Preference Review" card appears only when something is pending.
+
+**Not yet done:** wiring the approval action to auto-populate the task 26 billing
+fields (`early_checkin_tier`, `late_checkout_type`, etc.) — admin still sets those
+separately after approving, per plan. No `php artisan migrate` or automated tests
+have been run in this sandbox (no PHP runtime available here) — please run the
+migration and exercise the flow locally/staging before merging.
 
 ---
 

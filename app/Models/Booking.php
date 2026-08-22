@@ -11,7 +11,7 @@ class Booking extends Model
 {
     protected $fillable = [
         'booking_id', 'reservation_id', 'guest_name', 'phone', 'email', 'check_in_date', 'check_out_date',
-        'property_id', 'id_type', 'token', 'photo_id_path', 'photo_id_back_path', 'photo_id_received', 'parking_needed', 'early_checkin', 'early_checkin_tier', 'checkin_time_preference', 'checkout_time_preference', 'gps_verified', 'guest_authenticated_at',
+        'property_id', 'id_type', 'token', 'photo_id_path', 'photo_id_back_path', 'photo_id_received', 'parking_needed', 'early_checkin', 'early_checkin_tier', 'checkin_time_preference', 'checkout_time_preference', 'checkin_time_status', 'checkout_time_status', 'gps_verified', 'guest_authenticated_at',
         'manually_checked_in', 'checked_in_at', 'checked_out_at', 'late_checkout_type', 'late_checkout_hours', 'late_checkout_actual_time', 'gps_overridden', 'status', 'notes', 'welcome_message', 'identity_confirmed_at',
         'approved_at', 'decline_reason', 'archived_at', 'background_check_completed_at', 'deposit_verified_at',
         'access_blocked_at', 'access_blocked_reason',
@@ -336,9 +336,50 @@ class Booking extends Model
         return $date->toDateString() >= $this->check_in_date->toDateString();
     }
 
+    /**
+     * The property's standard check-in time. Falls back to '16:00' in code
+     * only (no DB default, no global Setting) when the property doesn't
+     * have one configured.
+     */
+    public function standardCheckinTime(): string
+    {
+        return $this->property?->checkin_time ?: '16:00';
+    }
+
+    public function standardCheckinTimeFormatted(): string
+    {
+        return $this->safeFormatTime($this->standardCheckinTime());
+    }
+
+    /**
+     * The property's standard check-out time. Falls back to '10:00' in code
+     * only — never reached for any existing property, since those already
+     * have a real stored value from the original column default.
+     */
+    public function standardCheckoutTime(): string
+    {
+        return $this->property?->checkout_time ?: '10:00';
+    }
+
+    public function standardCheckoutTimeFormatted(): string
+    {
+        return $this->safeFormatTime($this->standardCheckoutTime());
+    }
+
+    /**
+     * The check-in time actually in effect for this booking. A guest's
+     * requested preference is only honored once admin-approved; otherwise
+     * this falls back to the property's standard time. A preference request
+     * is a *request*, not an automatic override — approval may carry a
+     * charge (see early_checkin_tier / task 26 billing).
+     */
     public function effectiveCheckinTime(): string
     {
-        return $this->checkin_time_preference ?: \App\Models\Setting::getValue('default_checkin_time', '15:00');
+        if ($this->checkin_time_preference && $this->checkin_time_status === 'approved') {
+            return $this->checkin_time_preference;
+        }
+
+        return $this->standardCheckinTime();
     }
 
     public function effectiveCheckinTimeFormatted(): string
@@ -439,9 +480,19 @@ class Booking extends Model
         return $now->hour >= 18;
     }
 
+    /**
+     * The check-out time actually in effect for this booking. Same approval
+     * gate as effectiveCheckinTime() — a guest's requested preference only
+     * applies once admin-approved, otherwise falls back to the property's
+     * standard checkout time.
+     */
     public function effectiveCheckoutTime(): string
     {
-        return $this->checkout_time_preference ?: ($this->property?->checkout_time ?: '11:00');
+        if ($this->checkout_time_preference && $this->checkout_time_status === 'approved') {
+            return $this->checkout_time_preference;
+        }
+
+        return $this->standardCheckoutTime();
     }
 
     public function effectiveCheckoutTimeFormatted(): string
