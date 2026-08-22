@@ -33,38 +33,43 @@ class GuestAlertService
     public const EVENTS = [
         'registration_received' => [
             'label' => 'Registration received',
-            'default_guest_message' => "GuestHub: Hi {guest_name}, we've received your registration for {property_name}. We'll be in touch as the next steps are ready.",
-            'default_staff_message' => 'GuestHub: {guest_name} submitted their registration for {property_name}.',
+            'default_guest_message' => "GuestHub: Hi {guest_name}, thanks for registering for {property_name}! We're reviewing your details now and will let you know as soon as the next step is ready.",
+            'default_staff_message' => 'GuestHub alert: New registration submitted for {property_name} by {guest_name}. Review it in the admin panel.',
         ],
         'background_check_complete' => [
             'label' => 'Background check complete',
-            'default_guest_message' => 'GuestHub: Hi {guest_name}, your {step_name} for {property_name} is complete.',
-            'default_staff_message' => "GuestHub: {guest_name}'s {step_name} for {property_name} is complete.",
+            'default_guest_message' => "GuestHub: Hi {guest_name}, good news! Your {step_name} for {property_name} is complete. We'll follow up with next steps shortly.",
+            'default_staff_message' => "GuestHub alert: {guest_name}'s {step_name} for {property_name} came back complete.",
         ],
         'fully_approved' => [
             'label' => 'Fully approved',
             'default_guest_message' => "GuestHub: Hi {guest_name}, you're fully approved for {property_name}! Check-in: {check_in_time} on {check_in_date}. Check-out: {check_out_time} on {check_out_date}. Parking: {parking_status}.",
-            'default_staff_message' => 'GuestHub: {guest_name} is fully approved for {property_name}. Check-in: {check_in_time} on {check_in_date}. Check-out: {check_out_time} on {check_out_date}. Parking: {parking_status}.',
+            'default_staff_message' => 'GuestHub alert: {guest_name} was just marked fully approved for {property_name}. Check-in {check_in_date} at {check_in_time}, check-out {check_out_date} at {check_out_time}. Parking: {parking_status}.',
         ],
         'time_to_check_in' => [
             'label' => 'Time to check in',
             'default_guest_message' => "GuestHub: Hi {guest_name}, today's the day! Check-in at {property_name} opens at {check_in_time}.",
-            'default_staff_message' => "GuestHub: {guest_name}'s check-in at {property_name} opens today at {check_in_time}.",
+            'default_staff_message' => 'GuestHub alert: {guest_name} is due to check in today at {property_name}, opening at {check_in_time}. Make sure the unit is ready.',
         ],
         'checkin_completed' => [
             'label' => 'Check-in completed',
             'default_guest_message' => "GuestHub: Hi {guest_name}, you're checked in at {property_name}. Enjoy your stay!",
-            'default_staff_message' => 'GuestHub: {guest_name} has checked in at {property_name}.',
+            'default_staff_message' => 'GuestHub alert: {guest_name} has just checked in at {property_name}.',
         ],
         'checkout_completed' => [
             'label' => 'Check-out completed',
-            'default_guest_message' => 'GuestHub: Hi {guest_name}, thanks for staying at {property_name}. You are now checked out.',
-            'default_staff_message' => 'GuestHub: {guest_name} has checked out of {property_name}.',
+            'default_guest_message' => 'GuestHub: Hi {guest_name}, thanks for staying at {property_name}. You are now checked out. Safe travels!',
+            'default_staff_message' => 'GuestHub alert: {guest_name} has just checked out of {property_name}. The unit is ready for turnover.',
         ],
         'photo_id_uploaded' => [
             'label' => 'Photo ID uploaded',
-            'default_guest_message' => 'GuestHub: {guest_name}, your photo ID for {property_name} was received and is being reviewed.',
-            'default_staff_message' => 'GuestHub: {guest_name} uploaded a photo ID for {property_name}. Please review it.',
+            'default_guest_message' => 'GuestHub: Hi {guest_name}, your photo ID for {property_name} was received and is being reviewed. No action needed for now.',
+            'default_staff_message' => 'GuestHub alert: {guest_name} uploaded a photo ID for {property_name}. Please log in and review it.',
+        ],
+        'photo_id_declined' => [
+            'label' => 'Photo ID declined',
+            'default_guest_message' => 'GuestHub: Hi {guest_name}, the {id_side} of your ID for {property_name} was not approved. Reason: {decline_reason}. Please log back in to re-upload it.',
+            'default_staff_message' => 'GuestHub alert: The {id_side} of {guest_name}\'s ID for {property_name} was declined. Reason: {decline_reason}. Guest has been asked to re-upload.',
         ],
     ];
 
@@ -115,6 +120,14 @@ class GuestAlertService
                 'contact_email' => true,
                 'owner_sms' => true,
                 'owner_email' => true,
+            ],
+            'photo_id_declined' => [
+                'guest_sms' => true,
+                'guest_email' => true,
+                'contact_sms' => false,
+                'contact_email' => false,
+                'owner_sms' => false,
+                'owner_email' => false,
             ],
         ];
     }
@@ -209,16 +222,20 @@ class GuestAlertService
      * Send the alert for a given lifecycle event, per the current settings.
      * Safe to call even if the event key is unknown (no-op) so call sites
      * never need to guard against typos causing a hard failure.
+     *
+     * $extraTokens lets a call site fill in event-specific placeholders that
+     * aren't derived from the booking itself, e.g. {id_side} and
+     * {decline_reason} for photo_id_declined.
      */
-    public static function send(string $event, Booking $booking): void
+    public static function send(string $event, Booking $booking, array $extraTokens = []): void
     {
         if (! array_key_exists($event, self::EVENTS)) {
             return;
         }
 
         $row = self::config()[$event];
-        $guestMessage = self::render($row['guest_message'], $booking);
-        $staffMessage = self::render($row['staff_message'], $booking);
+        $guestMessage = self::render($row['guest_message'], $booking, $extraTokens);
+        $staffMessage = self::render($row['staff_message'], $booking, $extraTokens);
 
         if ($row['guest_sms'] && $booking->phone) {
             SmsNotificationService::guestAlert($booking->phone, $guestMessage);
@@ -337,13 +354,13 @@ class GuestAlertService
         return $normalized ?: null;
     }
 
-    protected static function render(string $template, Booking $booking): string
+    protected static function render(string $template, Booking $booking, array $extraTokens = []): string
     {
         $parkingStatus = is_null($booking->parking_needed)
             ? 'not yet specified'
             : ($booking->parking_needed ? 'confirmed' : 'not needed');
 
-        return strtr($template, [
+        $tokens = [
             '{guest_name}' => $booking->guest_name,
             '{property_name}' => $booking->property?->name ?? 'your property',
             '{check_in_date}' => $booking->check_in_date?->format('M j, Y') ?? '',
@@ -352,6 +369,12 @@ class GuestAlertService
             '{check_out_time}' => $booking->effectiveCheckoutTimeFormatted(),
             '{parking_status}' => $parkingStatus,
             '{step_name}' => Setting::getValue('background_check_step_name', 'Background Check'),
-        ]);
+        ];
+
+        foreach ($extraTokens as $key => $value) {
+            $tokens['{'.$key.'}'] = $value;
+        }
+
+        return strtr($template, $tokens);
     }
 }
