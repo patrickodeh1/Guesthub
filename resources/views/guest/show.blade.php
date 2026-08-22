@@ -1551,7 +1551,7 @@
         @elseif($state === 'checkout_available')
             @if(count($checkoutSteps) > 0)
                 <div id="checkout-wizard-wrapper" style="display:none">
-                    <x-step-wizard :steps="$checkoutSteps" type="checkout" next-section="checkout-guide-section" :booking-id="$booking->booking_id" :token="$booking->token" />
+                    <x-step-wizard :steps="$checkoutSteps" type="checkout" next-section="checkout-guide-section" :booking-id="$booking->booking_id" :token="$booking->token" :show-back-link="true" />
                 </div>
             @endif
             <div class="guest-portal-card" id="checkout-guide-section">

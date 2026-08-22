@@ -107,3 +107,89 @@ checkout time vs. the standard checkout time.
 Text-only UI change (added the missing "alerts the cleaning staff that it's OK
 to come in" line to the modal). No behavioral logic changed — nothing to test
 here beyond a visual check that the new copy renders correctly.
+
+---
+
+## Todo 3: "Back to guide" from checkout wizard
+
+**What it is:** In the `checkout_available` state, clicking "Thanks for
+staying. Time to check out. Click here to begin." hides the guide and shows
+the checkout step wizard, with no way back — a guest who wasn't ready to
+check out was stuck until they refreshed the page. Added a "Back to guide"
+button inside the wizard, but only enabled at the `checkout_available` call
+site (where the wizard's `next-section` genuinely points back to the guide),
+not at the `checkout_locked` call site (where `next-section` points to the
+post-checkout completion screen, not the guide — a back link there would be
+misleading).
+
+**How to test:**
+- On a checkout-day booking before the effective checkout time, click "Click
+  here to begin" to enter the checkout wizard.
+- Confirm a "Back to guide" link/button appears near the top of the wizard.
+- Click it → confirm the wizard hides and the guide (with all its tiles,
+  locks, weather badge, etc.) reappears exactly as before.
+- Confirm normal wizard navigation (Next/Previous/All Done → confirm modal)
+  still works after using Back to guide and re-entering the wizard.
+- Separately, confirm the `checkout_locked` state's wizard (guest is past
+  checkout time and steps still need completing) does NOT show a "Back to
+  guide" link — there's no guide to go back to at that point.
+- Confirm the check-in wizard and parking wizard are unaffected (no back
+  link, unchanged behavior).
+
+---
+
+## Todo 4: Checkout notice visibility
+
+**What it is:** The "Check-out is coming up" / "You're checking out today"
+banner (shown in `checkout_notice` and `checkout_available` states, on both
+the main guest page and any category detail page since they share the same
+layout) was small, low-contrast text. Restyled to a larger, bolder card with
+an icon and stronger amber background so it's clearly noticeable.
+
+**How to test:**
+- View the guest portal in `checkout_notice` state (day before checkout,
+  after 6pm) — confirm the banner is prominent, not easy to miss.
+- View it in `checkout_available` state (checkout day) — same check.
+- Navigate into a guide category detail page while in either state — confirm
+  the same prominent banner appears there too (shared layout).
+- Confirm the correct time and copy still show for each state.
+
+---
+
+## Todo 5: Checkout wizard final button label
+
+**What it is:** Client explicitly requested (task 29) that the last button in
+the checkout wizard say "Check out" — it was showing "All Done" instead.
+Fixed to "Check out". The rest of task 29 (immediate status change + reload
+so the guest sees the real locked-out page right away, no stale
+guide/menu access) was already correctly implemented — only the label was
+wrong.
+
+**How to test:**
+- Walk a test booking through checkout steps to the last step.
+- Confirm the final button reads "Check out" (not "All Done").
+- Click it, confirm the "Ready to check out?" modal appears as before.
+- Confirm "Yes, I'm Checked Out" still triggers the reload → guest lands on
+  the locked-out/checked-out page immediately, no way to get back to the
+  guide/menu.
+
+---
+
+## Todo 6: Guest list search — exact match for IDs, pattern for names
+
+**What it is:** The admin guest list search treated booking ID, reservation
+ID, and email the same as guest name — all partial/pattern (`LIKE %term%`)
+matches. Per instruction, only `guest_name` should use pattern matching now;
+`booking_id`, `reservation_id`, and `email` use exact matches.
+
+**How to test:**
+- Search by a full, exact booking ID → confirm the matching guest is found.
+- Search by a partial/substring of a booking ID → confirm NO results come
+  back for that partial ID (previously this would have matched).
+- Same two checks for reservation ID.
+- Same two checks for email (exact address returns a match, a partial/substring
+  of an email returns nothing).
+- Search by a partial guest name (e.g. first few letters of a name) → confirm
+  it still matches, since name search remains pattern-based.
+- Confirm search results still respect existing filters (status, property)
+  and pagination, unaffected by this change.

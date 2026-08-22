@@ -39,12 +39,26 @@
 @endif
 @if(in_array($state, ['checkout_notice', 'checkout_available'], true))
     <div class="mx-auto mt-4 w-full max-w-[390px] px-4">
-        <div class="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800">
-            @if($state === 'checkout_notice')
-                Check-out is coming up. Your check-out time is {{ $booking->effectiveCheckoutTimeFormatted() }} tomorrow.
-            @else
-                You're checking out today. Check-out time is {{ $booking->effectiveCheckoutTimeFormatted() }}.
-            @endif
+        <div class="flex items-start gap-3 rounded-xl border-2 border-amber-300 bg-amber-100 px-4 py-3.5 shadow-sm">
+            <span class="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-amber-500 text-white">
+                <x-icon name="clock" class="h-4 w-4" />
+            </span>
+            <div>
+                <p class="text-sm font-bold text-amber-900">
+                    @if($state === 'checkout_notice')
+                        Check-out is coming up
+                    @else
+                        You're checking out today
+                    @endif
+                </p>
+                <p class="mt-0.5 text-sm font-semibold text-amber-800">
+                    @if($state === 'checkout_notice')
+                        Check-out time is {{ $booking->effectiveCheckoutTimeFormatted() }} tomorrow.
+                    @else
+                        Check-out time is {{ $booking->effectiveCheckoutTimeFormatted() }}.
+                    @endif
+                </p>
+            </div>
         </div>
     </div>
 @endif

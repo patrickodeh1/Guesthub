@@ -1,4 +1,4 @@
-@props(['steps', 'type' => 'checkin', 'nextSection' => 'guest-guide-section', 'bookingId' => 'PREVIEW', 'token' => 'preview'])
+@props(['steps', 'type' => 'checkin', 'nextSection' => 'guest-guide-section', 'bookingId' => 'PREVIEW', 'token' => 'preview', 'showBackLink' => false])
 @php $siteLogo = \App\Models\Setting::getValue('site_logo'); @endphp
 @php $total = count($steps); @endphp
 @if($total > 0)
@@ -14,6 +14,12 @@
         </span>
     </div>
     <div class="px-6 pt-4">
+        @if($showBackLink)
+            <button type="button" id="wizard-back-to-guide-{{ $type }}" class="mb-3 inline-flex items-center gap-1 text-sm font-semibold text-slate-500 hover:text-slate-800">
+                <x-icon name="arrow-left" class="h-4 w-4" />
+                Back to guide
+            </button>
+        @endif
         <p class="guest-status-kicker">{{ $type === 'checkout' ? 'Check-out' : ($type === 'parking' ? 'Parking' : 'Check-in') }}</p>
         <h1 class="guest-status-title" id="wizard-title-{{ $type }}">{{ $steps[0]['title'] }}</h1>
     </div>
@@ -58,7 +64,7 @@
             <button type="button" id="wizard-next-{{ $type }}" class="guest-primary-btn flex-1" @if($total === 1) style="display:none" @endif>Next</button>
             <button type="button" id="wizard-done-{{ $type }}" class="guest-primary-btn is-go flex-1" @if($total > 1) style="display:none" @endif>
                 <x-icon name="check" class="h-4 w-4" />
-                {{ $type === "checkout" ? "All Done" : ($type === "checkin" ? "I'm Checked In!" : "Continue to Guide") }}
+                {{ $type === "checkout" ? "Check out" : ($type === "checkin" ? "I'm Checked In!" : "Continue to Guide") }}
             </button>
         </div>
     </div>
@@ -113,6 +119,24 @@
 
     document.getElementById("wizard-next-" + type).addEventListener("click", function() { if (current < total - 1) goTo(current + 1); });
     document.getElementById("wizard-prev-" + type).addEventListener("click", function() { if (current > 0) goTo(current - 1); });
+
+    var backLink = document.getElementById("wizard-back-to-guide-" + type);
+    if (backLink) {
+        backLink.addEventListener("click", function() {
+            var wizardRoot = document.getElementById("step-wizard-" + type);
+            var guideSection = document.getElementById("{{ $nextSection }}");
+            var wizardWrapper = wizardRoot ? wizardRoot.closest('[id$="-wizard-wrapper"]') : null;
+            if (wizardWrapper) {
+                wizardWrapper.style.display = "none";
+            } else if (wizardRoot) {
+                wizardRoot.style.display = "none";
+            }
+            if (guideSection) {
+                guideSection.style.display = "";
+            }
+        });
+    }
+
     function runConfirm() {
         var confirmUrl = type === "checkin"
             ? "{{ route('guest.confirm-checkin', [$bookingId, $token]) }}"
