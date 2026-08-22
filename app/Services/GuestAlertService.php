@@ -10,70 +10,100 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 /**
- * Sends the 6 guest lifecycle alerts requested in task 30, with globally
- * customizable message templates and per-event checkboxes (task 31) for
- * whether the guest and/or the admin/owner receive each one, over SMS
- * and/or email. Client confirmed: "text are preferred" but both channels
- * are needed and are owner-selectable per alert, not guest-selectable.
+ * Sends the guest lifecycle alerts with globally customizable message
+ * templates and per-event, per-role toggles for who receives each one and
+ * over which channel(s).
+ *
+ * Each event has a separate "guest" wording and "staff" wording, since the
+ * guest-facing copy ("Hi {guest_name}, you're checked in!") reads wrong when
+ * forwarded to staff, who need it phrased as a notice about the guest
+ * instead. Recipients are: the guest themselves, the Contact desk (Settings
+ * > General contact_phone/contact_email), and each staff role (owner,
+ * manager, staff, viewer) individually, pulled from that role's own users.
+ * All enabled recipients across every source are normalized and deduped
+ * before sending so the same phone/email is never messaged twice for one
+ * event.
  *
  * All settings live under a single Setting key ('guest_alerts_config') as
- * one JSON blob, since this is really one coherent settings unit (a table
- * of 6 rows x several toggles) rather than several independent values.
+ * one JSON blob, since this is one coherent settings unit rather than
+ * several independent values.
  */
 class GuestAlertService
 {
     public const EVENTS = [
         'registration_received' => [
             'label' => 'Registration received',
-            'default_message' => "GuestHub: Hi {guest_name}, we've received your registration for {property_name}. We'll be in touch as the next steps are ready.",
+            'default_guest_message' => "GuestHub: Hi {guest_name}, we've received your registration for {property_name}. We'll be in touch as the next steps are ready.",
+            'default_staff_message' => 'GuestHub: {guest_name} submitted their registration for {property_name}.',
         ],
         'background_check_complete' => [
             'label' => 'Background check complete',
-            'default_message' => 'GuestHub: Hi {guest_name}, your {step_name} for {property_name} is complete.',
+            'default_guest_message' => 'GuestHub: Hi {guest_name}, your {step_name} for {property_name} is complete.',
+            'default_staff_message' => "GuestHub: {guest_name}'s {step_name} for {property_name} is complete.",
         ],
         'fully_approved' => [
             'label' => 'Fully approved',
-            'default_message' => "GuestHub: Hi {guest_name}, you're fully approved for {property_name}! Check-in: {check_in_time} on {check_in_date}. Check-out: {check_out_time} on {check_out_date}. Parking: {parking_status}.",
+            'default_guest_message' => "GuestHub: Hi {guest_name}, you're fully approved for {property_name}! Check-in: {check_in_time} on {check_in_date}. Check-out: {check_out_time} on {check_out_date}. Parking: {parking_status}.",
+            'default_staff_message' => 'GuestHub: {guest_name} is fully approved for {property_name}. Check-in: {check_in_time} on {check_in_date}. Check-out: {check_out_time} on {check_out_date}. Parking: {parking_status}.',
         ],
         'time_to_check_in' => [
             'label' => 'Time to check in',
-            'default_message' => "GuestHub: Hi {guest_name}, today's the day! Check-in at {property_name} opens at {check_in_time}.",
+            'default_guest_message' => "GuestHub: Hi {guest_name}, today's the day! Check-in at {property_name} opens at {check_in_time}.",
+            'default_staff_message' => "GuestHub: {guest_name}'s check-in at {property_name} opens today at {check_in_time}.",
         ],
         'checkin_completed' => [
             'label' => 'Check-in completed',
-            'default_message' => "GuestHub: Hi {guest_name}, you're checked in at {property_name}. Enjoy your stay!",
+            'default_guest_message' => "GuestHub: Hi {guest_name}, you're checked in at {property_name}. Enjoy your stay!",
+            'default_staff_message' => 'GuestHub: {guest_name} has checked in at {property_name}.',
         ],
         'checkout_completed' => [
             'label' => 'Check-out completed',
-            'default_message' => 'GuestHub: Hi {guest_name}, thanks for staying at {property_name}. You are now checked out.',
+            'default_guest_message' => 'GuestHub: Hi {guest_name}, thanks for staying at {property_name}. You are now checked out.',
+            'default_staff_message' => 'GuestHub: {guest_name} has checked out of {property_name}.',
         ],
         'photo_id_uploaded' => [
             'label' => 'Photo ID uploaded',
-            'default_message' => 'GuestHub: {guest_name} uploaded a photo ID for {property_name}. Please review it.',
+            'default_guest_message' => 'GuestHub: {guest_name}, your photo ID for {property_name} was received and is being reviewed.',
+            'default_staff_message' => 'GuestHub: {guest_name} uploaded a photo ID for {property_name}. Please review it.',
         ],
     ];
 
     /**
-     * Default toggle state for an event when nothing has been configured yet.
-     * Both SMS and email, for both guest and admin, are on by default so a
-     * fresh install notifies both parties over both channels out of the box;
-     * each can still be turned off per event from Settings.
+     * Roles that can be individually toggled as alert recipients, in
+     * addition to the guest and the Contact desk.
+     */
+    public const STAFF_ROLES = ['owner', 'manager', 'staff', 'viewer'];
+
+    /**
+     * All recipient sources a toggle can exist for: the guest, the Contact
+     * desk, and each staff role.
+     */
+    public const RECIPIENT_SOURCES = ['guest', 'contact', 'owner', 'manager', 'staff', 'viewer'];
+
+    /**
+     * Default toggle state for an event when nothing has been configured
+     * yet. Guest, Contact desk, and Owner are on by default so a fresh
+     * install notifies the guest and the primary staff contact out of the
+     * box; Manager/Staff/Viewer are opt-in since not every install wants
+     * every role paged for every event.
      */
     public static function defaultToggles(): array
     {
-        return [
-            'guest_sms' => true,
-            'guest_email' => true,
-            'admin_sms' => true,
-            'admin_email' => true,
-        ];
+        $toggles = [];
+
+        foreach (self::RECIPIENT_SOURCES as $source) {
+            $onByDefault = in_array($source, ['guest', 'contact', 'owner'], true);
+            $toggles["{$source}_sms"] = $onByDefault;
+            $toggles["{$source}_email"] = $onByDefault;
+        }
+
+        return $toggles;
     }
 
     /**
      * Per-event overrides of defaultToggles(), for events that shouldn't use
-     * the global default. Photo ID uploads are an admin review step, not
-     * something the guest needs to be told about, so guest notifications
-     * default off while admin stays on.
+     * the global default. Photo ID uploads are primarily a staff review
+     * step, so guest notifications default off while staff stay on.
      */
     public static function defaultToggleOverrides(): array
     {
@@ -81,8 +111,10 @@ class GuestAlertService
             'photo_id_uploaded' => [
                 'guest_sms' => false,
                 'guest_email' => false,
-                'admin_sms' => true,
-                'admin_email' => true,
+                'contact_sms' => true,
+                'contact_email' => true,
+                'owner_sms' => true,
+                'owner_email' => true,
             ],
         ];
     }
@@ -94,11 +126,16 @@ class GuestAlertService
         $overrides = self::defaultToggleOverrides();
 
         foreach (self::EVENTS as $key => $meta) {
+            $row = self::migrateLegacyRow($stored[$key] ?? []);
+
             $config[$key] = array_merge(
-                ['message' => $meta['default_message']],
+                [
+                    'guest_message' => $meta['default_guest_message'],
+                    'staff_message' => $meta['default_staff_message'],
+                ],
                 self::defaultToggles(),
                 $overrides[$key] ?? [],
-                $stored[$key] ?? []
+                $row
             );
         }
 
@@ -106,10 +143,33 @@ class GuestAlertService
     }
 
     /**
+     * Map an older stored row (single "message" shared by guest and staff,
+     * and "admin_sms"/"admin_email" instead of per-role toggles) onto the
+     * current shape, so existing installs keep working after this upgrade
+     * without losing their saved wording or on/off choices.
+     */
+    protected static function migrateLegacyRow(array $row): array
+    {
+        if (isset($row['message']) && ! isset($row['guest_message']) && ! isset($row['staff_message'])) {
+            $row['guest_message'] = $row['message'];
+            $row['staff_message'] = $row['message'];
+        }
+        unset($row['message']);
+
+        if (isset($row['admin_sms']) && ! isset($row['contact_sms'])) {
+            $row['contact_sms'] = $row['admin_sms'];
+        }
+        if (isset($row['admin_email']) && ! isset($row['contact_email'])) {
+            $row['contact_email'] = $row['admin_email'];
+        }
+        unset($row['admin_sms'], $row['admin_email']);
+
+        return $row;
+    }
+
+    /**
      * Event labels for display, with the "background check" step's name
-     * substituted in wherever it's admin-customizable (task 32: "whatever
-     * the name for that step is for registration will need to appear in
-     * the user settings under text alerts as that stepped name").
+     * substituted in wherever it's admin-customizable.
      */
     public static function labels(): array
     {
@@ -132,12 +192,14 @@ class GuestAlertService
         foreach (self::EVENTS as $key => $meta) {
             $row = $config[$key] ?? [];
             $clean[$key] = [
-                'message' => trim((string) ($row['message'] ?? $meta['default_message'])) ?: $meta['default_message'],
-                'guest_sms' => (bool) ($row['guest_sms'] ?? false),
-                'guest_email' => (bool) ($row['guest_email'] ?? false),
-                'admin_sms' => (bool) ($row['admin_sms'] ?? false),
-                'admin_email' => (bool) ($row['admin_email'] ?? false),
+                'guest_message' => trim((string) ($row['guest_message'] ?? $meta['default_guest_message'])) ?: $meta['default_guest_message'],
+                'staff_message' => trim((string) ($row['staff_message'] ?? $meta['default_staff_message'])) ?: $meta['default_staff_message'],
             ];
+
+            foreach (self::RECIPIENT_SOURCES as $source) {
+                $clean[$key]["{$source}_sms"] = (bool) ($row["{$source}_sms"] ?? false);
+                $clean[$key]["{$source}_email"] = (bool) ($row["{$source}_email"] ?? false);
+            }
         }
 
         Setting::putValue('guest_alerts_config', json_encode($clean));
@@ -155,16 +217,17 @@ class GuestAlertService
         }
 
         $row = self::config()[$event];
-        $message = self::render($row['message'], $booking);
+        $guestMessage = self::render($row['guest_message'], $booking);
+        $staffMessage = self::render($row['staff_message'], $booking);
 
         if ($row['guest_sms'] && $booking->phone) {
-            SmsNotificationService::guestAlert($booking->phone, $message);
+            SmsNotificationService::guestAlert($booking->phone, $guestMessage);
         }
 
         if ($row['guest_email']) {
             if ($booking->email) {
                 try {
-                    Mail::to($booking->email)->send(new GuestAlertMail(self::labels()[$event], $message));
+                    Mail::to($booking->email)->send(new GuestAlertMail(self::labels()[$event], $guestMessage));
                 } catch (\Throwable $e) {
                     Log::error("Guest alert email failed (guest, {$event}): ".$e->getMessage());
                 }
@@ -173,49 +236,95 @@ class GuestAlertService
             }
         }
 
-        $envAdminNumber = config('services.twilio.admin_notify_number');
-        $settingsAdminNumber = self::normalizePhoneForSms(Setting::getValue('contact_phone'));
-        $adminEmail = Setting::getValue('contact_email');
+        [$staffPhones, $staffEmails] = self::staffRecipients($row);
 
-        if ($row['admin_sms']) {
-            // Send to both the .env-configured number and the admin Settings number,
-            // if both are present and different, so existing .env-based setups keep
-            // working while the Settings page becomes the primary source going forward.
-            $adminNumbers = collect([$envAdminNumber, $settingsAdminNumber])
-                ->filter()
-                ->unique()
-                ->values();
-
-            foreach ($adminNumbers as $adminNumber) {
-                SmsNotificationService::guestAlert($adminNumber, "[{$booking->guest_name}] ".$message);
-            }
+        foreach ($staffPhones as $phone) {
+            SmsNotificationService::guestAlert($phone, $staffMessage);
         }
 
-        if ($row['admin_email']) {
-            $adminEmails = collect([$adminEmail])
-                ->merge(User::where('role', 'owner')->pluck('email'))
-                ->filter()
-                ->unique()
-                ->values();
-
-            if ($adminEmails->isNotEmpty()) {
-                foreach ($adminEmails as $recipient) {
-                    try {
-                        Mail::to($recipient)->send(new GuestAlertMail(self::labels()[$event], "[{$booking->guest_name}] ".$message));
-                    } catch (\Throwable $e) {
-                        Log::error("Guest alert email failed (admin, {$event}, {$recipient}): ".$e->getMessage());
-                    }
+        if (! empty($staffEmails)) {
+            foreach ($staffEmails as $recipient) {
+                try {
+                    Mail::to($recipient)->send(new GuestAlertMail(self::labels()[$event], $staffMessage));
+                } catch (\Throwable $e) {
+                    Log::error("Guest alert email failed (staff, {$event}, {$recipient}): ".$e->getMessage());
                 }
-            } else {
-                Log::warning("Guest alert admin email skipped ({$event}): admin_email is enabled but no Contact Email is set in Settings > General and no Owner users have an email on file.");
             }
+        } elseif (self::anyStaffEmailEnabled($row)) {
+            Log::warning("Guest alert staff email skipped ({$event}): a staff email toggle is enabled but none of the enabled recipients have an email on file.");
         }
     }
 
     /**
+     * Resolve the deduped set of staff phone numbers and emails to notify
+     * for this event, drawing from the Contact desk (Settings > General)
+     * and each individually-toggled role's own users.
+     *
+     * @return array{0: array<int, string>, 1: array<int, string>}
+     */
+    protected static function staffRecipients(array $row): array
+    {
+        $phones = collect();
+        $emails = collect();
+
+        if ($row['contact_sms'] ?? false) {
+            // The .env Twilio admin number is kept as a legacy fallback
+            // recipient alongside the Contact desk toggle, for installs that
+            // never moved their admin number into Settings.
+            $phones->push(self::normalizePhoneForSms(Setting::getValue('contact_phone')));
+            $phones->push(config('services.twilio.admin_notify_number'));
+        }
+        if ($row['contact_email'] ?? false) {
+            $emails->push(Setting::getValue('contact_email'));
+        }
+
+        foreach (self::STAFF_ROLES as $role) {
+            $smsOn = $row["{$role}_sms"] ?? false;
+            $emailOn = $row["{$role}_email"] ?? false;
+
+            if (! $smsOn && ! $emailOn) {
+                continue;
+            }
+
+            $users = User::where('role', $role)->get(['phone', 'email']);
+
+            if ($smsOn) {
+                foreach ($users as $user) {
+                    $phones->push(self::normalizePhoneForSms($user->phone ?? null));
+                }
+            }
+            if ($emailOn) {
+                foreach ($users as $user) {
+                    $emails->push($user->email);
+                }
+            }
+        }
+
+        return [
+            $phones->filter()->unique()->values()->all(),
+            $emails->filter()->unique()->values()->all(),
+        ];
+    }
+
+    protected static function anyStaffEmailEnabled(array $row): bool
+    {
+        if ($row['contact_email'] ?? false) {
+            return true;
+        }
+
+        foreach (self::STAFF_ROLES as $role) {
+            if ($row["{$role}_email"] ?? false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Strip formatting characters (spaces, dashes, parens) from a phone number
-     * pulled from Settings so it's in a Twilio-friendly format. Returns null
-     * if the input is empty so callers can skip sending cleanly.
+     * pulled from Settings/users so it's in a Twilio-friendly format. Returns
+     * null if the input is empty so callers can skip sending cleanly.
      */
     protected static function normalizePhoneForSms(?string $number): ?string
     {
