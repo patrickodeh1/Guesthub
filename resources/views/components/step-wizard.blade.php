@@ -69,7 +69,7 @@
 <div id="checkout-confirm-modal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
     <div class="bg-white rounded-2xl max-w-md w-full p-6">
         <h2 class="text-lg font-bold text-slate-900">Ready to check out?</h2>
-        <p class="mt-2 text-sm leading-6 text-slate-600">This marks your stay as checked out and locks further access to the guide. Make sure you've followed every step above before continuing.</p>
+        <p class="mt-2 text-sm leading-6 text-slate-600">This marks your stay as checked out and locks further access to the guide. It also alerts the cleaning staff that it's OK to come in. Make sure you've completely checked out before continuing.</p>
         <div class="mt-6 flex gap-3">
             <button type="button" id="checkout-confirm-cancel" class="guest-outline-btn flex-1">Not Yet</button>
             <button type="button" id="checkout-confirm-proceed" class="guest-primary-btn is-go flex-1">Yes, I'm Checked Out</button>
