@@ -17,14 +17,13 @@
                 <label class="field-label">Brand color<input type="color" name="brand_color" value="{{ old('brand_color', $settings['brand_color']) }}" class="input h-12"></label>
                 <label class="field-label">Contact phone<input name="contact_phone" value="{{ old('contact_phone', $settings['contact_phone']) }}" class="input"></label>
                 <label class="field-label">Contact email<input name="contact_email" value="{{ old('contact_email', $settings['contact_email']) }}" class="input"></label>
-                <label class="field-label">Background check step name<input name="background_check_step_name" value="{{ old('background_check_step_name', $settings['background_check_step_name']) }}" class="input"><span class="field-help">Shown to guests waiting on this step, and used to label this step's alert in the "Guest lifecycle alerts" section below.</span></label>
-                <label class="field-label">Background check step instructions<textarea name="background_check_step_instructions" rows="2" class="input">{{ old('background_check_step_instructions', $settings['background_check_step_instructions']) }}</textarea><span class="field-help">Shown to guests on the waiting screen for this step.</span></label>
                 <div class="md:col-span-2">
                     @php
                         $messageFields = [
                             'default_intro' => ['label' => 'Default Welcome Message', 'help' => 'Fallback shown on the pre-check-in welcome step when a booking has no custom welcome message set.', 'rows' => 5],
                             'gps_verify_message' => ['label' => 'GPS Verify Message', 'help' => 'Shown above the map on the location verification step.', 'rows' => 3],
                             'lock_message' => ['label' => 'Smart Lock Message', 'help' => 'Shown on the smart lock step when a property has a lock configured.', 'rows' => 3],
+                            'background_check_step_instructions' => ['label' => \App\Models\Setting::getValue('background_check_step_name', 'Background Check'), 'help' => 'Shown to guests on the waiting screen for this step.', 'rows' => 3],
                         ];
                     @endphp
                     <div class="mb-3 flex flex-wrap gap-2">
