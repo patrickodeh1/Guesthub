@@ -242,3 +242,14 @@ hoisting the computation above the `@if`, always defining both variables
   capture UI correctly, front/back required states unaffected.
 - Confirm a booking where only one side was declined by admin still only
   re-prompts for the declined side, not both.
+- **Server-side companion bug (found via manual testing):** the same gap
+  existed in `GuestController::submitIdentity()` — `$frontRequired`/
+  `$backRequired` there only checked `blank(photo_id_path)`, not
+  `photo_id_received`, so even after the view fix, clicking Next on step 2
+  still got rejected with a 422 "photo_id is required" since the client
+  correctly sent no file but the server still demanded one. Fixed the same
+  way (both required flags also check `! $booking->photo_id_received`).
+  Retest: with a booking marked `photo_id_received = true` and no file, walk
+  the guest portal to step 2, click Next → confirm it now advances to step 3
+  without any "required" error, and the booking's status/identity_confirmed_at
+  update correctly with no file ever uploaded.

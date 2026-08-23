@@ -254,10 +254,11 @@ class GuestController extends Controller
     {
         $booking = $this->booking($bookingId, $token);
         // Each side is required only if that specific side is missing (never uploaded,
-        // or cleared out by an admin decline) — a decline on one side should never force
-        // re-upload of an already-approved other side.
-        $frontRequired = blank($booking->photo_id_path);
-        $backRequired = blank($booking->photo_id_back_path) && $booking->id_type !== 'passport';
+        // or cleared out by an admin decline) and the booking isn't already marked
+        // photo_id_received (e.g. captured outside the guest flow) — a decline on one
+        // side should never force re-upload of an already-approved other side.
+        $frontRequired = ! $booking->photo_id_received && blank($booking->photo_id_path);
+        $backRequired = ! $booking->photo_id_received && blank($booking->photo_id_back_path) && $booking->id_type !== 'passport';
 
         $data = $request->validate([
             'photo_id' => [$frontRequired ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
