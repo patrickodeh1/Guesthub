@@ -253,3 +253,31 @@ hoisting the computation above the `@if`, always defining both variables
   the guest portal to step 2, click Next → confirm it now advances to step 3
   without any "required" error, and the booking's status/identity_confirmed_at
   update correctly with no file ever uploaded.
+
+---
+
+## Bugfix: dead time-window check on door-lock category page + misleading message
+
+**What it is:** `guest/category.blade.php` had a redundant `$lockAvailableNow`
+check (based on `$state`) guarding the door-lock card — but
+`GuestController::category()` already redirects the guest away before the
+view renders unless `$state` is `guide`/`checkout_notice`/`checkout_available`,
+so `$lockAvailableNow` could never actually be `false`. In practice, the
+"Door controls are available once you're checked in, and until check-out."
+message could only ever be reached via a *different* condition entirely — no
+locks configured for the property — and had nothing to do with check-in
+timing, making it actively misleading. This text was also never something
+the client asked for; it doesn't appear anywhere in TASKS.md/CLIENT_TASKS.md.
+Removed the dead time-window check and the message entirely; a property with
+no locks configured now renders a blank card (no `<article>` at all) for
+that category, matching every other category's "no content" behavior.
+
+**How to test:**
+- On a property with no locks configured, view the door-lock guide category
+  as a checked-in guest → confirm a blank/empty card (no message), consistent
+  with other categories that have no content.
+- On a property WITH a lock configured, confirm the lock card still renders
+  and functions normally for a checked-in, pre-checkout guest.
+- Confirm a guest who is not checked in / past checkout can't reach this
+  category page at all (redirected to the main guide page), unaffected by
+  this change — this was already enforced at the controller level.
