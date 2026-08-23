@@ -18,8 +18,6 @@ class BookingController extends Controller
 
     public function index(Request $request)
     {
-        Booking::archiveOverdue();
-
         $showArchived = $request->boolean('archived');
         $hasSearch = filled($request->search);
 

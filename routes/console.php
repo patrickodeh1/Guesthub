@@ -13,6 +13,12 @@ Artisan::command('inspire', function () {
 // honored reasonably precisely without needing a real-time queue.
 Schedule::command('bookings:auto-checkout')->everyFiveMinutes();
 
+// Archives bookings past their checkout time. Previously ran as a side
+// effect of loading the admin guest list or dashboard (full-table scan on
+// every page view) - moved to the scheduler for the same reasons task 23's
+// auto-checkout was: predictable cadence, no page-load cost.
+Schedule::command('bookings:archive-overdue')->everyFiveMinutes();
+
 // Task 30: "time to check in" alert, sent once per booking on its check-in
 // day. Runs early morning so guests get it well before typical check-in
 // times; the whereNull(checkin_reminder_sent_at) guard makes re-runs safe.

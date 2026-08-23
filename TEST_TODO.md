@@ -193,3 +193,27 @@ matches. Per instruction, only `guest_name` should use pattern matching now;
   it still matches, since name search remains pattern-based.
 - Confirm search results still respect existing filters (status, property)
   and pagination, unaffected by this change.
+
+---
+
+## Todo 7: Move booking archiving from page-load to scheduled command
+
+**What it is:** `Booking::archiveOverdue()` was being called directly inside
+`BookingController@index` (admin guest list) and `DashboardController` — a
+full-table scan + per-row time comparison run as a side effect of every
+admin page view, the same page-load-polling pattern task 23 was written to
+eliminate for auto-checkout. Moved to its own scheduled command,
+`bookings:archive-overdue`, running every 5 minutes via the scheduler
+alongside `bookings:auto-checkout`. Covered by the same existing
+`schedule:run` cron entry — no new cron line needed on prod.
+
+**How to test:**
+- Confirm a booking well past its checkout time (and past archiving
+  eligibility) is NOT immediately archived just by loading the admin guest
+  list or dashboard anymore.
+- Run `php artisan bookings:archive-overdue` manually (or wait ~5 min for the
+  scheduler) → confirm it gets archived.
+- Confirm the admin guest list's "archived" toggle/filter still correctly
+  shows/hides archived vs. not-archived bookings after this change.
+- Confirm loading the guest list or dashboard repeatedly does not itself
+  trigger any archiving — only the scheduled command does.
