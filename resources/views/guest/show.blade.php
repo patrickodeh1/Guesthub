@@ -281,6 +281,18 @@
 
                     {{-- ══════════════════ STEP 2 — ID capture ══════════════════ --}}
                     <div class="idw-step hidden" data-step="2">
+                        @php
+                            // Only require (and show a capture tile for) a side that's actually
+                            // missing — cleared by an admin decline, never uploaded, or the
+                            // booking isn't already marked photo_id_received (e.g. captured
+                            // outside the guest flow). A decline on one side should never
+                            // re-prompt an already-approved other side. Computed unconditionally
+                            // here (not just inside the "not yet received" branch below) since
+                            // the JS further down references these regardless of which branch
+                            // renders.
+                            $idwFrontRequired = ! $booking->photo_id_received && blank($booking->photo_id_path);
+                            $idwBackRequired = ! $booking->photo_id_received && blank($booking->photo_id_back_path) && $booking->id_type !== 'passport';
+                        @endphp
                         @if($booking->photo_id_received)
                         <div class="mt-5 text-center">
                             <div class="guest-big-check mx-auto">
@@ -290,13 +302,6 @@
                             <p class="mt-1 text-sm text-slate-500">No need to upload it again, you're all set to continue.</p>
                         </div>
                         @else
-                        @php
-                            // Only require (and show a capture tile for) a side that's actually
-                            // missing — cleared by an admin decline, or never uploaded. A decline
-                            // on one side should never re-prompt an already-approved other side.
-                            $idwFrontRequired = blank($booking->photo_id_path);
-                            $idwBackRequired = blank($booking->photo_id_back_path) && $booking->id_type !== 'passport';
-                        @endphp
                         <div class="mt-5" id="id-capture-section">
                             @if($booking->photo_id_front_declined_reason)
                                 <div class="guest-detail-banner mb-4" style="background:#fef3c7;border-color:#fde68a;">

@@ -217,3 +217,28 @@ alongside `bookings:auto-checkout`. Covered by the same existing
   shows/hides archived vs. not-archived bookings after this change.
 - Confirm loading the guest list or dashboard repeatedly does not itself
   trigger any archiving — only the scheduled command does.
+
+---
+
+## Bugfix: 500 error when photo ID marked "received" without upload
+
+**What it is:** `$idwFrontRequired`/`$idwBackRequired` were only computed
+inside the `@else` branch of `@if($booking->photo_id_received)` in the ID
+capture step, but a JS block further down the page referenced them
+unconditionally. If a booking has `photo_id_received = true` without an
+actual `photo_id_path` (e.g. admin manually marks ID as received while
+creating a booking), the "ID already received" branch renders instead and
+those variables were never set — causing a 500 (`Undefined variable
+$idwFrontRequired`) the moment the guest portal tried to render. Fixed by
+hoisting the computation above the `@if`, always defining both variables
+(both `false`/not-required when `photo_id_received` is already true).
+
+**How to test:**
+- Create a booking via admin with photo ID marked as "received" but with no
+  actual photo uploaded (reproduces the reported scenario).
+- Load that guest's portal link → confirm no 500 error, page renders the
+  "ID already received" message correctly.
+- Confirm a normal booking (photo_id_received = false) still shows the
+  capture UI correctly, front/back required states unaffected.
+- Confirm a booking where only one side was declined by admin still only
+  re-prompts for the declined side, not both.
