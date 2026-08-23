@@ -1571,18 +1571,7 @@
                         Checked in
                     </span>
                 </div>
-                <div class="p-6">
-                    <h1 class="guest-status-title">Checking out today</h1>
-                    <p class="mt-2 text-sm leading-6 text-slate-600">Check-out time is {{ $booking->effectiveCheckoutTimeFormatted() }}. You can still use the guide until then.</p>
-                    @if(count($checkoutSteps) > 0)
-                        <button type="button" onclick="document.getElementById('checkout-guide-section').style.display='none';document.getElementById('checkout-wizard-wrapper').style.display='';" class="guest-primary-btn w-full is-go">Thanks for staying. Time to check out. Click here to begin.</button>
-                    @else
-                        <form method="POST" action="{{ route('guest.confirm-checkout', [$booking->booking_id, $booking->token]) }}">
-                            @csrf
-                            <button type="submit" class="guest-primary-btn w-full is-go">Thanks for staying. Time to check out. Click here to begin.</button>
-                        </form>
-                    @endif
-                </div>
+                <x-checkout-today-card :booking="$booking" :has-steps="count($checkoutSteps) > 0" class="p-6" />
                 <div class="guest-guide-body px-6 pb-6">
                     <x-weather-badge :property="$property" class="guest-weather-card" />
                 </div>

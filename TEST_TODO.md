@@ -281,3 +281,34 @@ that category, matching every other category's "no content" behavior.
 - Confirm a guest who is not checked in / past checkout can't reach this
   category page at all (redirected to the main guide page), unaffected by
   this change — this was already enforced at the controller level.
+
+---
+
+## Todo 8: Full "Checking out today" card on category detail pages too
+
+**What it is:** The small amber "You're checking out today" banner at the
+top of the guest layout (shown on every page, including category detail
+pages) is replaced, for the `checkout_available` state specifically, with
+the full card — title, subtitle, and the "Thanks for staying... Click here
+to begin." button — same content already shown on the main guide page.
+Extracted into a shared `<x-checkout-today-card>` component so both pages
+render identical copy. On the main guide page the button behaves as before
+(toggles the wizard, or submits the confirm form directly if there are no
+checkout steps). On category detail pages — which don't have the guide
+page's wizard/confirm-form elements — the button is a link back to the main
+guide page, where the real control lives. The day-before `checkout_notice`
+banner (small amber "Check-out is coming up... tomorrow") is unchanged.
+
+**How to test:**
+- On checkout day, view the main guide page → confirm the full card still
+  shows and the button still works exactly as before (opens wizard, or
+  confirms checkout directly if no steps configured).
+- On checkout day, navigate into any category detail page → confirm the
+  same full card now appears at the top (not the old small banner).
+- Click the button on a category detail page → confirm it takes you back to
+  the main guide page, where you can then begin checkout normally.
+- Confirm the small amber banner still appears as before on the day *before*
+  checkout (`checkout_notice` state), unchanged, on both the guide page and
+  category detail pages.
+- Confirm no small banner AND no "Checking out today" card appears outside
+  checkout day (e.g., normal `guide` state mid-stay).
