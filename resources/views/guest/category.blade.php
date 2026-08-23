@@ -24,6 +24,11 @@
 
 <x-guest-layout :booking="$booking" :property="$booking->property" :title="$displayTitle" :state="$state">
 <section class="guest-detail-shell">
+    @if($state === 'checkout_available')
+        <div class="guest-portal-card p-6">
+            <x-checkout-today-card :booking="$booking" :link-only="true" />
+        </div>
+    @endif
     <x-weather-badge :property="$booking->property" class="guest-weather-card" />
     <header class="guest-detail-hero">
         @if($heroImage)
