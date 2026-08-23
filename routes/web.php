@@ -155,6 +155,10 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     Route::get('settings/notifications', [NotificationSettingsController::class, 'edit'])->name('settings.notifications.edit');
     Route::put('settings/notifications', [NotificationSettingsController::class, 'update'])->name('settings.notifications.update');
 
+    // ─── Notification bell ──────────────────────────────────────────────────
+    Route::post('notifications/dismiss', [App\Http\Controllers\Admin\NotificationController::class, 'dismiss'])->name('notifications.dismiss');
+    Route::post('notifications/mark-all-read', [App\Http\Controllers\Admin\NotificationController::class, 'markAllRead'])->name('notifications.mark-all-read');
+
 
     // ─── Users / Team ─────────────────────────────────────────────────────────
     Route::middleware('role:owner')->group(function () {
