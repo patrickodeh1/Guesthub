@@ -193,3 +193,52 @@ matches. Per instruction, only `guest_name` should use pattern matching now;
   it still matches, since name search remains pattern-based.
 - Confirm search results still respect existing filters (status, property)
   and pagination, unaffected by this change.
+
+---
+
+## Todo 7: Move booking archiving from page-load to scheduled command
+
+**What it is:** `Booking::archiveOverdue()` was being called directly inside
+`BookingController@index` (admin guest list) and `DashboardController` — a
+full-table scan + per-row time comparison run as a side effect of every
+admin page view, the same page-load-polling pattern task 23 was written to
+eliminate for auto-checkout. Moved to its own scheduled command,
+`bookings:archive-overdue`, running every 5 minutes via the scheduler
+alongside `bookings:auto-checkout`. Covered by the same existing
+`schedule:run` cron entry — no new cron line needed on prod.
+
+**How to test:**
+- Confirm a booking well past its checkout time (and past archiving
+  eligibility) is NOT immediately archived just by loading the admin guest
+  list or dashboard anymore.
+- Run `php artisan bookings:archive-overdue` manually (or wait ~5 min for the
+  scheduler) → confirm it gets archived.
+- Confirm the admin guest list's "archived" toggle/filter still correctly
+  shows/hides archived vs. not-archived bookings after this change.
+- Confirm loading the guest list or dashboard repeatedly does not itself
+  trigger any archiving — only the scheduled command does.
+
+---
+
+## Bugfix: 500 error when photo ID marked "received" without upload
+
+**What it is:** `$idwFrontRequired`/`$idwBackRequired` were only computed
+inside the `@else` branch of `@if($booking->photo_id_received)` in the ID
+capture step, but a JS block further down the page referenced them
+unconditionally. If a booking has `photo_id_received = true` without an
+actual `photo_id_path` (e.g. admin manually marks ID as received while
+creating a booking), the "ID already received" branch renders instead and
+those variables were never set — causing a 500 (`Undefined variable
+$idwFrontRequired`) the moment the guest portal tried to render. Fixed by
+hoisting the computation above the `@if`, always defining both variables
+(both `false`/not-required when `photo_id_received` is already true).
+
+**How to test:**
+- Create a booking via admin with photo ID marked as "received" but with no
+  actual photo uploaded (reproduces the reported scenario).
+- Load that guest's portal link → confirm no 500 error, page renders the
+  "ID already received" message correctly.
+- Confirm a normal booking (photo_id_received = false) still shows the
+  capture UI correctly, front/back required states unaffected.
+- Confirm a booking where only one side was declined by admin still only
+  re-prompts for the declined side, not both.

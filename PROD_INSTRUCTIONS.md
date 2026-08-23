@@ -172,6 +172,21 @@ and a completely separate path from the real "All Done" button. That's been
 removed; the scheduled command above is now the only thing that auto-flips
 checkout status, and only after the 30-minute grace period.
 
+**Follow-up fix (found during a later review of task 23):** the same
+page-load-polling pattern still existed for booking archiving —
+`Booking::archiveOverdue()` was being called directly inside the admin guest
+list (`BookingController@index`) and the admin dashboard controller, meaning
+every single admin page view did a full-table scan and a per-row time
+comparison across every non-archived booking, as a side effect of just
+viewing a page. This has been moved to its own scheduled command,
+`php artisan bookings:archive-overdue`, registered in `routes/console.php`
+alongside `bookings:auto-checkout` (also every 5 minutes). **No new cron
+entry needed** — it's covered by the same `schedule:run` cron line above,
+same as item #10 below. One minor, expected behavior change: a booking may
+now take up to ~5 minutes after its checkout time to actually disappear from
+the "not archived" guest list, instead of disappearing instantly on next page
+load — the same grace-period trade-off already accepted for auto-checkout.
+
 ## 8. Parking rates need real numbers entered per property (tasks 20/25)
 
 The auto-calculated parking charge mechanism (7 per-weekday rates per
