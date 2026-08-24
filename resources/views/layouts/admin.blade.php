@@ -203,7 +203,7 @@
                         $visibleKeys = array_values(array_filter([$showPending ? $pendingKey : null, $showToday ? $todayKey : null]));
                     @endphp
                     @if($notifCount > 0)
-                        <span class="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">{{ $notifCount }}</span>
+                        <span id="notif-badge" class="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">{{ $notifCount }}</span>
                     @endif
                 </button>
 
@@ -212,7 +212,7 @@
                     <div class="flex items-center justify-between border-b border-slate-100 p-3">
                         <p class="text-xs font-semibold uppercase tracking-widest text-slate-500">Notifications</p>
                         @if($notifCount > 0)
-                            <form method="POST" action="{{ route('admin.notifications.mark-all-read') }}">
+                            <form method="POST" action="{{ route('admin.notifications.mark-all-read') }}" data-notif-markall-form>
                                 @csrf
                                 @foreach($visibleKeys as $k)
                                     <input type="hidden" name="keys[]" value="{{ $k }}">
@@ -221,9 +221,9 @@
                             </form>
                         @endif
                     </div>
-                    <div class="divide-y divide-slate-100">
+                    <div id="notif-items" class="divide-y divide-slate-100">
                         @if($showPending)
-                            <div class="flex items-center gap-3 p-3 hover:bg-amber-50">
+                            <div class="flex items-center gap-3 p-3 hover:bg-amber-50" data-notif-item>
                                 <a href="{{ route('admin.guests.index', ['status' => 'pending']) }}" class="flex flex-1 items-center gap-3">
                                     <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-600"><x-icon name="upload" class="h-4 w-4" /></span>
                                     <div>
@@ -231,7 +231,7 @@
                                         <p class="text-xs text-slate-500">Guests awaiting document review</p>
                                     </div>
                                 </a>
-                                <form method="POST" action="{{ route('admin.notifications.dismiss') }}">
+                                <form method="POST" action="{{ route('admin.notifications.dismiss') }}" data-notif-dismiss-form>
                                     @csrf
                                     <input type="hidden" name="key" value="{{ $pendingKey }}">
                                     <button type="submit" class="grid h-6 w-6 shrink-0 place-items-center rounded-md text-slate-400 hover:bg-slate-200 hover:text-slate-700" aria-label="Mark as read" title="Mark as read">
@@ -241,7 +241,7 @@
                             </div>
                         @endif
                         @if($showToday)
-                            <div class="flex items-center gap-3 p-3 hover:bg-blue-50">
+                            <div class="flex items-center gap-3 p-3 hover:bg-blue-50" data-notif-item>
                                 <a href="{{ route('admin.guests.index') }}" class="flex flex-1 items-center gap-3">
                                     <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-blue-100 text-blue-600"><x-icon name="calendar" class="h-4 w-4" /></span>
                                     <div>
@@ -249,7 +249,7 @@
                                         <p class="text-xs text-slate-500">Arrivals scheduled for today</p>
                                     </div>
                                 </a>
-                                <form method="POST" action="{{ route('admin.notifications.dismiss') }}">
+                                <form method="POST" action="{{ route('admin.notifications.dismiss') }}" data-notif-dismiss-form>
                                     @csrf
                                     <input type="hidden" name="key" value="{{ $todayKey }}">
                                     <button type="submit" class="grid h-6 w-6 shrink-0 place-items-center rounded-md text-slate-400 hover:bg-slate-200 hover:text-slate-700" aria-label="Mark as read" title="Mark as read">
@@ -259,7 +259,7 @@
                             </div>
                         @endif
                         @if($notifCount === 0)
-                            <div class="p-5 text-center text-sm text-slate-500">
+                            <div class="p-5 text-center text-sm text-slate-500" data-notif-empty>
                                 <x-icon name="check" class="mx-auto mb-2 h-6 w-6 text-emerald-500" />
                                 All caught up. Nothing pending.
                             </div>
