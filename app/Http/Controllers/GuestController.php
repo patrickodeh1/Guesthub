@@ -314,6 +314,86 @@ class GuestController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    /**
+     * Generic charge-intent creation, reusable for any charge type beyond
+     * the deposit (parking, early check-in, the portion of late
+     * checkout/incidentals not covered by the deposit). $type must be one
+     * of Charge::TYPE_* and have a known, positive amount already computed
+     * on the booking — this endpoint never accepts an arbitrary
+     * client-supplied amount.
+     */
+    public function createChargeIntent(Request $request, string $bookingId, string $token)
+    {
+        $booking = $this->booking($bookingId, $token);
+        $service = app(\App\Services\Payments\PaymentService::class);
+
+        if (! $service->isConfigured()) {
+            return response()->json(['ok' => false, 'error' => 'Payments are not available right now. Please contact us.'], 503);
+        }
+
+        $type = $request->validate(['type' => ['required', 'string', 'in:parking,early_checkin,late_checkout,incidentals']])['type'];
+
+        $amountCents = match ($type) {
+            \App\Models\Charge::TYPE_PARKING => (int) round(($booking->effectiveParkingCharge() ?? 0) * 100),
+            \App\Models\Charge::TYPE_EARLY_CHECKIN => (int) round(($booking->earlyCheckinCharge() ?? 0) * 100),
+            \App\Models\Charge::TYPE_LATE_CHECKOUT => (int) round(($booking->lateCheckoutCharge() ?? 0) * 100),
+            \App\Models\Charge::TYPE_INCIDENTALS => (int) round(($booking->incidentals_charge ?? 0) * 100),
+            default => 0,
+        };
+
+        if ($amountCents <= 0) {
+            return response()->json(['ok' => false, 'error' => 'Nothing is currently due for this.'], 422);
+        }
+
+        // Avoid creating a duplicate outstanding intent for the same type —
+        // reuse the existing pending one if there is one already.
+        $existing = $booking->charges()->where('type', $type)->where('status', \App\Models\Charge::STATUS_PENDING)->latest()->first();
+        if ($existing) {
+            return response()->json([
+                'ok' => true,
+                'client_secret' => null,
+                'existing_charge_id' => $existing->id,
+                'amount_cents' => $existing->amount_cents,
+            ]);
+        }
+
+        $result = $service->createPendingIntent($booking, $type, $amountCents, 'guest_initiated');
+
+        return response()->json([
+            'ok' => true,
+            'client_secret' => $result['client_secret'],
+            'publishable_key' => config('services.stripe.key'),
+            'amount_cents' => $amountCents,
+        ]);
+    }
+
+    public function confirmChargePayment(Request $request, string $bookingId, string $token)
+    {
+        $booking = $this->booking($bookingId, $token);
+        $request->validate(['payment_intent_id' => ['required', 'string']]);
+
+        $charge = app(\App\Services\Payments\PaymentService::class)->finalize($request->input('payment_intent_id'));
+
+        if (! $charge || $charge->booking_id !== $booking->id) {
+            return response()->json(['ok' => false, 'error' => 'Payment not found.'], 404);
+        }
+
+        if ($charge->status !== \App\Models\Charge::STATUS_CAPTURED) {
+            return response()->json(['ok' => false, 'error' => 'Payment was not successful. Please try again.'], 422);
+        }
+
+        ActivityLogService::guest('charge_paid_online', "Guest {$booking->guest_name} paid a {$charge->type} charge online.", 'check', [
+            'booking_id'  => $booking->id,
+            'property_id' => $booking->property_id,
+            'actor_name'  => $booking->guest_name,
+            'actor_email' => $booking->email,
+            'severity'    => 'success',
+            'metadata'    => ['type' => $charge->type, 'amount_cents' => $charge->amount_cents, 'charge_id' => $charge->id],
+        ]);
+
+        return response()->json(['ok' => true]);
+    }
+
     public function submitIdentity(Request $request, string $bookingId, string $token)
     {
         $booking = $this->booking($bookingId, $token);
