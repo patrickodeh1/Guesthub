@@ -42,6 +42,15 @@
             </section>
 
             <section class="card card-pad">
+                <h2 class="section-title">Channel manager</h2>
+                <p class="section-copy">Map this property to its Channex listing so bookings from Airbnb, Vrbo, and Booking.com import automatically instead of being entered by hand.</p>
+                <label class="field-label mt-5">Channex property ID
+                    <input name="channex_property_id" value="{{ old('channex_property_id', $property->channex_property_id) }}" placeholder="e.g. 3f9a2b10-..." class="input">
+                    <span class="field-help">Found in Channex under this property's settings. Leave blank until mapped — bookings won't import for this property until it's set.</span>
+                </label>
+            </section>
+
+            <section class="card card-pad">
                 <h2 class="section-title">GPS and maps</h2>
                 <p class="section-copy">Coordinates are used for guest location verification.</p>
                 <label class="field-label mt-5">Latitude<input name="latitude" id="latitude_input" value="{{ old('latitude', $property->latitude) }}" placeholder="32.715736" class="input" readonly></label>

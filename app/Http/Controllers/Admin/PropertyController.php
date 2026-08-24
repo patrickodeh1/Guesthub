@@ -279,6 +279,7 @@ class PropertyController extends Controller
             'timezone' => ['nullable', 'string', 'max:100'],
             'checkout_time' => ['nullable', 'date_format:H:i'],
             'checkin_time' => ['nullable', 'date_format:H:i'],
+            'channex_property_id' => ['nullable', 'string', 'max:255', 'unique:properties,channex_property_id,'.($property?->id ?? 'NULL')],
         ]);
 
         $data['slug'] = $data['slug'] ?: Str::slug($data['name']);
