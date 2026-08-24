@@ -27,6 +27,7 @@ class SettingsController extends Controller
                 'background_check_step_instructions' => Setting::getValue('background_check_step_instructions', 'Please be on the lookout for an email from Airbnb so that you can submit the required hold for incidentals. This hold is refunded after checkout.'),
                 'rental_contract' => Setting::getValue('rental_contract', ''),
                 'rental_contract_version' => Setting::getValue('rental_contract_version', '1'),
+                'default_deposit_amount_dollars' => Setting::getValue('default_deposit_amount_cents', 0) / 100,
             ],
         ]);
     }
@@ -47,6 +48,7 @@ class SettingsController extends Controller
             'lock_message' => ['nullable', 'string', 'max:500'],
             'background_check_step_instructions' => ['nullable', 'string', 'max:1000'],
             'rental_contract' => ['nullable', 'string'],
+            'default_deposit_amount_dollars' => ['nullable', 'numeric', 'min:0', 'max:100000'],
         ]);
 
         if ($request->hasFile('site_logo')) {
@@ -70,6 +72,11 @@ class SettingsController extends Controller
             unset($data['favicon']);
         }
         unset($data['existing_favicon']);
+
+        if (array_key_exists('default_deposit_amount_dollars', $data)) {
+            Setting::putValue('default_deposit_amount_cents', (int) round((float) ($data['default_deposit_amount_dollars'] ?? 0) * 100));
+            unset($data['default_deposit_amount_dollars']);
+        }
 
         if (array_key_exists('rental_contract', $data)) {
             $previousContract = Setting::getValue('rental_contract', '');

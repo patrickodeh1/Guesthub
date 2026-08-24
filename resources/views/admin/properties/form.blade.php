@@ -42,6 +42,14 @@
             </section>
 
             <section class="card card-pad">
+                <h2 class="section-title">Guest deposit</h2>
+                <p class="section-copy">Charged to the guest's card once they're approved for check-in. Leave blank to use the global default set in Settings.</p>
+                <label class="field-label mt-5">Deposit amount (USD)
+                    <input type="number" step="0.01" min="0" name="deposit_amount_dollars" value="{{ old('deposit_amount_dollars', $property->deposit_amount_cents !== null ? number_format($property->deposit_amount_cents / 100, 2, '.', '') : '') }}" placeholder="e.g. 150.00" class="input">
+                </label>
+            </section>
+
+            <section class="card card-pad">
                 <h2 class="section-title">Channel manager</h2>
                 <p class="section-copy">Map this property to its Channex listing so bookings from Airbnb, Vrbo, and Booking.com import automatically instead of being entered by hand.</p>
                 <label class="field-label mt-5">Channex property ID

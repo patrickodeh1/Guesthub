@@ -17,6 +17,7 @@
                 <label class="field-label">Brand color<input type="color" name="brand_color" value="{{ old('brand_color', $settings['brand_color']) }}" class="input h-12"></label>
                 <label class="field-label">Contact phone<input name="contact_phone" value="{{ old('contact_phone', $settings['contact_phone']) }}" class="input"></label>
                 <label class="field-label">Contact email<input name="contact_email" value="{{ old('contact_email', $settings['contact_email']) }}" class="input"></label>
+                <label class="field-label">Default deposit amount (USD)<input type="number" step="0.01" min="0" name="default_deposit_amount_dollars" value="{{ old('default_deposit_amount_dollars', $settings['default_deposit_amount_dollars']) }}" class="input"><span class="field-help">Used when a property doesn't have its own deposit amount set.</span></label>
                 <div class="md:col-span-2">
                     @php
                         $messageFields = [

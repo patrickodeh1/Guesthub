@@ -19,6 +19,7 @@ class Property extends Model
         'early_checkin_rate_8am', 'early_checkin_rate_12pm',
         'late_checkout_rate_authorized_hourly', 'late_checkout_rate_unauthorized_hourly',
         'channex_property_id',
+        'deposit_amount_cents',
     ];
 
     protected function casts(): array
@@ -32,6 +33,7 @@ class Property extends Model
             'early_checkin_rate_8am' => 'decimal:2', 'early_checkin_rate_12pm' => 'decimal:2',
             'late_checkout_rate_authorized_hourly' => 'decimal:2',
             'late_checkout_rate_unauthorized_hourly' => 'decimal:2',
+            'deposit_amount_cents' => 'integer',
         ];
     }
 

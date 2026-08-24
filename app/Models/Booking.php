@@ -79,6 +79,21 @@ class Booking extends Model
         return $this->deposit_payment_status === 'captured';
     }
 
+    /**
+     * Property-level deposit_amount_cents if set, else the global
+     * default_deposit_amount_cents setting. Null/0 means no deposit is
+     * configured at all — callers should treat that as "don't show the
+     * payment step."
+     */
+    public function effectiveDepositAmountCents(): int
+    {
+        if ($this->property && $this->property->deposit_amount_cents !== null) {
+            return $this->property->deposit_amount_cents;
+        }
+
+        return (int) \App\Models\Setting::getValue('default_deposit_amount_cents', 0);
+    }
+
     public function scopeNotArchived($query)
     {
         return $query->whereNull('archived_at');

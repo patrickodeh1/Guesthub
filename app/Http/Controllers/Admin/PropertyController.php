@@ -280,7 +280,13 @@ class PropertyController extends Controller
             'checkout_time' => ['nullable', 'date_format:H:i'],
             'checkin_time' => ['nullable', 'date_format:H:i'],
             'channex_property_id' => ['nullable', 'string', 'max:255', 'unique:properties,channex_property_id,'.($property?->id ?? 'NULL')],
+            'deposit_amount_dollars' => ['nullable', 'numeric', 'min:0', 'max:100000'],
         ]);
+
+        $data['deposit_amount_cents'] = $request->filled('deposit_amount_dollars')
+            ? (int) round((float) $request->input('deposit_amount_dollars') * 100)
+            : null;
+        unset($data['deposit_amount_dollars']);
 
         $data['slug'] = $data['slug'] ?: Str::slug($data['name']);
         $data['active'] = $request->boolean('active');
