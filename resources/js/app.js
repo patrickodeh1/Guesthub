@@ -432,6 +432,58 @@ document.addEventListener('DOMContentLoaded', () => {
         try { document.execCommand('copy'); } catch (e) { /* no-op */ }
         document.body.removeChild(temp);
     }
+
+    // Notification bell: submit dismiss / mark-all-read via fetch instead of
+    // a normal form POST, so the panel updates in place with no page reload.
+    function updateNotifBadgeAfterRemoval(remaining) {
+        const badge = document.getElementById('notif-badge');
+        if (remaining > 0) {
+            if (badge) badge.textContent = remaining;
+        } else if (badge) {
+            badge.remove();
+        }
+        if (remaining === 0) {
+            const container = document.getElementById('notif-items');
+            if (container && !container.querySelector('[data-notif-empty]')) {
+                container.innerHTML = `
+                    <div class="p-5 text-center text-sm text-slate-500" data-notif-empty>
+                        <svg class="mx-auto mb-2 h-6 w-6 text-emerald-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg>
+                        All caught up. Nothing pending.
+                    </div>`;
+            }
+            const markAllForm = document.querySelector('[data-notif-markall-form]');
+            if (markAllForm) markAllForm.remove();
+        }
+    }
+
+    document.addEventListener('submit', function (e) {
+        const form = e.target;
+        if (form.matches('[data-notif-dismiss-form]')) {
+            e.preventDefault();
+            const item = form.closest('[data-notif-item]');
+            fetch(form.action, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: new FormData(form),
+            }).then((res) => {
+                if (!res.ok) return;
+                if (item) item.remove();
+                const remaining = document.querySelectorAll('[data-notif-item]').length;
+                updateNotifBadgeAfterRemoval(remaining);
+            }).catch(() => { /* leave item in place on failure */ });
+        } else if (form.matches('[data-notif-markall-form]')) {
+            e.preventDefault();
+            fetch(form.action, {
+                method: 'POST',
+                headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                body: new FormData(form),
+            }).then((res) => {
+                if (!res.ok) return;
+                document.querySelectorAll('[data-notif-item]').forEach((el) => el.remove());
+                updateNotifBadgeAfterRemoval(0);
+            }).catch(() => { /* no-op on failure */ });
+        }
+    });
     document.addEventListener('click', (e) => {
         if (e.target.closest('[data-row-menu]') || e.target.closest('[data-row-menu-panel]')) return;
         closeAllRowMenus();
