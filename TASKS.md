@@ -27,8 +27,14 @@ or client confirmation — do not guess at prod state.
 ## Critical fixes
 1. ~~Session/"page doesn't exist" after inactivity~~ — DIAGNOSED, no code bug found;✔️
    added trustProxies() fix; rest is a prod .env checklist (see PROD_INSTRUCTIONS.md #5)
-2. ~~Root domain shows admin login instead of coming-soon page — NEW landing page (Q4/Q5)~~ — DONE✔️
-   (payment deferred per direction; contact form + admin leads list built instead)
+2. Root domain shows admin login instead of coming-soon page — NEW landing page (Q4/Q5) —
+   Coming-soon page + contact-form lead capture DONE.✔️ Payment/early-access-fee portion
+   NOT actually resolved — the contact-form-only version was a temporary placeholder built
+   because no payment infrastructure existed yet at the time, not a final decision from the
+   client. Client needs to be able to set the early-access fee amount (admin-configurable,
+   no hardcoded price) and guests/hosts registering need an actual payment step, not just a
+   lead form. Revisit once the Channex/Stripe work below is done — reuses the same generic
+   Stripe service rather than a one-off integration.
 3. Inner iframe/scroll issue on steps pages✔️
 4. Text alerts not working (Q2)✔️
 5. ~~Check-in time showed system's checkout time (10am) as recommended~~ — DONE.✔️
@@ -215,4 +221,4 @@ or client confirmation — do not guess at prod state.
     a Vehicle card + detail row when parking is needed. Tests in
     VehicleInfoCollectionTest.php.✔️
 
-Status: 32/33 done, 1 resolved as no-op, 0 remaining. All tasks complete.
+Status: 31/33 done, 1 resolved as no-op, 1 reopened (task 2's payment portion — see above).

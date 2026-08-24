@@ -10,10 +10,12 @@ use Illuminate\Support\Str;
 class Booking extends Model
 {
     protected $fillable = [
-        'booking_id', 'reservation_id', 'guest_name', 'phone', 'email', 'check_in_date', 'check_out_date',
+        'booking_id', 'reservation_id', 'source', 'channex_booking_id', 'guest_name', 'phone', 'email', 'check_in_date', 'check_out_date',
         'property_id', 'id_type', 'token', 'photo_id_path', 'photo_id_back_path', 'photo_id_received', 'parking_needed', 'early_checkin', 'early_checkin_tier', 'checkin_time_preference', 'checkout_time_preference', 'checkin_time_status', 'checkout_time_status', 'gps_verified', 'guest_authenticated_at',
         'manually_checked_in', 'checked_in_at', 'checked_out_at', 'late_checkout_type', 'late_checkout_hours', 'late_checkout_actual_time', 'gps_overridden', 'status', 'notes', 'welcome_message', 'identity_confirmed_at',
         'approved_at', 'decline_reason', 'archived_at', 'background_check_completed_at', 'deposit_verified_at',
+        'contract_version', 'contract_accepted_at',
+        'deposit_payment_status', 'deposit_stripe_payment_intent_id', 'deposit_amount_cents',
         'access_blocked_at', 'access_blocked_reason',
         'photo_id_front_approved_at', 'photo_id_front_declined_reason',
         'photo_id_back_approved_at', 'photo_id_back_declined_reason',
@@ -40,6 +42,8 @@ class Booking extends Model
             'archived_at' => 'datetime',
             'background_check_completed_at' => 'datetime',
             'deposit_verified_at' => 'datetime',
+            'contract_accepted_at' => 'datetime',
+            'deposit_amount_cents' => 'integer',
             'access_blocked_at' => 'datetime',
             'photo_id_front_approved_at' => 'datetime',
             'photo_id_back_approved_at' => 'datetime',
@@ -54,6 +58,27 @@ class Booking extends Model
     {
         return $this->belongsTo(Property::class);
     }
+
+    public function charges(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Charge::class);
+    }
+
+    /**
+     * True once a Stripe deposit hold exists (in any state) for this
+     * booking. Entirely separate from isDepositVerified() / the legacy
+     * manual deposit_verified_at flow, which is untouched by this.
+     */
+    public function hasDepositHold(): bool
+    {
+        return filled($this->deposit_payment_status);
+    }
+
+    public function isDepositHeld(): bool
+    {
+        return $this->deposit_payment_status === 'held';
+    }
+
     public function scopeNotArchived($query)
     {
         return $query->whereNull('archived_at');

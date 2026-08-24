@@ -55,4 +55,16 @@ return [
         'key' => env('GOOGLE_MAPS_API_KEY'),
     ],
 
+    'channex' => [
+        'api_key' => env('CHANNEX_API_KEY'),
+        'base_url' => env('CHANNEX_BASE_URL', 'https://app.channex.io/api/v1'),
+        'webhook_secret' => env('CHANNEX_WEBHOOK_SECRET'),
+    ],
+
+    'stripe' => [
+        'key' => env('STRIPE_KEY'),
+        'secret' => env('STRIPE_SECRET'),
+        'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+    ],
+
 ];

@@ -18,6 +18,7 @@ class Property extends Model
         'parking_rate_saturday',
         'early_checkin_rate_8am', 'early_checkin_rate_12pm',
         'late_checkout_rate_authorized_hourly', 'late_checkout_rate_unauthorized_hourly',
+        'channex_property_id',
     ];
 
     protected function casts(): array
