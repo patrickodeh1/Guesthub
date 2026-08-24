@@ -65,18 +65,18 @@ class Booking extends Model
     }
 
     /**
-     * True once a Stripe deposit hold exists (in any state) for this
-     * booking. Entirely separate from isDepositVerified() / the legacy
+     * True once a Stripe deposit charge exists (captured or failed) for
+     * this booking. Entirely separate from isDepositVerified() / the legacy
      * manual deposit_verified_at flow, which is untouched by this.
      */
-    public function hasDepositHold(): bool
+    public function hasDepositCharge(): bool
     {
         return filled($this->deposit_payment_status);
     }
 
-    public function isDepositHeld(): bool
+    public function isDepositCaptured(): bool
     {
-        return $this->deposit_payment_status === 'held';
+        return $this->deposit_payment_status === 'captured';
     }
 
     public function scopeNotArchived($query)

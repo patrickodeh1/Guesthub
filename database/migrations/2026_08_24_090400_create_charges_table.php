@@ -22,8 +22,10 @@ return new class extends Migration
 
             $table->unsignedInteger('amount_cents');
 
-            // 'pending', 'held' (authorized not captured — deposit only),
-            // 'captured', 'partially_captured', 'released', 'failed'.
+            // 'pending', 'captured', 'failed'. ('held'/'partially_captured'/
+            // 'released' reserved for a possible future hold-based deposit
+            // flow — not used for now; every charge type, deposit included,
+            // is captured immediately. See PaymentService.)
             $table->string('status')->default('pending');
 
             $table->string('stripe_payment_intent_id')->nullable();

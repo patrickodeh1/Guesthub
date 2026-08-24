@@ -11,11 +11,13 @@ return new class extends Migration
         Schema::table('bookings', function (Blueprint $table) {
             // Deliberately separate from deposit_verified_at, which stays
             // exactly as-is (manual admin action, untouched by this work).
-            // This tracks the actual Stripe PaymentIntent hold lifecycle for
-            // new, Stripe-enabled bookings only.
+            // This tracks the actual Stripe PaymentIntent for new,
+            // Stripe-enabled bookings only.
             //
-            // Values: null (no hold), 'held' (authorized, not captured),
-            // 'partially_captured', 'captured', 'released', 'failed'.
+            // Values: null (not charged), 'captured', 'failed'. ('held' /
+            // 'released' reserved for a possible future hold-based deposit
+            // flow — not used for now, deposit is captured immediately like
+            // every other charge type. See PaymentService.)
             $table->string('deposit_payment_status')->nullable()->after('contract_accepted_at');
             $table->string('deposit_stripe_payment_intent_id')->nullable()->after('deposit_payment_status');
             $table->unsignedInteger('deposit_amount_cents')->nullable()->after('deposit_stripe_payment_intent_id');
