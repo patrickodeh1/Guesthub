@@ -61,6 +61,11 @@ class GuestAlertService
             'default_guest_message' => 'GuestHub: Hi {guest_name}, thanks for staying at {property_name}. You are now checked out. Safe travels!',
             'default_staff_message' => 'GuestHub alert: {guest_name} has just checked out of {property_name}. The unit is ready for turnover.',
         ],
+        'deposit_paid' => [
+            'label' => 'Deposit paid',
+            'default_guest_message' => 'GuestHub: Hi {guest_name}, your incidentals deposit for {property_name} has been received. Thanks!',
+            'default_staff_message' => 'GuestHub alert: {guest_name} paid their incidentals deposit online for {property_name}.',
+        ],
         'photo_id_uploaded' => [
             'label' => 'Photo ID uploaded',
             'default_guest_message' => 'GuestHub: Hi {guest_name}, your photo ID for {property_name} was received and is being reviewed. No action needed for now.',

@@ -34,6 +34,8 @@ Route::prefix('guest/{booking_id}/{token}')->name('guest.')->group(function () {
     Route::post('/verify-gps', [GuestController::class, 'verifyGps'])->name('gps');
     Route::post('/confirm-checkin', [GuestController::class, 'confirmCheckin'])->name('confirm-checkin');
     Route::post('/confirm-checkout', [GuestController::class, 'confirmCheckout'])->name('confirm-checkout');
+    Route::post('/deposit/intent', [GuestController::class, 'createDepositIntent'])->name('deposit.intent');
+    Route::post('/deposit/confirm', [GuestController::class, 'confirmDepositPayment'])->name('deposit.confirm');
     Route::post('/unlock-door/{lock}', [GuestController::class, 'unlockDoor'])->name('unlock-door');
     Route::post('/lock-door/{lock}', [GuestController::class, 'lockDoor'])->name('lock-door');
     Route::get('/lock-status/{lock}', [GuestController::class, 'lockStatus'])->name('lock-status');

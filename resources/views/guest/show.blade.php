@@ -1512,13 +1512,108 @@
                     <h1 class="guest-status-title">Almost there</h1>
                 </div>
                 <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="w-full block rounded-xl mt-4">
-                <div class="p-6 md:p-10 text-center">
-                    @if($booking->status === 'pre_checkin_complete')
+                <div class="p-6 md:p-10">
+                    @php
+                        $depositAmountCents = $booking->effectiveDepositAmountCents();
+                        $stripeConfigured = filled(config('services.stripe.key')) && filled(config('services.stripe.secret'));
+                    @endphp
+                    @if($stripeConfigured && $depositAmountCents > 0)
+                        <div class="text-center">
+                            <h2 class="text-xl font-extrabold text-slate-950">Incidentals hold</h2>
+                            <p class="mt-3 text-sm leading-6 text-slate-600">A refundable hold of <strong>${{ number_format($depositAmountCents / 100, 2) }}</strong> is required before check-in. Enter your card below — this stays on our site, nothing is shared with a third party.</p>
+                        </div>
+                        <div id="deposit-payment-error" class="mt-4 hidden rounded-lg bg-red-50 p-3 text-center text-sm text-red-700"></div>
+                        <form id="deposit-payment-form" class="mt-5" data-intent-url="{{ route('guest.deposit.intent', [$booking->booking_id, $booking->token]) }}" data-confirm-url="{{ route('guest.deposit.confirm', [$booking->booking_id, $booking->token]) }}">
+                            <div id="deposit-payment-element" class="rounded-xl border border-slate-200 p-4"></div>
+                            <button type="submit" id="deposit-pay-btn" class="guest-primary-btn mt-4 w-full" disabled>Pay ${{ number_format($depositAmountCents / 100, 2) }}</button>
+                        </form>
+                        <script src="https://js.stripe.com/v3/"></script>
+                        <script>
+                        (function() {
+                            var form = document.getElementById("deposit-payment-form");
+                            if (!form) return;
+                            var payBtn = document.getElementById("deposit-pay-btn");
+                            var errorBox = document.getElementById("deposit-payment-error");
+                            var stripe, elements;
+
+                            function showError(msg) {
+                                errorBox.textContent = msg;
+                                errorBox.classList.remove("hidden");
+                            }
+
+                            fetch(form.dataset.intentUrl, {
+                                method: "POST",
+                                headers: {
+                                    "Accept": "application/json",
+                                    "Content-Type": "application/json",
+                                    "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : ""
+                                }
+                            })
+                                .then(function(r) { return r.json(); })
+                                .then(function(data) {
+                                    if (!data.ok) {
+                                        showError(data.error || "Unable to start payment. Please contact us.");
+                                        return;
+                                    }
+                                    stripe = Stripe(data.publishable_key);
+                                    elements = stripe.elements({ clientSecret: data.client_secret });
+                                    var paymentElement = elements.create("payment");
+                                    paymentElement.mount("#deposit-payment-element");
+                                    payBtn.disabled = false;
+                                })
+                                .catch(function() { showError("Network error. Please try again."); });
+
+                            form.addEventListener("submit", function(e) {
+                                e.preventDefault();
+                                if (!stripe || !elements) return;
+                                payBtn.disabled = true;
+                                payBtn.textContent = "Processing…";
+                                errorBox.classList.add("hidden");
+
+                                stripe.confirmPayment({ elements: elements, redirect: "if_required" })
+                                    .then(function(result) {
+                                        if (result.error) {
+                                            showError(result.error.message || "Payment failed. Please try again.");
+                                            payBtn.disabled = false;
+                                            payBtn.textContent = "Pay {{ '$' . number_format($depositAmountCents / 100, 2) }}";
+                                            return;
+                                        }
+                                        return fetch(form.dataset.confirmUrl, {
+                                            method: "POST",
+                                            headers: {
+                                                "Accept": "application/json",
+                                                "Content-Type": "application/json",
+                                                "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : ""
+                                            },
+                                            body: JSON.stringify({ payment_intent_id: result.paymentIntent.id })
+                                        })
+                                            .then(function(r) { return r.json(); })
+                                            .then(function(confirmData) {
+                                                if (confirmData.ok) {
+                                                    window.location.reload();
+                                                } else {
+                                                    showError(confirmData.error || "Payment could not be confirmed. Please contact us.");
+                                                    payBtn.disabled = false;
+                                                }
+                                            });
+                                    })
+                                    .catch(function() {
+                                        showError("Network error confirming payment. Please try again.");
+                                        payBtn.disabled = false;
+                                    });
+                            });
+                        })();
+                        </script>
+                    @elseif($booking->status === 'pre_checkin_complete')
+                        <div class="text-center">
                         <h2 class="text-xl font-extrabold text-slate-950">Pre-check in completed!</h2>
                         <p class="mt-3 text-sm leading-6 text-slate-600">Please submit your required incidentals hold payment on the booking platform. This hold is refundable after check out.</p>
+                        </div>
                     @else
+                        <div class="text-center">
                         <h2 class="text-xl font-extrabold text-slate-950">Pending incidentals hold payment</h2>
                         <p class="mt-3 text-sm leading-6 text-slate-600">If you have already submitted the payment, please send us a message so that we can expedite this for you. It usually doesn't take that long.</p>
+                        </div>
                     @endif
                 </div>
             </div>

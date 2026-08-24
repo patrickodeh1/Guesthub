@@ -250,6 +250,70 @@ class GuestController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    public function createDepositIntent(string $bookingId, string $token)
+    {
+        $booking = $this->booking($bookingId, $token);
+        $service = app(\App\Services\Payments\PaymentService::class);
+
+        if (! $service->isConfigured()) {
+            return response()->json(['ok' => false, 'error' => 'Payments are not available right now. Please contact us.'], 503);
+        }
+
+        if ($booking->isDepositCaptured() || $booking->deposit_verified_at) {
+            return response()->json(['ok' => false, 'error' => 'Deposit already paid.'], 422);
+        }
+
+        $amountCents = $booking->effectiveDepositAmountCents();
+
+        if ($amountCents <= 0) {
+            return response()->json(['ok' => false, 'error' => 'No deposit is configured for this stay.'], 422);
+        }
+
+        $result = $service->createPendingIntent(
+            $booking,
+            \App\Models\Charge::TYPE_DEPOSIT,
+            $amountCents,
+            'precheckin_approval',
+            "Incidentals hold for booking {$booking->booking_id}"
+        );
+
+        return response()->json([
+            'ok' => true,
+            'client_secret' => $result['client_secret'],
+            'publishable_key' => config('services.stripe.key'),
+            'amount_cents' => $amountCents,
+        ]);
+    }
+
+    public function confirmDepositPayment(Request $request, string $bookingId, string $token)
+    {
+        $booking = $this->booking($bookingId, $token);
+        $request->validate(['payment_intent_id' => ['required', 'string']]);
+
+        $charge = app(\App\Services\Payments\PaymentService::class)->finalize($request->input('payment_intent_id'));
+
+        if (! $charge || $charge->booking_id !== $booking->id) {
+            return response()->json(['ok' => false, 'error' => 'Payment not found.'], 404);
+        }
+
+        if ($charge->status !== \App\Models\Charge::STATUS_CAPTURED) {
+            return response()->json(['ok' => false, 'error' => 'Payment was not successful. Please try again.'], 422);
+        }
+
+        ActivityLogService::guest('deposit_paid_online', "Guest {$booking->guest_name} paid the incidentals deposit online.", 'check', [
+            'booking_id'  => $booking->id,
+            'property_id' => $booking->property_id,
+            'actor_name'  => $booking->guest_name,
+            'actor_email' => $booking->email,
+            'severity'    => 'success',
+            'metadata'    => ['amount_cents' => $charge->amount_cents, 'charge_id' => $charge->id],
+        ]);
+
+        \App\Services\GuestAlertService::send('deposit_paid', $booking);
+
+        return response()->json(['ok' => true]);
+    }
+
     public function submitIdentity(Request $request, string $bookingId, string $token)
     {
         $booking = $this->booking($bookingId, $token);
@@ -668,7 +732,7 @@ class GuestController extends Controller
         }
         }
 
-        if (in_array($booking->status, ['pre_checkin_complete', 'awaiting_deposit'], true) && ! $booking->deposit_verified_at) {
+        if (in_array($booking->status, ['pre_checkin_complete', 'awaiting_deposit'], true) && ! $booking->deposit_verified_at && ! $booking->isDepositCaptured()) {
             return 'awaiting_deposit';
         }
 

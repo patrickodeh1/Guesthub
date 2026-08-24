@@ -40,10 +40,73 @@ class PaymentService
     }
 
     /**
-     * Charge a guest immediately for the given amount/type. Used for the
-     * deposit and every other charge type (parking, early check-in, late
-     * checkout, incidentals) — all captured right away, at whichever moment
-     * the amount becomes due/known.
+     * Create a PaymentIntent without a payment method or confirmation — the
+     * correct pattern for an embedded Stripe Payment Element, where the
+     * guest enters card details directly into Stripe's own embedded
+     * component (card data never touches our server) and the client
+     * confirms using this intent's client_secret. Creates a local Charge
+     * row in 'pending' status; call finalize() after the client reports
+     * success to verify with Stripe and mark it captured.
+     */
+    public function createPendingIntent(Booking $booking, string $type, int $amountCents, string $billingMoment, ?string $description = null): array
+    {
+        $intent = $this->client()->paymentIntents->create([
+            'amount' => $amountCents,
+            'currency' => 'usd',
+            'automatic_payment_methods' => ['enabled' => true],
+            'description' => $description ?: "{$type} charge for booking {$booking->booking_id}",
+            'metadata' => ['booking_id' => $booking->id, 'type' => $type],
+        ]);
+
+        $charge = $booking->charges()->create([
+            'type' => $type,
+            'amount_cents' => $amountCents,
+            'status' => Charge::STATUS_PENDING,
+            'stripe_payment_intent_id' => $intent->id,
+            'billing_moment' => $billingMoment,
+            'description' => $description,
+        ]);
+
+        return ['client_secret' => $intent->client_secret, 'charge' => $charge];
+    }
+
+    /**
+     * Verifies the given PaymentIntent's status directly with Stripe
+     * (never trusts the client's own claim of success) and updates the
+     * matching local Charge/Booking accordingly.
+     */
+    public function finalize(string $paymentIntentId): ?Charge
+    {
+        $charge = Charge::where('stripe_payment_intent_id', $paymentIntentId)->first();
+
+        if (! $charge) {
+            return null;
+        }
+
+        $intent = $this->client()->paymentIntents->retrieve($paymentIntentId);
+
+        $charge->update([
+            'status' => $intent->status === 'succeeded' ? Charge::STATUS_CAPTURED : Charge::STATUS_FAILED,
+            'captured_at' => $intent->status === 'succeeded' ? now() : null,
+        ]);
+
+        if ($charge->type === Charge::TYPE_DEPOSIT) {
+            $charge->booking->update([
+                'deposit_payment_status' => $charge->status,
+                'deposit_stripe_payment_intent_id' => $paymentIntentId,
+                'deposit_amount_cents' => $charge->amount_cents,
+            ]);
+        }
+
+        return $charge;
+    }
+
+    /**
+     * A standalone, immediate, server-initiated charge using an
+     * already-tokenized payment method — kept for admin-initiated or
+     * non-Elements charge flows. Guest-facing charges should generally use
+     * createPendingIntent()+finalize() above instead, so card data stays
+     * entirely within Stripe's own embedded component.
      */
     public function charge(Booking $booking, string $type, int $amountCents, string $paymentMethodId, string $billingMoment, ?string $description = null): Charge
     {
