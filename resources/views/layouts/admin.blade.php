@@ -189,8 +189,8 @@
                         $pendingIdBookings = \App\Models\Booking::whereNull('photo_id_path')->pluck('id')->sort()->values();
                         $todayInBookings   = \App\Models\Booking::whereDate('check_in_date', now()->toDateString())->pluck('id')->sort()->values();
 
-                        $pendingKey = 'pending_ids:' . $pendingIdBookings->implode(',');
-                        $todayKey   = 'checkin_today:' . $todayInBookings->implode(',');
+                        $pendingKey = 'pending_ids:' . md5($pendingIdBookings->implode(','));
+                        $todayKey   = 'checkin_today:' . md5($todayInBookings->implode(','));
 
                         $dismissed = auth()->user()->dismissed_notification_ids ?? [];
 
