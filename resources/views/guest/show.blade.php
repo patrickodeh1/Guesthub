@@ -386,6 +386,20 @@
                         </div>
                         @endif
 
+                        @php
+                            $rentalContract = \App\Models\Setting::getValue('rental_contract', '');
+                        @endphp
+                        @if(filled($rentalContract) && ! $booking->contract_accepted_at)
+                        <div class="mt-6 rounded-xl border border-slate-200 p-4">
+                            <p class="mb-2 text-sm font-semibold text-slate-900">Terms & Rental Contract</p>
+                            <div class="max-h-40 overflow-y-auto rounded-lg bg-slate-50 p-3 text-xs leading-5 text-slate-600">{!! $rentalContract !!}</div>
+                            <label class="mt-3 flex items-start gap-2 text-sm text-slate-700">
+                                <input type="checkbox" name="contract_accepted" id="contract-accepted-checkbox" value="1" required class="mt-0.5 rounded border-slate-300">
+                                <span>I have read and agree to the terms and rental contract.</span>
+                            </label>
+                        </div>
+                        @endif
+
                         <div class="mt-6 grid grid-cols-2 gap-3">
                             <button type="button" class="guest-outline-btn w-full" data-prev="1">Back</button>
                             <button type="button" class="guest-primary-btn w-full" id="id-capture-next-btn">Next</button>
@@ -1252,6 +1266,11 @@
                         if (idwFrontRequired && !frontBlur.classList.contains("hidden")) { alert("Front ID photo is blurry. Please retake."); return; }
                         if (!isPassport && idwBackRequired && !backBlur.classList.contains("hidden")) { alert("Back ID photo is blurry. Please retake."); return; }
                     }
+                    var contractCheckbox = document.getElementById("contract-accepted-checkbox");
+                    if (contractCheckbox && !contractCheckbox.checked) {
+                        alert("Please agree to the terms and rental contract to continue.");
+                        return;
+                    }
 
                     function b64toBlob(b64) {
                         var arr = b64.split(","), mime = arr[0].match(/:(.*?);/)[1];
@@ -1262,6 +1281,9 @@
                     var form = document.getElementById("guest-booking-form");
                     var fd = new FormData();
                     fd.append("_token", document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : "");
+                    if (contractCheckbox) {
+                        fd.append("contract_accepted", contractCheckbox.checked ? "1" : "0");
+                    }
                     if (photoIdRequired) {
                         if (idwFrontRequired) {
                             fd.set("photo_id", b64toBlob(document.getElementById("photo-id-data").value), "front.jpg");

@@ -260,9 +260,12 @@ class GuestController extends Controller
         $frontRequired = ! $booking->photo_id_received && blank($booking->photo_id_path);
         $backRequired = ! $booking->photo_id_received && blank($booking->photo_id_back_path) && $booking->id_type !== 'passport';
 
+        $requiresContractAcceptance = filled(\App\Models\Setting::getValue('rental_contract', '')) && ! $booking->contract_accepted_at;
+
         $data = $request->validate([
             'photo_id' => [$frontRequired ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
             'photo_id_back' => [$backRequired ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
+            'contract_accepted' => [$requiresContractAcceptance ? 'accepted' : 'nullable'],
         ]);
 
         $advancedStatuses = ['guest_approved', 'awaiting_deposit', 'currently_hosting', 'checked_out'];
@@ -272,6 +275,15 @@ class GuestController extends Controller
             'decline_reason' => null,
             'photo_id_received' => true,
         ];
+
+        if ($requiresContractAcceptance) {
+            // Forward-only: stamped once, at the moment of acceptance, never
+            // re-checked against a "current" version later. If the admin
+            // edits the contract text afterward, this guest is not
+            // re-prompted — see settings controller for the version bump.
+            $updates['contract_version'] = \App\Models\Setting::getValue('rental_contract_version', '1');
+            $updates['contract_accepted_at'] = now();
+        }
 
         $archiveFolder = 'photo-ids-archive/'.$booking->booking_id.'-'.\Illuminate\Support\Str::slug($booking->guest_name);
 

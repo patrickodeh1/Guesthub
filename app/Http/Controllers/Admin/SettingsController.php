@@ -25,6 +25,8 @@ class SettingsController extends Controller
                 'lock_message' => Setting::getValue('lock_message', "If you'd like quicker access to the unit, you can download the August Home app."),
                 'background_check_step_name' => Setting::getValue('background_check_step_name', 'Background Check'),
                 'background_check_step_instructions' => Setting::getValue('background_check_step_instructions', 'Please be on the lookout for an email from Airbnb so that you can submit the required hold for incidentals. This hold is refunded after checkout.'),
+                'rental_contract' => Setting::getValue('rental_contract', ''),
+                'rental_contract_version' => Setting::getValue('rental_contract_version', '1'),
             ],
         ]);
     }
@@ -44,6 +46,7 @@ class SettingsController extends Controller
             'gps_verify_message' => ['nullable', 'string', 'max:500'],
             'lock_message' => ['nullable', 'string', 'max:500'],
             'background_check_step_instructions' => ['nullable', 'string', 'max:1000'],
+            'rental_contract' => ['nullable', 'string'],
         ]);
 
         if ($request->hasFile('site_logo')) {
@@ -67,6 +70,14 @@ class SettingsController extends Controller
             unset($data['favicon']);
         }
         unset($data['existing_favicon']);
+
+        if (array_key_exists('rental_contract', $data)) {
+            $previousContract = Setting::getValue('rental_contract', '');
+            if ($data['rental_contract'] !== $previousContract) {
+                $currentVersion = (int) Setting::getValue('rental_contract_version', '1');
+                Setting::putValue('rental_contract_version', (string) ($currentVersion + 1));
+            }
+        }
 
         foreach ($data as $key => $value) {
             Setting::putValue($key, $value);

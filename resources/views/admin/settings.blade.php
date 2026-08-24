@@ -24,6 +24,7 @@
                             'gps_verify_message' => ['label' => 'GPS Verify Message', 'help' => 'Shown above the map on the location verification step.', 'rows' => 3],
                             'lock_message' => ['label' => 'Smart Lock Message', 'help' => 'Shown on the smart lock step when a property has a lock configured.', 'rows' => 3],
                             'background_check_step_instructions' => ['label' => \App\Models\Setting::getValue('background_check_step_name', 'Background Check'), 'help' => 'Shown to guests on the waiting screen for this step.', 'rows' => 3],
+                            'rental_contract' => ['label' => 'Terms & Rental Contract', 'help' => 'Shown to guests at registration with a required checkbox before they can continue. Editing and saving this automatically bumps the contract version — guests who already accepted an earlier version are not re-prompted.', 'rows' => 10],
                         ];
                     @endphp
                     <div class="mb-3 flex flex-wrap gap-2">
