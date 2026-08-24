@@ -52,7 +52,11 @@ class BookingController extends Controller
 
         $bookings = ($baseQuery)()
             ->when($currentlyHostingIds->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $currentlyHostingIds))
-            ->orderBy('check_in_date')
+            // Archive view: most recently archived first. Everywhere else,
+            // keep the existing check-in-date ordering.
+            ->when($showArchived && ! $hasSearch,
+                fn ($q) => $q->orderByDesc('archived_at'),
+                fn ($q) => $q->orderBy('check_in_date'))
             ->paginate(15)
             ->withQueryString();
 

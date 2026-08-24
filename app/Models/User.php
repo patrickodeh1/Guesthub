@@ -43,6 +43,7 @@ class User extends Authenticatable
         'last_login_ip',
         'created_by',
         'notes',
+        'dismissed_notification_ids',
     ];
 
     protected $hidden = [
@@ -59,7 +60,37 @@ class User extends Authenticatable
             'full_system_tour_completed_at' => 'datetime',
             'last_login_at'                => 'datetime',
             'password'                     => 'hashed',
+            'dismissed_notification_ids'   => 'array',
         ];
+    }
+
+    // ─── Notification helpers ───────────────────────────────────────────────
+
+    /**
+     * Mark a single notification key as dismissed/read for this admin.
+     */
+    public function dismissNotification(string $key): void
+    {
+        $dismissed = $this->dismissed_notification_ids ?? [];
+        if (! in_array($key, $dismissed, true)) {
+            $dismissed[] = $key;
+            $this->update(['dismissed_notification_ids' => $dismissed]);
+        }
+    }
+
+    /**
+     * Mark all of the given notification keys as dismissed/read at once
+     * (used by "mark all as read").
+     */
+    public function dismissNotifications(array $keys): void
+    {
+        $dismissed = array_values(array_unique(array_merge($this->dismissed_notification_ids ?? [], $keys)));
+        $this->update(['dismissed_notification_ids' => $dismissed]);
+    }
+
+    public function hasNotificationDismissed(string $key): bool
+    {
+        return in_array($key, $this->dismissed_notification_ids ?? [], true);
     }
 
     // ─── Role helpers ────────────────────────────────────────────────────────

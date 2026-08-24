@@ -398,6 +398,40 @@ document.addEventListener('DOMContentLoaded', () => {
         panel.style.left = `${left}px`;
         panel.style.visibility = 'visible';
     };
+
+    // Copies a guest's public guide URL to the clipboard from the row's
+    // quick menu, with a brief inline "Copied!" confirmation on the label.
+    window.copyGuestUrl = function copyGuestUrl(btn, url) {
+        const label = btn.querySelector('[data-copy-label]');
+        const original = label ? label.textContent : null;
+        const showCopied = () => {
+            if (!label) return;
+            label.textContent = 'Copied!';
+            setTimeout(() => { label.textContent = original; }, 1500);
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText(url).then(showCopied).catch(() => {
+                fallbackCopyText(url);
+                showCopied();
+            });
+        } else {
+            fallbackCopyText(url);
+            showCopied();
+        }
+        closeAllRowMenus();
+    };
+
+    function fallbackCopyText(text) {
+        const temp = document.createElement('textarea');
+        temp.value = text;
+        temp.style.position = 'fixed';
+        temp.style.opacity = '0';
+        document.body.appendChild(temp);
+        temp.focus();
+        temp.select();
+        try { document.execCommand('copy'); } catch (e) { /* no-op */ }
+        document.body.removeChild(temp);
+    }
     document.addEventListener('click', (e) => {
         if (e.target.closest('[data-row-menu]') || e.target.closest('[data-row-menu-panel]')) return;
         closeAllRowMenus();

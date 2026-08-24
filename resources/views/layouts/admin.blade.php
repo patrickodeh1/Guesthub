@@ -182,40 +182,81 @@
                         aria-label="Open notifications">
                     <x-icon name="bell" class="h-4 w-4" />
                     @php
-                        $pendingIds   = \App\Models\Booking::whereNull('photo_id_path')->count();
-                        $todayIn      = \App\Models\Booking::whereDate('check_in_date', now()->toDateString())->count();
-                        $notifCount   = $pendingIds + $todayIn;
+                        // Keys are derived from the actual set of underlying booking
+                        // ids, so a dismissed group automatically re-appears once its
+                        // contents change (a new pending ID, a new today's check-in),
+                        // rather than staying silenced forever.
+                        $pendingIdBookings = \App\Models\Booking::whereNull('photo_id_path')->pluck('id')->sort()->values();
+                        $todayInBookings   = \App\Models\Booking::whereDate('check_in_date', now()->toDateString())->pluck('id')->sort()->values();
+
+                        $pendingKey = 'pending_ids:' . $pendingIdBookings->implode(',');
+                        $todayKey   = 'checkin_today:' . $todayInBookings->implode(',');
+
+                        $dismissed = auth()->user()->dismissed_notification_ids ?? [];
+
+                        $showPending = $pendingIdBookings->isNotEmpty() && ! in_array($pendingKey, $dismissed, true);
+                        $showToday   = $todayInBookings->isNotEmpty() && ! in_array($todayKey, $dismissed, true);
+
+                        // The badge counts the unread items actually listed below,
+                        // so it always matches what's in the dropdown.
+                        $notifCount = ($showPending ? 1 : 0) + ($showToday ? 1 : 0);
+                        $visibleKeys = array_values(array_filter([$showPending ? $pendingKey : null, $showToday ? $todayKey : null]));
                     @endphp
                     @if($notifCount > 0)
-                        <span class="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">{{ min($notifCount, 9) }}</span>
+                        <span class="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white">{{ $notifCount }}</span>
                     @endif
                 </button>
 
                 <div id="notif-panel"
                      class="absolute right-0 top-full mt-1.5 hidden w-72 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
-                    <div class="border-b border-slate-100 p-3">
+                    <div class="flex items-center justify-between border-b border-slate-100 p-3">
                         <p class="text-xs font-semibold uppercase tracking-widest text-slate-500">Notifications</p>
+                        @if($notifCount > 0)
+                            <form method="POST" action="{{ route('admin.notifications.mark-all-read') }}">
+                                @csrf
+                                @foreach($visibleKeys as $k)
+                                    <input type="hidden" name="keys[]" value="{{ $k }}">
+                                @endforeach
+                                <button type="submit" class="text-[11px] font-semibold text-slate-500 hover:text-slate-800">Mark all as read</button>
+                            </form>
+                        @endif
                     </div>
                     <div class="divide-y divide-slate-100">
-                        @if($pendingIds > 0)
-                            <a href="{{ route('admin.guests.index', ['status' => 'pending']) }}"
-                               class="flex items-center gap-3 p-3 hover:bg-amber-50">
-                                <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-600"><x-icon name="upload" class="h-4 w-4" /></span>
-                                <div>
-                                    <p class="text-sm font-semibold text-slate-900">{{ $pendingIds }} pending photo ID{{ $pendingIds > 1 ? 's' : '' }}</p>
-                                    <p class="text-xs text-slate-500">Guests awaiting document review</p>
-                                </div>
-                            </a>
+                        @if($showPending)
+                            <div class="flex items-center gap-3 p-3 hover:bg-amber-50">
+                                <a href="{{ route('admin.guests.index', ['status' => 'pending']) }}" class="flex flex-1 items-center gap-3">
+                                    <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-100 text-amber-600"><x-icon name="upload" class="h-4 w-4" /></span>
+                                    <div>
+                                        <p class="text-sm font-semibold text-slate-900">{{ $pendingIdBookings->count() }} pending photo ID{{ $pendingIdBookings->count() > 1 ? 's' : '' }}</p>
+                                        <p class="text-xs text-slate-500">Guests awaiting document review</p>
+                                    </div>
+                                </a>
+                                <form method="POST" action="{{ route('admin.notifications.dismiss') }}">
+                                    @csrf
+                                    <input type="hidden" name="key" value="{{ $pendingKey }}">
+                                    <button type="submit" class="grid h-6 w-6 shrink-0 place-items-center rounded-md text-slate-400 hover:bg-slate-200 hover:text-slate-700" aria-label="Mark as read" title="Mark as read">
+                                        <x-icon name="x" class="h-3.5 w-3.5" />
+                                    </button>
+                                </form>
+                            </div>
                         @endif
-                        @if($todayIn > 0)
-                            <a href="{{ route('admin.guests.index') }}"
-                               class="flex items-center gap-3 p-3 hover:bg-blue-50">
-                                <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-blue-100 text-blue-600"><x-icon name="calendar" class="h-4 w-4" /></span>
-                                <div>
-                                    <p class="text-sm font-semibold text-slate-900">{{ $todayIn }} check-in{{ $todayIn > 1 ? 's' : '' }} today</p>
-                                    <p class="text-xs text-slate-500">Arrivals scheduled for today</p>
-                                </div>
-                            </a>
+                        @if($showToday)
+                            <div class="flex items-center gap-3 p-3 hover:bg-blue-50">
+                                <a href="{{ route('admin.guests.index') }}" class="flex flex-1 items-center gap-3">
+                                    <span class="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-blue-100 text-blue-600"><x-icon name="calendar" class="h-4 w-4" /></span>
+                                    <div>
+                                        <p class="text-sm font-semibold text-slate-900">{{ $todayInBookings->count() }} check-in{{ $todayInBookings->count() > 1 ? 's' : '' }} today</p>
+                                        <p class="text-xs text-slate-500">Arrivals scheduled for today</p>
+                                    </div>
+                                </a>
+                                <form method="POST" action="{{ route('admin.notifications.dismiss') }}">
+                                    @csrf
+                                    <input type="hidden" name="key" value="{{ $todayKey }}">
+                                    <button type="submit" class="grid h-6 w-6 shrink-0 place-items-center rounded-md text-slate-400 hover:bg-slate-200 hover:text-slate-700" aria-label="Mark as read" title="Mark as read">
+                                        <x-icon name="x" class="h-3.5 w-3.5" />
+                                    </button>
+                                </form>
+                            </div>
                         @endif
                         @if($notifCount === 0)
                             <div class="p-5 text-center text-sm text-slate-500">
