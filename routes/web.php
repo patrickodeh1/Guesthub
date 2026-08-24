@@ -174,6 +174,7 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     // ─── Activity Logs ────────────────────────────────────────────────────────
     Route::middleware('role:owner,manager')->group(function () {
         Route::get('logs', [LogController::class, 'index'])->name('logs.index');
+        Route::get('payments', [App\Http\Controllers\Admin\PaymentController::class, 'index'])->name('payments.index');
         Route::get('logs/{log}', [LogController::class, 'show'])->name('logs.show');
     });
 

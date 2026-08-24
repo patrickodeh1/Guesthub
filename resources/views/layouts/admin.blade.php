@@ -45,6 +45,7 @@
                     ['users',      'Users',             'admin.users.index',        'admin.users.*'],
                     ['users',      'Early Access Signups', 'admin.early-access-leads.index', 'admin.early-access-leads.*'],
                     ['logs',       'Activity Logs',     'admin.logs.index',         'admin.logs.*'],
+                    ['check',      'Payments',          'admin.payments.index',     'admin.payments.*'],
                     ['security',   'Security',          'admin.security',           'admin.security'],
                     ['guide',      'Admin Guide',       'admin.guide',              'admin.guide'],
                 ],
