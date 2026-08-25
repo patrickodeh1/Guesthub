@@ -242,44 +242,73 @@
 
         btn.disabled = true;
         btn.style.backgroundColor = COLORS.unknown;
-        label.textContent = isCurrentlyLocked ? "Unlocking..." : "Locking...";
+        label.textContent = "Checking location...";
         label.style.color = COLORS.unknown;
 
         progressMsg.className = "lock-progress-message mt-2 text-sm text-center text-slate-500";
-        setStep("sending", "Sending command...");
+        setStep("sending", "Checking your location...");
 
-        fetch(url, {
-            method: "POST",
-            headers: { "X-CSRF-TOKEN": "{{ csrf_token() }}", "Content-Type": "application/json" }
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (!data.ok) {
-                renderButtonState(isCurrentlyLocked);
-                setError(data.error || "Something went wrong.");
-                startCooldown(COOLDOWN_SECONDS, function() {
+        function sendCommand(coords) {
+            label.textContent = isCurrentlyLocked ? "Unlocking..." : "Locking...";
+            setStep("sending", "Sending command...");
+
+            var body = coords ? JSON.stringify({ latitude: coords.latitude, longitude: coords.longitude }) : "{}";
+
+            fetch(url, {
+                method: "POST",
+                headers: { "X-CSRF-TOKEN": "{{ csrf_token() }}", "Content-Type": "application/json" },
+                body: body
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data.ok) {
                     renderButtonState(isCurrentlyLocked);
-                });
-                return;
-            }
+                    setError(data.error || "Something went wrong.");
+                    startCooldown(COOLDOWN_SECONDS, function() {
+                        renderButtonState(isCurrentlyLocked);
+                    });
+                    return;
+                }
 
-            var cardState = { corrected: false };
-            setStep("sent", "Command sent...");
+                var cardState = { corrected: false };
+                setStep("sent", "Command sent...");
 
-            setTimeout(function() {
-                setStep("confirming", "Waiting for the door to respond (this can take up to 40 seconds)...");
-            }, 300);
+                setTimeout(function() {
+                    setStep("confirming", "Waiting for the door to respond (this can take up to 40 seconds)...");
+                }, 300);
 
-            // Button stays disabled the ENTIRE time. Nothing here declares
-            // success on a timer — only pollForResult, once it gets a real
-            // answer, unlocks the button and shows "Confirmed".
-            pollForResult(expectedLocked, 40, cardState);
-        })
-        .catch(function() {
+                // Button stays disabled the ENTIRE time. Nothing here declares
+                // success on a timer — only pollForResult, once it gets a real
+                // answer, unlocks the button and shows "Confirmed".
+                pollForResult(expectedLocked, 40, cardState);
+            })
+            .catch(function() {
+                btn.disabled = false;
+                renderButtonState(isCurrentlyLocked);
+                setError("Network error. Please try again.");
+            });
+        }
+
+        // Location is required every time — a stale/one-time verification
+        // isn't enough, this must reflect where the guest is right now.
+        if (!navigator.geolocation) {
             btn.disabled = false;
             renderButtonState(isCurrentlyLocked);
-            setError("Network error. Please try again.");
-        });
+            setError("Your browser doesn't support location, which is required to lock/unlock the door.");
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            function(position) {
+                sendCommand({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+            },
+            function() {
+                btn.disabled = false;
+                renderButtonState(isCurrentlyLocked);
+                setError("Location access is required to lock/unlock the door. Please allow location and try again.");
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
     });
 })();
 </script>

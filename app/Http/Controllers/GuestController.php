@@ -666,10 +666,73 @@ class GuestController extends Controller
         return response()->json($eventsResult);
     }
 
-    public function unlockDoor(string $bookingId, string $token, PropertyLock $lock)
+    /**
+     * Enforced on every unlock/lock attempt (not just once at arrival, per
+     * the existing gps_verified flow). Closes the gap where a leaked link
+     * could operate the door from anywhere, indefinitely: requires both an
+     * active stay window and a live, in-range GPS reading submitted with
+     * this specific request. Returns an error JsonResponse if blocked, or
+     * null if the action may proceed.
+     */
+    private function assertLockActionAllowed(Request $request, Booking $booking): ?\Illuminate\Http\JsonResponse
+    {
+        $today = now()->toDateString();
+        $checkIn = optional($booking->check_in_date)->toDateString();
+        $checkOut = optional($booking->check_out_date)->toDateString();
+
+        if (($checkIn && $today < $checkIn) || ($checkOut && $today > $checkOut)) {
+            ActivityLogService::guest('door_action_blocked_stay_window', "Blocked door action for {$booking->guest_name}: outside active stay dates.", 'guest_portal', [
+                'booking_id'  => $booking->id,
+                'property_id' => $booking->property_id,
+                'actor_name'  => $booking->guest_name,
+                'severity'    => 'warning',
+            ]);
+            return response()->json(['ok' => false, 'error' => 'Door access is only available during your stay dates.'], 403);
+        }
+
+        $property = $booking->property;
+        if (! $property->latitude || ! $property->longitude) {
+            // No coordinates configured for this property — can't
+            // location-gate, fall back to the stay-window check alone
+            // rather than blocking every guest due to missing admin setup.
+            return null;
+        }
+
+        $data = $request->validate([
+            'latitude'  => ['required', 'numeric'],
+            'longitude' => ['required', 'numeric'],
+        ]);
+
+        $distance = $this->distanceMeters(
+            (float) $data['latitude'],
+            (float) $data['longitude'],
+            (float) $property->latitude,
+            (float) $property->longitude
+        );
+        $radius = (int) Setting::getValue('gps_radius_meters', 150);
+
+        if ($distance > $radius) {
+            ActivityLogService::guest('door_action_blocked_gps', "Blocked door action for {$booking->guest_name}: outside property radius (distance: ".round($distance)."m, radius: {$radius}m).", 'guest_portal', [
+                'booking_id'  => $booking->id,
+                'property_id' => $booking->property_id,
+                'actor_name'  => $booking->guest_name,
+                'severity'    => 'warning',
+                'metadata'    => ['distance_meters' => round($distance), 'radius_meters' => $radius],
+            ]);
+            return response()->json(['ok' => false, 'error' => 'You must be at the property to lock or unlock the door.'], 403);
+        }
+
+        return null;
+    }
+
+    public function unlockDoor(Request $request, string $bookingId, string $token, PropertyLock $lock)
     {
         $booking = $this->booking($bookingId, $token);
         abort_unless($lock->property_id === $booking->property_id, 404);
+
+        if ($blocked = $this->assertLockActionAllowed($request, $booking)) {
+            return $blocked;
+        }
         try {
             $attempt = app(SeamService::class)->unlock($lock->seam_device_id);
         } catch (\Throwable $e) {
@@ -704,10 +767,14 @@ class GuestController extends Controller
             'updated_at' => optional($lock->last_status_at)->toIso8601String(),
         ]);
     }
-    public function lockDoor(string $bookingId, string $token, PropertyLock $lock)
+    public function lockDoor(Request $request, string $bookingId, string $token, PropertyLock $lock)
     {
         $booking = $this->booking($bookingId, $token);
         abort_unless($lock->property_id === $booking->property_id, 404);
+
+        if ($blocked = $this->assertLockActionAllowed($request, $booking)) {
+            return $blocked;
+        }
         try {
             $attempt = app(SeamService::class)->lock($lock->seam_device_id);
         } catch (\Throwable $e) {
