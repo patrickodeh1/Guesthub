@@ -90,6 +90,17 @@ class PaymentService
             'captured_at' => $intent->status === 'succeeded' ? now() : null,
         ]);
 
+        if ($charge->status === Charge::STATUS_CAPTURED && in_array($charge->type, [Charge::TYPE_DEPOSIT, Charge::TYPE_INCIDENTALS], true)) {
+            // Whatever the current incidentals_charge is at the moment this
+            // charge succeeds is now considered "billed" — the combined
+            // pre-checkin charge includes incidentals as of that moment,
+            // and a standalone incidentals charge settles it in full. Either
+            // way, unbilledIncidentalsCents() should return 0 right after.
+            $charge->booking->update([
+                'incidentals_billed_cents' => (int) round(($charge->booking->incidentals_charge ?? 0) * 100),
+            ]);
+        }
+
         if ($charge->type === Charge::TYPE_DEPOSIT) {
             $charge->booking->update([
                 'deposit_payment_status' => $charge->status,

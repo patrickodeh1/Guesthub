@@ -341,7 +341,7 @@ class GuestController extends Controller
             \App\Models\Charge::TYPE_PARKING => (int) round(($booking->effectiveParkingCharge() ?? 0) * 100),
             \App\Models\Charge::TYPE_EARLY_CHECKIN => (int) round(($booking->earlyCheckinCharge() ?? 0) * 100),
             \App\Models\Charge::TYPE_LATE_CHECKOUT => (int) round(($booking->lateCheckoutCharge() ?? 0) * 100),
-            \App\Models\Charge::TYPE_INCIDENTALS => (int) round(($booking->incidentals_charge ?? 0) * 100),
+            \App\Models\Charge::TYPE_INCIDENTALS => $booking->unbilledIncidentalsCents(),
             default => 0,
         };
 

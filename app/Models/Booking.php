@@ -16,6 +16,7 @@ class Booking extends Model
         'approved_at', 'decline_reason', 'archived_at', 'background_check_completed_at', 'deposit_verified_at',
         'contract_version', 'contract_accepted_at',
         'deposit_payment_status', 'deposit_stripe_payment_intent_id', 'deposit_amount_cents',
+        'incidentals_billed_cents',
         'pay_by_cc',
         'access_blocked_at', 'access_blocked_reason',
         'photo_id_front_approved_at', 'photo_id_front_declined_reason',
@@ -45,6 +46,7 @@ class Booking extends Model
             'deposit_verified_at' => 'datetime',
             'contract_accepted_at' => 'datetime',
             'deposit_amount_cents' => 'integer',
+            'incidentals_billed_cents' => 'integer',
             'pay_by_cc' => 'boolean',
             'access_blocked_at' => 'datetime',
             'photo_id_front_approved_at' => 'datetime',
@@ -82,22 +84,26 @@ class Booking extends Model
     }
 
     /**
-     * The pre-checkin combined charge: parking + incidentals, capped at the
+     * The pre-checkin combined charge: parking + incidentals + early
+     * check-in (if already granted at this point), capped at the
      * property's flat-dollar ceiling (falling back to the global default),
      * then a global % processing fee added on top. This is what's actually
      * charged at the "after ID upload" step — replaces the old flat
-     * admin-set deposit amount.
+     * admin-set deposit amount. If early check-in is granted *after* this
+     * has already been paid, it's billed separately (see the standalone
+     * early-check-in guest charge card) rather than reopening this total.
      */
     public function calculatePreCheckinChargeCents(): int
     {
         $parkingCents = (int) round(($this->effectiveParkingCharge() ?? 0) * 100);
         $incidentalsCents = (int) round(($this->incidentals_charge ?? 0) * 100);
+        $earlyCheckinCents = (int) round(($this->earlyCheckinCharge() ?? 0) * 100);
 
         $capCents = $this->property && $this->property->deposit_cap_cents !== null
             ? $this->property->deposit_cap_cents
             : (int) \App\Models\Setting::getValue('default_deposit_cap_cents', 0);
 
-        $subtotal = $parkingCents + $incidentalsCents;
+        $subtotal = $parkingCents + $incidentalsCents + $earlyCheckinCents;
         if ($capCents > 0) {
             $subtotal = min($subtotal, $capCents);
         }
@@ -106,6 +112,19 @@ class Booking extends Model
         $fee = (int) round($subtotal * ($feePercent / 100));
 
         return $subtotal + $fee;
+    }
+
+    /**
+     * incidentals_charge minus whatever's already been billed (via the
+     * combined pre-checkin charge or a prior standalone incidentals
+     * charge). Never negative — if admin lowers incidentals_charge after
+     * some was already billed, this is just 0, not a refund trigger.
+     */
+    public function unbilledIncidentalsCents(): int
+    {
+        $currentCents = (int) round(($this->incidentals_charge ?? 0) * 100);
+
+        return max(0, $currentCents - ($this->incidentals_billed_cents ?? 0));
     }
 
     public function scopeNotArchived($query)

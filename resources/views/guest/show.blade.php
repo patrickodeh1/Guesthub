@@ -1460,11 +1460,15 @@
 
                 $parkingAmountCents = (int) round(($booking->effectiveParkingCharge() ?? 0) * 100);
                 $parkingPaid = $booking->charges()->where('type', \App\Models\Charge::TYPE_PARKING)->where('status', \App\Models\Charge::STATUS_CAPTURED)->exists();
-                $showParkingCharge = $booking->parking_needed && $parkingAmountCents > 0 && ! $parkingPaid && $stripeConfiguredForCharges;
+                $showParkingCharge = $booking->pay_by_cc && $booking->parking_needed && $parkingAmountCents > 0 && ! $parkingPaid && $stripeConfiguredForCharges;
 
                 $earlyCheckinAmountCents = (int) round(($booking->earlyCheckinCharge() ?? 0) * 100);
                 $earlyCheckinPaid = $booking->charges()->where('type', \App\Models\Charge::TYPE_EARLY_CHECKIN)->where('status', \App\Models\Charge::STATUS_CAPTURED)->exists();
-                $showEarlyCheckinCharge = $booking->early_checkin_tier && $earlyCheckinAmountCents > 0 && ! $earlyCheckinPaid && $stripeConfiguredForCharges;
+                // Only bill this standalone if the combined pre-checkin
+                // charge has already been captured — otherwise this tier
+                // was granted before that charge happened and is already
+                // folded into it (see calculatePreCheckinChargeCents()).
+                $showEarlyCheckinCharge = $booking->pay_by_cc && $booking->early_checkin_tier && $earlyCheckinAmountCents > 0 && ! $earlyCheckinPaid && $booking->isDepositCaptured() && $stripeConfiguredForCharges;
             @endphp
             @if($showParkingCharge || $showEarlyCheckinCharge)
                 @if($showParkingCharge)
@@ -1778,11 +1782,11 @@
 
                 $lateCheckoutAmountCents = (int) round(($booking->lateCheckoutCharge() ?? 0) * 100);
                 $lateCheckoutPaid = $booking->charges()->where('type', \App\Models\Charge::TYPE_LATE_CHECKOUT)->where('status', \App\Models\Charge::STATUS_CAPTURED)->exists();
-                $showLateCheckoutCharge = $lateCheckoutAmountCents > 0 && ! $lateCheckoutPaid && $stripeConfiguredForCharges;
+                $showLateCheckoutCharge = $booking->pay_by_cc && $lateCheckoutAmountCents > 0 && ! $lateCheckoutPaid && $stripeConfiguredForCharges;
 
-                $incidentalsAmountCents = (int) round(($booking->incidentals_charge ?? 0) * 100);
+                $incidentalsAmountCents = $booking->unbilledIncidentalsCents();
                 $incidentalsPaid = $booking->charges()->where('type', \App\Models\Charge::TYPE_INCIDENTALS)->where('status', \App\Models\Charge::STATUS_CAPTURED)->exists();
-                $showIncidentalsCharge = $incidentalsAmountCents > 0 && ! $incidentalsPaid && $stripeConfiguredForCharges;
+                $showIncidentalsCharge = $booking->pay_by_cc && $incidentalsAmountCents > 0 && ! $incidentalsPaid && $stripeConfiguredForCharges;
             @endphp
             @if($showLateCheckoutCharge || $showIncidentalsCharge)
                 @if($showLateCheckoutCharge)
