@@ -199,6 +199,8 @@ class BookingController extends Controller
     {
         $oldStatus = $booking->status;
         $oldEarlyCheckinTier = $booking->early_checkin_tier;
+        $oldLateCheckoutCharge = $booking->lateCheckoutCharge();
+        $oldIncidentalsCharge = (float) ($booking->incidentals_charge ?? 0);
         $data = $this->validated($request, $booking);
         $data['early_checkin'] = $request->boolean('early_checkin');
         $data['photo_id_received'] = $request->boolean('photo_id_received');
@@ -217,6 +219,19 @@ class BookingController extends Controller
         // it is an admin-initiated action.
         if ($booking->early_checkin_tier && $booking->early_checkin_tier !== $oldEarlyCheckinTier) {
             \App\Services\GuestAlertService::send('early_checkin_granted', $booking);
+        }
+
+        // Same idea for late checkout / incidentals, but only once the guest
+        // has actually checked out — these are almost always entered by
+        // admin after the stay, and the guest can't see the payment screen
+        // (post_checkout state) until then anyway.
+        if ($booking->status === 'checked_out') {
+            $newLateCheckoutCharge = $booking->lateCheckoutCharge();
+            $newIncidentalsCharge = (float) ($booking->incidentals_charge ?? 0);
+
+            if (($newLateCheckoutCharge ?? 0) > ($oldLateCheckoutCharge ?? 0) || $newIncidentalsCharge > $oldIncidentalsCharge) {
+                \App\Services\GuestAlertService::send('post_checkout_balance_due', $booking);
+            }
         }
 
         ActivityLogService::admin('booking_updated', auth()->user()->name." updated booking for {$booking->guest_name}.", 'guests', [

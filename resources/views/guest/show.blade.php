@@ -1473,79 +1473,11 @@
                 @if($showEarlyCheckinCharge)
                     <x-guest-charge-card type="early_checkin" label="Early check-in fee" description="Your requested early check-in has been approved — payment finalizes it." :amount-cents="$earlyCheckinAmountCents" :booking="$booking" />
                 @endif
-                <script src="https://js.stripe.com/v3/"></script>
+                @include('guest.partials.charge-card-script')
                 <script>
                 (function() {
-                    function initChargeCard(type) {
-                        var payBtn = document.getElementById(type + "-pay-btn");
-                        var elementDiv = document.getElementById(type + "-payment-element");
-                        if (!payBtn || !elementDiv) return;
-                        var errorBox = document.getElementById(type + "-payment-error");
-                        var stripe, elements;
-                        var intentUrl = elementDiv.closest("[data-charge-card]").dataset.intentUrl;
-                        var confirmUrl = elementDiv.closest("[data-charge-card]").dataset.confirmUrl;
-                        var payLabel = payBtn.textContent;
-                        var csrfToken = document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : "";
-
-                        function showError(msg) {
-                            errorBox.textContent = msg;
-                            errorBox.classList.remove("hidden");
-                        }
-
-                        fetch(intentUrl, {
-                            method: "POST",
-                            headers: { "Accept": "application/json", "Content-Type": "application/json", "X-CSRF-TOKEN": csrfToken },
-                            body: JSON.stringify({ type: type })
-                        })
-                            .then(function(r) { return r.json(); })
-                            .then(function(data) {
-                                if (!data.ok) { showError(data.error || "Unable to start payment."); return; }
-                                if (!data.client_secret) { elementDiv.closest("[data-charge-card]").style.display = "none"; return; }
-                                stripe = Stripe(data.publishable_key);
-                                elements = stripe.elements({ clientSecret: data.client_secret });
-                                elements.create("payment").mount("#" + type + "-payment-element");
-                                payBtn.disabled = false;
-                            })
-                            .catch(function() { showError("Network error. Please try again."); });
-
-                        payBtn.addEventListener("click", function() {
-                            if (!stripe || !elements) return;
-                            payBtn.disabled = true;
-                            payBtn.textContent = "Processing…";
-                            errorBox.classList.add("hidden");
-
-                            stripe.confirmPayment({ elements: elements, redirect: "if_required" })
-                                .then(function(result) {
-                                    if (result.error) {
-                                        showError(result.error.message || "Payment failed. Please try again.");
-                                        payBtn.disabled = false;
-                                        payBtn.textContent = payLabel;
-                                        return;
-                                    }
-                                    return fetch(confirmUrl, {
-                                        method: "POST",
-                                        headers: { "Accept": "application/json", "Content-Type": "application/json", "X-CSRF-TOKEN": csrfToken },
-                                        body: JSON.stringify({ payment_intent_id: result.paymentIntent.id })
-                                    })
-                                        .then(function(r) { return r.json(); })
-                                        .then(function(confirmData) {
-                                            if (confirmData.ok) {
-                                                window.location.reload();
-                                            } else {
-                                                showError(confirmData.error || "Payment could not be confirmed. Please contact us.");
-                                                payBtn.disabled = false;
-                                            }
-                                        });
-                                })
-                                .catch(function() {
-                                    showError("Network error confirming payment. Please try again.");
-                                    payBtn.disabled = false;
-                                });
-                        });
-                    }
-
-                    @if($showParkingCharge) initChargeCard("parking"); @endif
-                    @if($showEarlyCheckinCharge) initChargeCard("early_checkin"); @endif
+                    @if($showParkingCharge) initGuestChargeCard("parking"); @endif
+                    @if($showEarlyCheckinCharge) initGuestChargeCard("early_checkin"); @endif
                 })();
                 </script>
             @endif
@@ -1840,6 +1772,33 @@
                     <p class="max-w-md text-sm leading-6 text-slate-600">We appreciate it. If you'd like to stay with us again, please contact us directly for a discount.</p>
                 </div>
             </div>
+
+            @php
+                $stripeConfiguredForCharges = filled(config('services.stripe.key')) && filled(config('services.stripe.secret'));
+
+                $lateCheckoutAmountCents = (int) round(($booking->lateCheckoutCharge() ?? 0) * 100);
+                $lateCheckoutPaid = $booking->charges()->where('type', \App\Models\Charge::TYPE_LATE_CHECKOUT)->where('status', \App\Models\Charge::STATUS_CAPTURED)->exists();
+                $showLateCheckoutCharge = $lateCheckoutAmountCents > 0 && ! $lateCheckoutPaid && $stripeConfiguredForCharges;
+
+                $incidentalsAmountCents = (int) round(($booking->incidentals_charge ?? 0) * 100);
+                $incidentalsPaid = $booking->charges()->where('type', \App\Models\Charge::TYPE_INCIDENTALS)->where('status', \App\Models\Charge::STATUS_CAPTURED)->exists();
+                $showIncidentalsCharge = $incidentalsAmountCents > 0 && ! $incidentalsPaid && $stripeConfiguredForCharges;
+            @endphp
+            @if($showLateCheckoutCharge || $showIncidentalsCharge)
+                @if($showLateCheckoutCharge)
+                    <x-guest-charge-card type="late_checkout" label="Late checkout fee" description="A fee applies for checking out later than the standard time." :amount-cents="$lateCheckoutAmountCents" :booking="$booking" />
+                @endif
+                @if($showIncidentalsCharge)
+                    <x-guest-charge-card type="incidentals" label="Incidentals" description="Additional charges from your stay." :amount-cents="$incidentalsAmountCents" :booking="$booking" />
+                @endif
+                @include('guest.partials.charge-card-script')
+                <script>
+                (function() {
+                    @if($showLateCheckoutCharge) initGuestChargeCard("late_checkout"); @endif
+                    @if($showIncidentalsCharge) initGuestChargeCard("incidentals"); @endif
+                })();
+                </script>
+            @endif
         @elseif($state === 'checkout_locked')
             @if($booking->status === 'checked_out')
                 <div class="guest-portal-card">

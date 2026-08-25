@@ -71,6 +71,11 @@ class GuestAlertService
             'default_guest_message' => 'GuestHub: Hi {guest_name}, your early check-in request for {property_name} has been approved. Please visit your check-in link to complete payment.',
             'default_staff_message' => 'GuestHub alert: Early check-in was granted for {guest_name} at {property_name}.',
         ],
+        'post_checkout_balance_due' => [
+            'label' => 'Post-checkout balance due',
+            'default_guest_message' => 'GuestHub: Hi {guest_name}, an additional balance is due for your stay at {property_name}. Please visit your check-in link to complete payment.',
+            'default_staff_message' => 'GuestHub alert: A post-checkout balance (late checkout / incidentals) is now due for {guest_name} at {property_name}.',
+        ],
         'photo_id_uploaded' => [
             'label' => 'Photo ID uploaded',
             'default_guest_message' => 'GuestHub: Hi {guest_name}, your photo ID for {property_name} was received and is being reviewed. No action needed for now.',
