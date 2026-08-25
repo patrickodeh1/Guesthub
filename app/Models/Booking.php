@@ -93,6 +93,40 @@ class Booking extends Model
      * has already been paid, it's billed separately (see the standalone
      * early-check-in guest charge card) rather than reopening this total.
      */
+    /**
+     * Human-readable breakdown of calculatePreCheckinChargeCents(), for
+     * admin visibility on the Payments page (a bare "$187.50" line item
+     * would otherwise be meaningless once this is a combined charge).
+     */
+    public function preCheckinChargeBreakdown(): string
+    {
+        $parts = [];
+        if (($parking = $this->effectiveParkingCharge()) > 0) {
+            $parts[] = 'parking $' . number_format($parking, 2);
+        }
+        if (($this->incidentals_charge ?? 0) > 0) {
+            $parts[] = 'incidentals $' . number_format($this->incidentals_charge, 2);
+        }
+        if (($earlyCheckin = $this->earlyCheckinCharge()) > 0) {
+            $parts[] = 'early check-in $' . number_format($earlyCheckin, 2);
+        }
+
+        $capCents = $this->property && $this->property->deposit_cap_cents !== null
+            ? $this->property->deposit_cap_cents
+            : (int) \App\Models\Setting::getValue('default_deposit_cap_cents', 0);
+        $feePercent = (float) \App\Models\Setting::getValue('processing_fee_percent', 0);
+
+        $summary = $parts ? implode(' + ', $parts) : 'no parking/incidentals/early check-in';
+        if ($capCents > 0) {
+            $summary .= ', capped at $' . number_format($capCents / 100, 2);
+        }
+        if ($feePercent > 0) {
+            $summary .= ", +{$feePercent}% processing fee";
+        }
+
+        return $summary;
+    }
+
     public function calculatePreCheckinChargeCents(): int
     {
         $parkingCents = (int) round(($this->effectiveParkingCharge() ?? 0) * 100);

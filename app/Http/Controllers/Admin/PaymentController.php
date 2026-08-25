@@ -34,10 +34,10 @@ class PaymentController extends Controller
             'charges' => $charges,
             'totals' => $totals,
             'types' => [
-                Charge::TYPE_DEPOSIT => 'Deposit',
-                Charge::TYPE_PARKING => 'Parking',
-                Charge::TYPE_INCIDENTALS => 'Incidentals',
-                Charge::TYPE_EARLY_CHECKIN => 'Early check-in',
+                Charge::TYPE_DEPOSIT => 'Pre-checkin (parking/incidentals/early check-in)',
+                Charge::TYPE_PARKING => 'Parking (standalone)',
+                Charge::TYPE_INCIDENTALS => 'Incidentals (standalone)',
+                Charge::TYPE_EARLY_CHECKIN => 'Early check-in (standalone)',
                 Charge::TYPE_LATE_CHECKOUT => 'Late checkout',
             ],
             'statuses' => [

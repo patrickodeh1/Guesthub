@@ -108,7 +108,12 @@
                             @endif
                         </td>
                         <td class="text-sm text-slate-700">{{ $charge->booking?->property?->name ?? '—' }}</td>
-                        <td><span class="badge badge-inactive">{{ $types[$charge->type] ?? $charge->type }}</span></td>
+                        <td>
+                            <span class="badge badge-inactive">{{ $types[$charge->type] ?? $charge->type }}</span>
+                            @if($charge->description)
+                                <p class="mt-1 text-xs text-slate-500">{{ $charge->description }}</p>
+                            @endif
+                        </td>
                         <td class="text-sm font-semibold text-slate-900">${{ number_format($charge->amount_cents / 100, 2) }}</td>
                         <td>
                             @php

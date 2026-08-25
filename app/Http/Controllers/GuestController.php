@@ -278,7 +278,7 @@ class GuestController extends Controller
             \App\Models\Charge::TYPE_DEPOSIT,
             $amountCents,
             'precheckin_approval',
-            "Incidentals hold for booking {$booking->booking_id}"
+            $booking->preCheckinChargeBreakdown()
         );
 
         return response()->json([
