@@ -72,7 +72,11 @@ class EarlyCheckinLateCheckoutChargeTest extends TestCase
         ]);
 
         $this->assertSame(50.0, $booking->earlyCheckinCharge());
-        $this->assertFalse($booking->fresh()->early_checkin);
+        // early_checkin has no boolean cast on the model, so SQLite returns
+        // the raw stored value (0) rather than PHP false — assert falsy,
+        // not strictly-false, since that's what the app itself relies on
+        // (e.g. Blade's @if($booking->early_checkin) treats 0 as falsy).
+        $this->assertFalse((bool) $booking->fresh()->early_checkin);
     }
 
     // ─── Late checkout billing: authorized ──────────────────────────────────
