@@ -32,6 +32,17 @@ return [
 
     'connections' => [
 
+        // Used only when DB_CONNECTION=sqlite, which the test suite sets via
+        // phpunit.xml (in-memory, per-test-run) — never used in dev/prod,
+        // which stay on 'mysql' above.
+        'sqlite' => [
+            'driver' => 'sqlite',
+            'url' => env('DB_URL'),
+            'database' => env('DB_DATABASE', database_path('database.sqlite')),
+            'prefix' => '',
+            'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
+        ],
+
         'mysql' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),
