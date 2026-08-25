@@ -1455,6 +1455,92 @@
             </div>
             </div>
 
+            @php
+                $parkingAmountCents = (int) round(($booking->effectiveParkingCharge() ?? 0) * 100);
+                $parkingCharge = $booking->charges()->where('type', \App\Models\Charge::TYPE_PARKING)->where('status', \App\Models\Charge::STATUS_CAPTURED)->exists();
+                $stripeConfiguredForCharges = filled(config('services.stripe.key')) && filled(config('services.stripe.secret'));
+            @endphp
+            @if($booking->parking_needed && $parkingAmountCents > 0 && ! $parkingCharge && $stripeConfiguredForCharges)
+            <div class="guest-portal-card mt-4">
+                <div class="p-6 md:p-8 text-center">
+                    <p class="text-base font-bold text-slate-950">Parking fee</p>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">A parking fee of <strong>${{ number_format($parkingAmountCents / 100, 2) }}</strong> applies for your stay.</p>
+                    <div id="parking-payment-error" class="mt-3 hidden rounded-lg bg-red-50 p-3 text-sm text-red-700"></div>
+                    <div id="parking-payment-element" class="mt-4 rounded-xl border border-slate-200 p-4 text-left"></div>
+                    <button type="button" id="parking-pay-btn" class="guest-primary-btn mt-4 w-full" disabled>Pay ${{ number_format($parkingAmountCents / 100, 2) }}</button>
+                </div>
+            </div>
+            <script src="https://js.stripe.com/v3/"></script>
+            <script>
+            (function() {
+                var payBtn = document.getElementById("parking-pay-btn");
+                var elementDiv = document.getElementById("parking-payment-element");
+                if (!payBtn || !elementDiv) return;
+                var errorBox = document.getElementById("parking-payment-error");
+                var stripe, elements;
+                var intentUrl = "{{ route('guest.charge.intent', [$booking->booking_id, $booking->token]) }}";
+                var confirmUrl = "{{ route('guest.charge.confirm', [$booking->booking_id, $booking->token]) }}";
+                var csrfToken = document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : "";
+
+                function showError(msg) {
+                    errorBox.textContent = msg;
+                    errorBox.classList.remove("hidden");
+                }
+
+                fetch(intentUrl, {
+                    method: "POST",
+                    headers: { "Accept": "application/json", "Content-Type": "application/json", "X-CSRF-TOKEN": csrfToken },
+                    body: JSON.stringify({ type: "parking" })
+                })
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        if (!data.ok) { showError(data.error || "Unable to start payment."); return; }
+                        if (!data.client_secret) { elementDiv.parentElement.style.display = "none"; return; }
+                        stripe = Stripe(data.publishable_key);
+                        elements = stripe.elements({ clientSecret: data.client_secret });
+                        elements.create("payment").mount("#parking-payment-element");
+                        payBtn.disabled = false;
+                    })
+                    .catch(function() { showError("Network error. Please try again."); });
+
+                payBtn.addEventListener("click", function() {
+                    if (!stripe || !elements) return;
+                    payBtn.disabled = true;
+                    payBtn.textContent = "Processing…";
+                    errorBox.classList.add("hidden");
+
+                    stripe.confirmPayment({ elements: elements, redirect: "if_required" })
+                        .then(function(result) {
+                            if (result.error) {
+                                showError(result.error.message || "Payment failed. Please try again.");
+                                payBtn.disabled = false;
+                                payBtn.textContent = "Pay {{ '$' . number_format($parkingAmountCents / 100, 2) }}";
+                                return;
+                            }
+                            return fetch(confirmUrl, {
+                                method: "POST",
+                                headers: { "Accept": "application/json", "Content-Type": "application/json", "X-CSRF-TOKEN": csrfToken },
+                                body: JSON.stringify({ payment_intent_id: result.paymentIntent.id })
+                            })
+                                .then(function(r) { return r.json(); })
+                                .then(function(confirmData) {
+                                    if (confirmData.ok) {
+                                        window.location.reload();
+                                    } else {
+                                        showError(confirmData.error || "Payment could not be confirmed. Please contact us.");
+                                        payBtn.disabled = false;
+                                    }
+                                });
+                        })
+                        .catch(function() {
+                            showError("Network error confirming payment. Please try again.");
+                            payBtn.disabled = false;
+                        });
+                });
+            })();
+            </script>
+            @endif
+
             @if($booking->canViewAddress())
             <div class="guest-portal-card mt-4">
                 <div class="p-6 md:p-8 text-center text-xl text-slate-950">{!! $gpsVerifyMessage !!}</div>
