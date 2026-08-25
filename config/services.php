@@ -44,6 +44,13 @@ return [
         'api_key' => env('TICKETMASTER_API_KEY'),
     ],
 
+    'telnyx' => [
+        'api_key' => env('TELNYX_API_KEY'),
+        'from_number' => env('TELNYX_FROM_NUMBER'),
+        'messaging_profile_id' => env('TELNYX_MESSAGING_PROFILE_ID'),
+        'admin_notify_number' => env('TELNYX_ADMIN_NOTIFY_NUMBER'),
+    ],
+
     'twilio' => [
         'sid' => env('TWILIO_SID'),
         'auth_token' => env('TWILIO_AUTH_TOKEN'),

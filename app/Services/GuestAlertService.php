@@ -302,11 +302,11 @@ class GuestAlertService
         $emails = collect();
 
         if ($row['contact_sms'] ?? false) {
-            // The .env Twilio admin number is kept as a legacy fallback
+            // The .env Telnyx admin number is kept as a legacy fallback
             // recipient alongside the Contact desk toggle, for installs that
             // never moved their admin number into Settings.
             $phones->push(self::normalizePhoneForSms(Setting::getValue('contact_phone')));
-            $phones->push(config('services.twilio.admin_notify_number'));
+            $phones->push(config('services.telnyx.admin_notify_number'));
         }
         if ($row['contact_email'] ?? false) {
             $emails->push(Setting::getValue('contact_email'));
@@ -357,7 +357,7 @@ class GuestAlertService
 
     /**
      * Strip formatting characters (spaces, dashes, parens) from a phone number
-     * pulled from Settings/users so it's in a Twilio-friendly format. Returns
+     * pulled from Settings/users so it's in an E.164-friendly format. Returns
      * null if the input is empty so callers can skip sending cleanly.
      */
     protected static function normalizePhoneForSms(?string $number): ?string
