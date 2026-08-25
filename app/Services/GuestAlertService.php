@@ -66,6 +66,11 @@ class GuestAlertService
             'default_guest_message' => 'GuestHub: Hi {guest_name}, your incidentals deposit for {property_name} has been received. Thanks!',
             'default_staff_message' => 'GuestHub alert: {guest_name} paid their incidentals deposit online for {property_name}.',
         ],
+        'early_checkin_granted' => [
+            'label' => 'Early check-in granted',
+            'default_guest_message' => 'GuestHub: Hi {guest_name}, your early check-in request for {property_name} has been approved. Please visit your check-in link to complete payment.',
+            'default_staff_message' => 'GuestHub alert: Early check-in was granted for {guest_name} at {property_name}.',
+        ],
         'photo_id_uploaded' => [
             'label' => 'Photo ID uploaded',
             'default_guest_message' => 'GuestHub: Hi {guest_name}, your photo ID for {property_name} was received and is being reviewed. No action needed for now.',

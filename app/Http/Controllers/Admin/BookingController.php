@@ -198,6 +198,7 @@ class BookingController extends Controller
     public function update(Request $request, Booking $booking)
     {
         $oldStatus = $booking->status;
+        $oldEarlyCheckinTier = $booking->early_checkin_tier;
         $data = $this->validated($request, $booking);
         $data['early_checkin'] = $request->boolean('early_checkin');
         $data['photo_id_received'] = $request->boolean('photo_id_received');
@@ -209,6 +210,14 @@ class BookingController extends Controller
         }
         $booking->update($data);
         $booking->recalculateParkingCharge();
+
+        // Newly granted (not just re-saved unchanged) early check-in tier:
+        // let the guest know via their existing portal link so they can pay
+        // for it — they won't otherwise know to check back, since granting
+        // it is an admin-initiated action.
+        if ($booking->early_checkin_tier && $booking->early_checkin_tier !== $oldEarlyCheckinTier) {
+            \App\Services\GuestAlertService::send('early_checkin_granted', $booking);
+        }
 
         ActivityLogService::admin('booking_updated', auth()->user()->name." updated booking for {$booking->guest_name}.", 'guests', [
             'subject_type' => Booking::class,
