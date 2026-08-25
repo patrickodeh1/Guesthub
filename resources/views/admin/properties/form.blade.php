@@ -42,10 +42,10 @@
             </section>
 
             <section class="card card-pad">
-                <h2 class="section-title">Guest deposit</h2>
-                <p class="section-copy">Charged to the guest's card once they're approved for check-in. Leave blank to use the global default set in Settings.</p>
-                <label class="field-label mt-5">Deposit amount (USD)
-                    <input type="number" step="0.01" min="0" name="deposit_amount_dollars" value="{{ old('deposit_amount_dollars', $property->deposit_amount_cents !== null ? number_format($property->deposit_amount_cents / 100, 2, '.', '') : '') }}" placeholder="e.g. 150.00" class="input">
+                <h2 class="section-title">Deposit cap</h2>
+                <p class="section-copy">Guests are charged parking + incidentals (if any) after ID upload, up to this cap, plus the global processing fee. Leave blank to use the global default set in Settings.</p>
+                <label class="field-label mt-5">Deposit cap (USD)
+                    <input type="number" step="0.01" min="0" name="deposit_cap_dollars" value="{{ old('deposit_cap_dollars', $property->deposit_cap_cents !== null ? number_format($property->deposit_cap_cents / 100, 2, '.', '') : '') }}" placeholder="e.g. 150.00" class="input">
                 </label>
             </section>
 

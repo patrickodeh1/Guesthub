@@ -50,6 +50,11 @@
                 <span class="field-help">Any incidentals charge for this guest. Not visible to the guest.</span>
             </label>
             <label class="field-label mt-5 flex items-center gap-2">
+                <input type="checkbox" name="pay_by_cc" value="1" @checked(old('pay_by_cc', $booking->pay_by_cc))>
+                <span>Guest pays by credit card on our site</span>
+            </label>
+            <p class="field-help">If checked, the guest sees the online card payment step for their parking/incidentals charge. If unchecked, they instead see instructions to pay through the booking platform directly.</p>
+            <label class="field-label mt-5 flex items-center gap-2">
                 <input type="checkbox" name="early_checkin" value="1" @checked(old('early_checkin', $booking->early_checkin))>
                 <span>Early Check-in Exception</span>
             </label>

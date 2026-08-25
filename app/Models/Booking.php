@@ -16,6 +16,7 @@ class Booking extends Model
         'approved_at', 'decline_reason', 'archived_at', 'background_check_completed_at', 'deposit_verified_at',
         'contract_version', 'contract_accepted_at',
         'deposit_payment_status', 'deposit_stripe_payment_intent_id', 'deposit_amount_cents',
+        'pay_by_cc',
         'access_blocked_at', 'access_blocked_reason',
         'photo_id_front_approved_at', 'photo_id_front_declined_reason',
         'photo_id_back_approved_at', 'photo_id_back_declined_reason',
@@ -44,6 +45,7 @@ class Booking extends Model
             'deposit_verified_at' => 'datetime',
             'contract_accepted_at' => 'datetime',
             'deposit_amount_cents' => 'integer',
+            'pay_by_cc' => 'boolean',
             'access_blocked_at' => 'datetime',
             'photo_id_front_approved_at' => 'datetime',
             'photo_id_back_approved_at' => 'datetime',
@@ -80,18 +82,30 @@ class Booking extends Model
     }
 
     /**
-     * Property-level deposit_amount_cents if set, else the global
-     * default_deposit_amount_cents setting. Null/0 means no deposit is
-     * configured at all — callers should treat that as "don't show the
-     * payment step."
+     * The pre-checkin combined charge: parking + incidentals, capped at the
+     * property's flat-dollar ceiling (falling back to the global default),
+     * then a global % processing fee added on top. This is what's actually
+     * charged at the "after ID upload" step — replaces the old flat
+     * admin-set deposit amount.
      */
-    public function effectiveDepositAmountCents(): int
+    public function calculatePreCheckinChargeCents(): int
     {
-        if ($this->property && $this->property->deposit_amount_cents !== null) {
-            return $this->property->deposit_amount_cents;
+        $parkingCents = (int) round(($this->effectiveParkingCharge() ?? 0) * 100);
+        $incidentalsCents = (int) round(($this->incidentals_charge ?? 0) * 100);
+
+        $capCents = $this->property && $this->property->deposit_cap_cents !== null
+            ? $this->property->deposit_cap_cents
+            : (int) \App\Models\Setting::getValue('default_deposit_cap_cents', 0);
+
+        $subtotal = $parkingCents + $incidentalsCents;
+        if ($capCents > 0) {
+            $subtotal = min($subtotal, $capCents);
         }
 
-        return (int) \App\Models\Setting::getValue('default_deposit_amount_cents', 0);
+        $feePercent = (float) \App\Models\Setting::getValue('processing_fee_percent', 0);
+        $fee = (int) round($subtotal * ($feePercent / 100));
+
+        return $subtotal + $fee;
     }
 
     public function scopeNotArchived($query)

@@ -1541,10 +1541,10 @@
                 <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="w-full block rounded-xl mt-4">
                 <div class="p-6 md:p-10">
                     @php
-                        $depositAmountCents = $booking->effectiveDepositAmountCents();
+                        $depositAmountCents = $booking->calculatePreCheckinChargeCents();
                         $stripeConfigured = filled(config('services.stripe.key')) && filled(config('services.stripe.secret'));
                     @endphp
-                    @if($stripeConfigured && $depositAmountCents > 0)
+                    @if($booking->pay_by_cc && $stripeConfigured && $depositAmountCents > 0)
                         <div class="text-center">
                             <h2 class="text-xl font-extrabold text-slate-950">Incidentals hold</h2>
                             <p class="mt-3 text-sm leading-6 text-slate-600">A refundable hold of <strong>${{ number_format($depositAmountCents / 100, 2) }}</strong> is required before check-in. Enter your card below — this stays on our site, nothing is shared with a third party.</p>

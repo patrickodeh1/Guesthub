@@ -90,6 +90,7 @@ class BookingController extends Controller
         $data['booking_id'] = $data['booking_id'] ?: 'BK-'.strtoupper(Str::random(8));
         $data['token']      = Str::random(40);
         $data['early_checkin'] = $request->boolean('early_checkin');
+        $data['pay_by_cc'] = $request->boolean('pay_by_cc');
         $data['photo_id_received'] = $request->boolean('photo_id_received');
         if (($data['status'] ?? null) === 'pre_checkin_complete') {
             $data['photo_id_received'] = true;
@@ -203,11 +204,11 @@ class BookingController extends Controller
         $oldIncidentalsCharge = (float) ($booking->incidentals_charge ?? 0);
         $data = $this->validated($request, $booking);
         $data['early_checkin'] = $request->boolean('early_checkin');
+        $data['pay_by_cc'] = $request->boolean('pay_by_cc');
         $data['photo_id_received'] = $request->boolean('photo_id_received');
         if (($data['status'] ?? null) === 'pre_checkin_complete') {
             $data['photo_id_received'] = true;
         }
-        if ($data['photo_id_received'] && empty($booking->approved_at) && empty($data['approved_at'])) {
             $data['approved_at'] = now();
         }
         $booking->update($data);

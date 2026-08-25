@@ -259,11 +259,15 @@ class GuestController extends Controller
             return response()->json(['ok' => false, 'error' => 'Payments are not available right now. Please contact us.'], 503);
         }
 
+        if (! $booking->pay_by_cc) {
+            return response()->json(['ok' => false, 'error' => 'Online card payment is not enabled for this booking.'], 403);
+        }
+
         if ($booking->isDepositCaptured() || $booking->deposit_verified_at) {
             return response()->json(['ok' => false, 'error' => 'Deposit already paid.'], 422);
         }
 
-        $amountCents = $booking->effectiveDepositAmountCents();
+        $amountCents = $booking->calculatePreCheckinChargeCents();
 
         if ($amountCents <= 0) {
             return response()->json(['ok' => false, 'error' => 'No deposit is configured for this stay.'], 422);
