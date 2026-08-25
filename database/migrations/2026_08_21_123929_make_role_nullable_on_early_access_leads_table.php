@@ -1,17 +1,34 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        DB::statement("ALTER TABLE early_access_leads MODIFY role VARCHAR(255) NULL");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE early_access_leads MODIFY role VARCHAR(255) NULL");
+        } elseif (DB::getDriverName() === 'sqlite') {
+            Schema::table('early_access_leads', function (Blueprint $table) {
+                $table->string('role_tmp')->nullable()->after('role');
+            });
+            DB::statement('UPDATE early_access_leads SET role_tmp = role');
+            Schema::table('early_access_leads', function (Blueprint $table) {
+                $table->dropColumn('role');
+            });
+            Schema::table('early_access_leads', function (Blueprint $table) {
+                $table->renameColumn('role_tmp', 'role');
+            });
+        }
     }
 
     public function down(): void
     {
-        DB::statement("ALTER TABLE early_access_leads MODIFY role VARCHAR(255) NOT NULL");
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement("ALTER TABLE early_access_leads MODIFY role VARCHAR(255) NOT NULL");
+        }
     }
 };
