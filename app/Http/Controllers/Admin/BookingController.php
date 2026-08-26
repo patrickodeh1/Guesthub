@@ -711,7 +711,7 @@ class BookingController extends Controller
             'parking_charge_override' => ['nullable', 'numeric', 'min:0'],
             'incidentals_charge' => ['nullable', 'numeric', 'min:0'],
             'early_checkin'  => ['nullable', 'boolean'],
-            'early_checkin_tier' => ['nullable', 'in:8am,12pm'],
+            'early_checkin_tier' => ['nullable', 'in:8am_12pm,12pm_2pm,2pm_4pm,8am,12pm'],
             'late_checkout_type' => ['nullable', 'in:authorized,unauthorized'],
             'late_checkout_hours' => ['nullable', 'numeric', 'min:0'],
             'late_checkout_actual_time' => ['nullable', 'date'],

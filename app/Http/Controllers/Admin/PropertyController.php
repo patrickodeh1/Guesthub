@@ -166,10 +166,11 @@ class PropertyController extends Controller
     public function updateCheckinCheckoutRates(Request $request, Property $property)
     {
         $data = $request->validate([
-            'early_checkin_rate_8am'    => ['nullable', 'numeric', 'min:0'],
-            'early_checkin_rate_12pm'   => ['nullable', 'numeric', 'min:0'],
-            'late_checkout_rate_authorized_hourly'   => ['nullable', 'numeric', 'min:0'],
-            'late_checkout_rate_unauthorized_hourly' => ['nullable', 'numeric', 'min:0'],
+            'early_checkin_rate_8am_12pm' => ['nullable', 'numeric', 'min:0'],
+            'early_checkin_rate_12pm_2pm' => ['nullable', 'numeric', 'min:0'],
+            'early_checkin_rate_2pm_4pm'  => ['nullable', 'numeric', 'min:0'],
+            'late_checkout_rate_authorized_per_30min'   => ['nullable', 'numeric', 'min:0'],
+            'late_checkout_rate_unauthorized_per_30min' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $property->update($data);

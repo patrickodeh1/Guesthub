@@ -55,6 +55,68 @@ class PreCheckinChargeTest extends TestCase
         $this->assertSame(5000, $booking->calculatePreCheckinChargeCents());
     }
 
+    public function test_early_checkin_uses_new_three_tier_windows(): void
+    {
+        $property = Property::factory()->create([
+            'early_checkin_rate_8am_12pm' => 40,
+            'early_checkin_rate_12pm_2pm' => 25,
+            'early_checkin_rate_2pm_4pm' => 15,
+        ]);
+
+        $booking8to12 = Booking::factory()->create(['property_id' => $property->id, 'early_checkin_tier' => '8am_12pm']);
+        $booking12to2 = Booking::factory()->create(['property_id' => $property->id, 'early_checkin_tier' => '12pm_2pm']);
+        $booking2to4 = Booking::factory()->create(['property_id' => $property->id, 'early_checkin_tier' => '2pm_4pm']);
+
+        $this->assertSame(40.0, $booking8to12->earlyCheckinCharge());
+        $this->assertSame(25.0, $booking12to2->earlyCheckinCharge());
+        $this->assertSame(15.0, $booking2to4->earlyCheckinCharge());
+    }
+
+    public function test_late_checkout_authorized_bills_per_half_hour_block_rounded_up(): void
+    {
+        $property = Property::factory()->create(['late_checkout_rate_authorized_per_30min' => 10]);
+
+        // 1.2 hours = 72 minutes = 3 half-hour blocks (rounded up from 2.4).
+        $booking = Booking::factory()->create([
+            'property_id' => $property->id,
+            'late_checkout_type' => 'authorized',
+            'late_checkout_hours' => 1.2,
+        ]);
+
+        $this->assertSame(30.0, $booking->lateCheckoutCharge());
+    }
+
+    public function test_late_checkout_exact_half_hour_does_not_round_up_extra_block(): void
+    {
+        $property = Property::factory()->create(['late_checkout_rate_authorized_per_30min' => 10]);
+
+        // Exactly 1.0 hour = 2 whole half-hour blocks, no rounding needed.
+        $booking = Booking::factory()->create([
+            'property_id' => $property->id,
+            'late_checkout_type' => 'authorized',
+            'late_checkout_hours' => 1.0,
+        ]);
+
+        $this->assertSame(20.0, $booking->lateCheckoutCharge());
+    }
+
+    public function test_late_checkout_unauthorized_uses_higher_rate_per_half_hour(): void
+    {
+        $property = Property::factory()->create([
+            'checkout_time' => '10:00',
+            'late_checkout_rate_unauthorized_per_30min' => 25,
+        ]);
+        // 1 hour late = 2 half-hour blocks x $25 = $50.
+        $booking = Booking::factory()->create([
+            'property_id' => $property->id,
+            'check_out_date' => '2026-08-27',
+            'late_checkout_type' => 'unauthorized',
+            'late_checkout_actual_time' => '2026-08-27 11:00:00',
+        ]);
+
+        $this->assertSame(50.0, $booking->lateCheckoutCharge());
+    }
+
     public function test_charge_is_capped_at_property_level_cap(): void
     {
         $property = Property::factory()->create([

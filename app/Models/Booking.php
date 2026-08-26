@@ -340,9 +340,12 @@ class Booking extends Model
     }
 
     /**
-     * The charge for a granted early check-in exception, looked up flat from
-     * the property's rate for whichever tier was granted (task 26). Returns
-     * null if no tier was granted or the property hasn't set that rate yet.
+     * The charge for a granted early check-in exception, looked up flat
+     * from the property's rate for whichever time-window tier was granted
+     * (task 26, updated per client clarification to three explicit
+     * windows: 8am-12pm, 12pm-2pm, 2pm-4pm — each a distinct flat charge,
+     * different per property). Returns null if no tier was granted or the
+     * property hasn't set that window's rate yet.
      */
     public function earlyCheckinCharge(): ?float
     {
@@ -351,8 +354,9 @@ class Booking extends Model
         }
 
         $rate = match ($this->early_checkin_tier) {
-            '8am' => $this->property->early_checkin_rate_8am,
-            '12pm' => $this->property->early_checkin_rate_12pm,
+            '8am_12pm', '8am' => $this->property->early_checkin_rate_8am_12pm ?? $this->property->early_checkin_rate_8am,
+            '12pm_2pm', '12pm' => $this->property->early_checkin_rate_12pm_2pm ?? $this->property->early_checkin_rate_12pm,
+            '2pm_4pm' => $this->property->early_checkin_rate_2pm_4pm,
             default => null,
         };
 
@@ -408,6 +412,17 @@ class Booking extends Model
      * rate). Returns null if no late-checkout type is set, or the needed
      * rate/hours aren't available yet.
      */
+    /**
+     * The late-checkout charge, billed per half-hour (30 minute) block —
+     * per client clarification, not a raw hourly multiplication. Any
+     * partial block is rounded up (a guest 10 minutes into a new block
+     * still owes for that whole block). Authorized uses the
+     * admin-entered hours × the property's authorized per-30-min rate;
+     * unauthorized uses hours computed from the admin-entered actual
+     * checkout time × the (higher) unauthorized per-30-min rate. Returns
+     * null if no late-checkout type is set, or the needed rate/hours
+     * aren't available yet.
+     */
     public function lateCheckoutCharge(): ?float
     {
         if (!$this->late_checkout_type || !$this->property) {
@@ -415,23 +430,36 @@ class Booking extends Model
         }
 
         if ($this->late_checkout_type === 'authorized') {
-            if ($this->late_checkout_hours === null || $this->property->late_checkout_rate_authorized_hourly === null) {
+            $rate = $this->property->late_checkout_rate_authorized_per_30min ?? $this->property->late_checkout_rate_authorized_hourly;
+            if ($this->late_checkout_hours === null || $rate === null) {
                 return null;
             }
 
-            return round((float) $this->late_checkout_hours * (float) $this->property->late_checkout_rate_authorized_hourly, 2);
+            return $this->chargeForHoursInHalfHourBlocks((float) $this->late_checkout_hours, (float) $rate);
         }
 
         if ($this->late_checkout_type === 'unauthorized') {
             $hours = $this->lateCheckoutHoursUnauthorized();
-            if ($hours === null || $this->property->late_checkout_rate_unauthorized_hourly === null) {
+            $rate = $this->property->late_checkout_rate_unauthorized_per_30min ?? $this->property->late_checkout_rate_unauthorized_hourly;
+            if ($hours === null || $rate === null) {
                 return null;
             }
 
-            return round($hours * (float) $this->property->late_checkout_rate_unauthorized_hourly, 2);
+            return $this->chargeForHoursInHalfHourBlocks($hours, (float) $rate);
         }
 
         return null;
+    }
+
+    /**
+     * Converts a number of hours into whole half-hour blocks (rounding any
+     * partial block up) and multiplies by the given per-block rate.
+     */
+    private function chargeForHoursInHalfHourBlocks(float $hours, float $ratePer30Min): float
+    {
+        $blocks = (int) ceil(($hours * 60) / 30);
+
+        return round($blocks * $ratePer30Min, 2);
     }
 
     public function instructionsCompleted(): bool
