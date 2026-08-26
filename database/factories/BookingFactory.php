@@ -22,6 +22,7 @@ class BookingFactory extends Factory
             'property_id' => Property::factory(),
             'token' => $this->faker->unique()->uuid(),
             'status' => 'pending',
+            'pay_by_cc' => false,
         ];
     }
 }

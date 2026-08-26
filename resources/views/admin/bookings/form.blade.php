@@ -50,19 +50,25 @@
                 <span class="field-help">Any incidentals charge for this guest. Not visible to the guest.</span>
             </label>
             <label class="field-label mt-5 flex items-center gap-2">
+                <input type="checkbox" name="pay_by_cc" value="1" @checked(old('pay_by_cc', $booking->pay_by_cc))>
+                <span>Guest pays by credit card on our site</span>
+            </label>
+            <p class="field-help">If checked, the guest sees the online card payment step for their parking/incidentals charge. If unchecked, they instead see instructions to pay through the booking platform directly.</p>
+            <label class="field-label mt-5 flex items-center gap-2">
                 <input type="checkbox" name="early_checkin" value="1" @checked(old('early_checkin', $booking->early_checkin))>
                 <span>Early Check-in Exception</span>
             </label>
             <p class="field-help">If enabled, the property address is shown to the guest immediately, bypassing the check-in day / 3:00 PM rule.</p>
             <label class="field-label mt-5">
-                Early check-in billing tier (admin only)
+                Early check-in billing window (admin only)
                 <select name="early_checkin_tier" class="input">
                     <option value="">None</option>
-                    <option value="8am" @selected(old('early_checkin_tier', $booking->early_checkin_tier)==='8am')>8:00 AM tier</option>
-                    <option value="12pm" @selected(old('early_checkin_tier', $booking->early_checkin_tier)==='12pm')>12:00 PM tier</option>
+                    <option value="8am_12pm" @selected(old('early_checkin_tier', $booking->early_checkin_tier) === '8am_12pm' || old('early_checkin_tier', $booking->early_checkin_tier) === '8am')>8:00 AM - 12:00 PM</option>
+                    <option value="12pm_2pm" @selected(old('early_checkin_tier', $booking->early_checkin_tier) === '12pm_2pm' || old('early_checkin_tier', $booking->early_checkin_tier) === '12pm')>12:00 PM - 2:00 PM</option>
+                    <option value="2pm_4pm" @selected(old('early_checkin_tier', $booking->early_checkin_tier) === '2pm_4pm')>2:00 PM - 4:00 PM</option>
                 </select>
                 @if($booking->exists && $booking->early_checkin_tier)
-                    <span class="field-help">Charge: ${{ number_format($booking->earlyCheckinCharge() ?? 0, 2) }} (from the property's rate for this tier).</span>
+                    <span class="field-help">Charge: ${{ number_format($booking->earlyCheckinCharge() ?? 0, 2) }} (from the property's rate for this window).</span>
                 @else
                     <span class="field-help">Independent of the exception checkbox above; set this if the early check-in should be billed.</span>
                 @endif

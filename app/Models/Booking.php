@@ -13,10 +13,14 @@ class Booking extends Model
     use HasFactory;
 
     protected $fillable = [
-        'booking_id', 'reservation_id', 'guest_name', 'phone', 'email', 'check_in_date', 'check_out_date',
+        'booking_id', 'reservation_id', 'source', 'channex_booking_id', 'guest_name', 'phone', 'email', 'check_in_date', 'check_out_date',
         'property_id', 'id_type', 'token', 'photo_id_path', 'photo_id_back_path', 'photo_id_received', 'parking_needed', 'early_checkin', 'early_checkin_tier', 'checkin_time_preference', 'checkout_time_preference', 'checkin_time_status', 'checkout_time_status', 'gps_verified', 'guest_authenticated_at',
         'manually_checked_in', 'checked_in_at', 'checked_out_at', 'late_checkout_type', 'late_checkout_hours', 'late_checkout_actual_time', 'gps_overridden', 'status', 'notes', 'welcome_message', 'identity_confirmed_at',
         'approved_at', 'decline_reason', 'archived_at', 'background_check_completed_at', 'deposit_verified_at',
+        'contract_version', 'contract_accepted_at',
+        'deposit_payment_status', 'deposit_stripe_payment_intent_id', 'deposit_amount_cents',
+        'incidentals_billed_cents',
+        'pay_by_cc',
         'access_blocked_at', 'access_blocked_reason',
         'photo_id_front_approved_at', 'photo_id_front_declined_reason',
         'photo_id_back_approved_at', 'photo_id_back_declined_reason',
@@ -43,6 +47,10 @@ class Booking extends Model
             'archived_at' => 'datetime',
             'background_check_completed_at' => 'datetime',
             'deposit_verified_at' => 'datetime',
+            'contract_accepted_at' => 'datetime',
+            'deposit_amount_cents' => 'integer',
+            'incidentals_billed_cents' => 'integer',
+            'pay_by_cc' => 'boolean',
             'access_blocked_at' => 'datetime',
             'photo_id_front_approved_at' => 'datetime',
             'photo_id_back_approved_at' => 'datetime',
@@ -57,6 +65,105 @@ class Booking extends Model
     {
         return $this->belongsTo(Property::class);
     }
+
+    public function charges(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(Charge::class);
+    }
+
+    /**
+     * True once a Stripe deposit charge exists (captured or failed) for
+     * this booking. Entirely separate from isDepositVerified() / the legacy
+     * manual deposit_verified_at flow, which is untouched by this.
+     */
+    public function hasDepositCharge(): bool
+    {
+        return filled($this->deposit_payment_status);
+    }
+
+    public function isDepositCaptured(): bool
+    {
+        return $this->deposit_payment_status === 'captured';
+    }
+
+    /**
+     * The pre-checkin combined charge: parking + incidentals + early
+     * check-in (if already granted at this point), capped at the
+     * property's flat-dollar ceiling (falling back to the global default),
+     * then a global % processing fee added on top. This is what's actually
+     * charged at the "after ID upload" step — replaces the old flat
+     * admin-set deposit amount. If early check-in is granted *after* this
+     * has already been paid, it's billed separately (see the standalone
+     * early-check-in guest charge card) rather than reopening this total.
+     */
+    /**
+     * Human-readable breakdown of calculatePreCheckinChargeCents(), for
+     * admin visibility on the Payments page (a bare "$187.50" line item
+     * would otherwise be meaningless once this is a combined charge).
+     */
+    public function preCheckinChargeBreakdown(): string
+    {
+        $parts = [];
+        if (($parking = $this->effectiveParkingCharge()) > 0) {
+            $parts[] = 'parking $' . number_format($parking, 2);
+        }
+        if (($this->incidentals_charge ?? 0) > 0) {
+            $parts[] = 'incidentals $' . number_format($this->incidentals_charge, 2);
+        }
+        if (($earlyCheckin = $this->earlyCheckinCharge()) > 0) {
+            $parts[] = 'early check-in $' . number_format($earlyCheckin, 2);
+        }
+
+        $capCents = $this->property && $this->property->deposit_cap_cents !== null
+            ? $this->property->deposit_cap_cents
+            : (int) \App\Models\Setting::getValue('default_deposit_cap_cents', 0);
+        $feePercent = (float) \App\Models\Setting::getValue('processing_fee_percent', 0);
+
+        $summary = $parts ? implode(' + ', $parts) : 'no parking/incidentals/early check-in';
+        if ($capCents > 0) {
+            $summary .= ', capped at $' . number_format($capCents / 100, 2);
+        }
+        if ($feePercent > 0) {
+            $summary .= ", +{$feePercent}% processing fee";
+        }
+
+        return $summary;
+    }
+
+    public function calculatePreCheckinChargeCents(): int
+    {
+        $parkingCents = (int) round(($this->effectiveParkingCharge() ?? 0) * 100);
+        $incidentalsCents = (int) round(($this->incidentals_charge ?? 0) * 100);
+        $earlyCheckinCents = (int) round(($this->earlyCheckinCharge() ?? 0) * 100);
+
+        $capCents = $this->property && $this->property->deposit_cap_cents !== null
+            ? $this->property->deposit_cap_cents
+            : (int) \App\Models\Setting::getValue('default_deposit_cap_cents', 0);
+
+        $subtotal = $parkingCents + $incidentalsCents + $earlyCheckinCents;
+        if ($capCents > 0) {
+            $subtotal = min($subtotal, $capCents);
+        }
+
+        $feePercent = (float) \App\Models\Setting::getValue('processing_fee_percent', 0);
+        $fee = (int) round($subtotal * ($feePercent / 100));
+
+        return $subtotal + $fee;
+    }
+
+    /**
+     * incidentals_charge minus whatever's already been billed (via the
+     * combined pre-checkin charge or a prior standalone incidentals
+     * charge). Never negative — if admin lowers incidentals_charge after
+     * some was already billed, this is just 0, not a refund trigger.
+     */
+    public function unbilledIncidentalsCents(): int
+    {
+        $currentCents = (int) round(($this->incidentals_charge ?? 0) * 100);
+
+        return max(0, $currentCents - ($this->incidentals_billed_cents ?? 0));
+    }
+
     public function scopeNotArchived($query)
     {
         return $query->whereNull('archived_at');
@@ -233,9 +340,12 @@ class Booking extends Model
     }
 
     /**
-     * The charge for a granted early check-in exception, looked up flat from
-     * the property's rate for whichever tier was granted (task 26). Returns
-     * null if no tier was granted or the property hasn't set that rate yet.
+     * The charge for a granted early check-in exception, looked up flat
+     * from the property's rate for whichever time-window tier was granted
+     * (task 26, updated per client clarification to three explicit
+     * windows: 8am-12pm, 12pm-2pm, 2pm-4pm — each a distinct flat charge,
+     * different per property). Returns null if no tier was granted or the
+     * property hasn't set that window's rate yet.
      */
     public function earlyCheckinCharge(): ?float
     {
@@ -244,8 +354,9 @@ class Booking extends Model
         }
 
         $rate = match ($this->early_checkin_tier) {
-            '8am' => $this->property->early_checkin_rate_8am,
-            '12pm' => $this->property->early_checkin_rate_12pm,
+            '8am_12pm', '8am' => $this->property->early_checkin_rate_8am_12pm ?? $this->property->early_checkin_rate_8am,
+            '12pm_2pm', '12pm' => $this->property->early_checkin_rate_12pm_2pm ?? $this->property->early_checkin_rate_12pm,
+            '2pm_4pm' => $this->property->early_checkin_rate_2pm_4pm,
             default => null,
         };
 
@@ -301,6 +412,17 @@ class Booking extends Model
      * rate). Returns null if no late-checkout type is set, or the needed
      * rate/hours aren't available yet.
      */
+    /**
+     * The late-checkout charge, billed per half-hour (30 minute) block —
+     * per client clarification, not a raw hourly multiplication. Any
+     * partial block is rounded up (a guest 10 minutes into a new block
+     * still owes for that whole block). Authorized uses the
+     * admin-entered hours × the property's authorized per-30-min rate;
+     * unauthorized uses hours computed from the admin-entered actual
+     * checkout time × the (higher) unauthorized per-30-min rate. Returns
+     * null if no late-checkout type is set, or the needed rate/hours
+     * aren't available yet.
+     */
     public function lateCheckoutCharge(): ?float
     {
         if (!$this->late_checkout_type || !$this->property) {
@@ -308,23 +430,36 @@ class Booking extends Model
         }
 
         if ($this->late_checkout_type === 'authorized') {
-            if ($this->late_checkout_hours === null || $this->property->late_checkout_rate_authorized_hourly === null) {
+            $rate = $this->property->late_checkout_rate_authorized_per_30min ?? $this->property->late_checkout_rate_authorized_hourly;
+            if ($this->late_checkout_hours === null || $rate === null) {
                 return null;
             }
 
-            return round((float) $this->late_checkout_hours * (float) $this->property->late_checkout_rate_authorized_hourly, 2);
+            return $this->chargeForHoursInHalfHourBlocks((float) $this->late_checkout_hours, (float) $rate);
         }
 
         if ($this->late_checkout_type === 'unauthorized') {
             $hours = $this->lateCheckoutHoursUnauthorized();
-            if ($hours === null || $this->property->late_checkout_rate_unauthorized_hourly === null) {
+            $rate = $this->property->late_checkout_rate_unauthorized_per_30min ?? $this->property->late_checkout_rate_unauthorized_hourly;
+            if ($hours === null || $rate === null) {
                 return null;
             }
 
-            return round($hours * (float) $this->property->late_checkout_rate_unauthorized_hourly, 2);
+            return $this->chargeForHoursInHalfHourBlocks($hours, (float) $rate);
         }
 
         return null;
+    }
+
+    /**
+     * Converts a number of hours into whole half-hour blocks (rounding any
+     * partial block up) and multiplies by the given per-block rate.
+     */
+    private function chargeForHoursInHalfHourBlocks(float $hours, float $ratePer30Min): float
+    {
+        $blocks = (int) ceil(($hours * 60) / 30);
+
+        return round($blocks * $ratePer30Min, 2);
     }
 
     public function instructionsCompleted(): bool

@@ -23,3 +23,11 @@ Schedule::command('bookings:archive-overdue')->everyFiveMinutes();
 // day. Runs early morning so guests get it well before typical check-in
 // times; the whereNull(checkin_reminder_sent_at) guard makes re-runs safe.
 Schedule::command('bookings:send-checkin-reminders')->dailyAt('08:00');
+
+// Polls the active PMS provider (Channex now, NextPax later — see
+// App\Services\Pms) for new/changed bookings. Cadence follows Channex's own
+// recommended poll interval; webhooks (routes/web.php) supplement this for
+// faster updates, this is the reliable backbone per their docs.
+Schedule::command('pms:sync')->everyMinute()->when(
+    fn () => now()->minute % max(1, (int) config('pms.poll_interval_minutes')) === 0
+);

@@ -166,10 +166,11 @@ class PropertyController extends Controller
     public function updateCheckinCheckoutRates(Request $request, Property $property)
     {
         $data = $request->validate([
-            'early_checkin_rate_8am'    => ['nullable', 'numeric', 'min:0'],
-            'early_checkin_rate_12pm'   => ['nullable', 'numeric', 'min:0'],
-            'late_checkout_rate_authorized_hourly'   => ['nullable', 'numeric', 'min:0'],
-            'late_checkout_rate_unauthorized_hourly' => ['nullable', 'numeric', 'min:0'],
+            'early_checkin_rate_8am_12pm' => ['nullable', 'numeric', 'min:0'],
+            'early_checkin_rate_12pm_2pm' => ['nullable', 'numeric', 'min:0'],
+            'early_checkin_rate_2pm_4pm'  => ['nullable', 'numeric', 'min:0'],
+            'late_checkout_rate_authorized_per_30min'   => ['nullable', 'numeric', 'min:0'],
+            'late_checkout_rate_unauthorized_per_30min' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $property->update($data);
@@ -279,7 +280,14 @@ class PropertyController extends Controller
             'timezone' => ['nullable', 'string', 'max:100'],
             'checkout_time' => ['nullable', 'date_format:H:i'],
             'checkin_time' => ['nullable', 'date_format:H:i'],
+            'channex_property_id' => ['nullable', 'string', 'max:255', 'unique:properties,channex_property_id,'.($property?->id ?? 'NULL')],
+            'deposit_cap_dollars' => ['nullable', 'numeric', 'min:0', 'max:100000'],
         ]);
+
+        $data['deposit_cap_cents'] = $request->filled('deposit_cap_dollars')
+            ? (int) round((float) $request->input('deposit_cap_dollars') * 100)
+            : null;
+        unset($data['deposit_cap_dollars']);
 
         $data['slug'] = $data['slug'] ?: Str::slug($data['name']);
         $data['active'] = $request->boolean('active');

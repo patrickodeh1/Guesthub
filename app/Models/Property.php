@@ -20,7 +20,11 @@ class Property extends Model
         'parking_rate_wednesday', 'parking_rate_thursday', 'parking_rate_friday',
         'parking_rate_saturday',
         'early_checkin_rate_8am', 'early_checkin_rate_12pm',
+        'early_checkin_rate_8am_12pm', 'early_checkin_rate_12pm_2pm', 'early_checkin_rate_2pm_4pm',
         'late_checkout_rate_authorized_hourly', 'late_checkout_rate_unauthorized_hourly',
+        'late_checkout_rate_authorized_per_30min', 'late_checkout_rate_unauthorized_per_30min',
+        'channex_property_id',
+        'deposit_cap_cents',
     ];
 
     protected function casts(): array
@@ -32,8 +36,12 @@ class Property extends Model
             'parking_rate_thursday' => 'decimal:2', 'parking_rate_friday' => 'decimal:2',
             'parking_rate_saturday' => 'decimal:2',
             'early_checkin_rate_8am' => 'decimal:2', 'early_checkin_rate_12pm' => 'decimal:2',
+            'early_checkin_rate_8am_12pm' => 'decimal:2', 'early_checkin_rate_12pm_2pm' => 'decimal:2', 'early_checkin_rate_2pm_4pm' => 'decimal:2',
             'late_checkout_rate_authorized_hourly' => 'decimal:2',
             'late_checkout_rate_unauthorized_hourly' => 'decimal:2',
+            'late_checkout_rate_authorized_per_30min' => 'decimal:2',
+            'late_checkout_rate_unauthorized_per_30min' => 'decimal:2',
+            'deposit_cap_cents' => 'integer',
         ];
     }
 

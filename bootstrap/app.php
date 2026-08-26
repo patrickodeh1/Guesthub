@@ -17,6 +17,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prepend(\App\Http\Middleware\CheckPostSize::class);
         $middleware->validateCsrfTokens(except: [
             'webhooks/seam',
+            'webhooks/channex',
         ]);
         // Trust the load balancer / reverse proxy in front of the app (if any) so
         // Laravel correctly detects HTTPS. Without this, session/remember-me cookies

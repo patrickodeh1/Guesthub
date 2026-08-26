@@ -90,6 +90,7 @@ class BookingController extends Controller
         $data['booking_id'] = $data['booking_id'] ?: 'BK-'.strtoupper(Str::random(8));
         $data['token']      = Str::random(40);
         $data['early_checkin'] = $request->boolean('early_checkin');
+        $data['pay_by_cc'] = $request->boolean('pay_by_cc');
         $data['photo_id_received'] = $request->boolean('photo_id_received');
         if (($data['status'] ?? null) === 'pre_checkin_complete') {
             $data['photo_id_received'] = true;
@@ -198,17 +199,41 @@ class BookingController extends Controller
     public function update(Request $request, Booking $booking)
     {
         $oldStatus = $booking->status;
+        $oldEarlyCheckinTier = $booking->early_checkin_tier;
+        $oldLateCheckoutCharge = $booking->lateCheckoutCharge();
+        $oldIncidentalsCharge = (float) ($booking->incidentals_charge ?? 0);
         $data = $this->validated($request, $booking);
         $data['early_checkin'] = $request->boolean('early_checkin');
+        $data['pay_by_cc'] = $request->boolean('pay_by_cc');
         $data['photo_id_received'] = $request->boolean('photo_id_received');
         if (($data['status'] ?? null) === 'pre_checkin_complete') {
             $data['photo_id_received'] = true;
         }
-        if ($data['photo_id_received'] && empty($booking->approved_at) && empty($data['approved_at'])) {
             $data['approved_at'] = now();
         }
         $booking->update($data);
         $booking->recalculateParkingCharge();
+
+        // Newly granted (not just re-saved unchanged) early check-in tier:
+        // let the guest know via their existing portal link so they can pay
+        // for it — they won't otherwise know to check back, since granting
+        // it is an admin-initiated action.
+        if ($booking->early_checkin_tier && $booking->early_checkin_tier !== $oldEarlyCheckinTier) {
+            \App\Services\GuestAlertService::send('early_checkin_granted', $booking);
+        }
+
+        // Same idea for late checkout / incidentals, but only once the guest
+        // has actually checked out — these are almost always entered by
+        // admin after the stay, and the guest can't see the payment screen
+        // (post_checkout state) until then anyway.
+        if ($booking->status === 'checked_out') {
+            $newLateCheckoutCharge = $booking->lateCheckoutCharge();
+            $newIncidentalsCharge = (float) ($booking->incidentals_charge ?? 0);
+
+            if (($newLateCheckoutCharge ?? 0) > ($oldLateCheckoutCharge ?? 0) || $newIncidentalsCharge > $oldIncidentalsCharge) {
+                \App\Services\GuestAlertService::send('post_checkout_balance_due', $booking);
+            }
+        }
 
         ActivityLogService::admin('booking_updated', auth()->user()->name." updated booking for {$booking->guest_name}.", 'guests', [
             'subject_type' => Booking::class,
@@ -686,7 +711,7 @@ class BookingController extends Controller
             'parking_charge_override' => ['nullable', 'numeric', 'min:0'],
             'incidentals_charge' => ['nullable', 'numeric', 'min:0'],
             'early_checkin'  => ['nullable', 'boolean'],
-            'early_checkin_tier' => ['nullable', 'in:8am,12pm'],
+            'early_checkin_tier' => ['nullable', 'in:8am_12pm,12pm_2pm,2pm_4pm,8am,12pm'],
             'late_checkout_type' => ['nullable', 'in:authorized,unauthorized'],
             'late_checkout_hours' => ['nullable', 'numeric', 'min:0'],
             'late_checkout_actual_time' => ['nullable', 'date'],

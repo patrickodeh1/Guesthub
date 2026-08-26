@@ -61,6 +61,21 @@ class GuestAlertService
             'default_guest_message' => 'GuestHub: Hi {guest_name}, thanks for staying at {property_name}. You are now checked out. Safe travels!',
             'default_staff_message' => 'GuestHub alert: {guest_name} has just checked out of {property_name}. The unit is ready for turnover.',
         ],
+        'deposit_paid' => [
+            'label' => 'Deposit paid',
+            'default_guest_message' => 'GuestHub: Hi {guest_name}, your incidentals deposit for {property_name} has been received. Thanks!',
+            'default_staff_message' => 'GuestHub alert: {guest_name} paid their incidentals deposit online for {property_name}.',
+        ],
+        'early_checkin_granted' => [
+            'label' => 'Early check-in granted',
+            'default_guest_message' => 'GuestHub: Hi {guest_name}, your early check-in request for {property_name} has been approved. Please visit your check-in link to complete payment.',
+            'default_staff_message' => 'GuestHub alert: Early check-in was granted for {guest_name} at {property_name}.',
+        ],
+        'post_checkout_balance_due' => [
+            'label' => 'Post-checkout balance due',
+            'default_guest_message' => 'GuestHub: Hi {guest_name}, an additional balance is due for your stay at {property_name}. Please visit your check-in link to complete payment.',
+            'default_staff_message' => 'GuestHub alert: A post-checkout balance (late checkout / incidentals) is now due for {guest_name} at {property_name}.',
+        ],
         'photo_id_uploaded' => [
             'label' => 'Photo ID uploaded',
             'default_guest_message' => 'GuestHub: Hi {guest_name}, your photo ID for {property_name} was received and is being reviewed. No action needed for now.',
@@ -287,11 +302,11 @@ class GuestAlertService
         $emails = collect();
 
         if ($row['contact_sms'] ?? false) {
-            // The .env Twilio admin number is kept as a legacy fallback
+            // The .env Telnyx admin number is kept as a legacy fallback
             // recipient alongside the Contact desk toggle, for installs that
             // never moved their admin number into Settings.
             $phones->push(self::normalizePhoneForSms(Setting::getValue('contact_phone')));
-            $phones->push(config('services.twilio.admin_notify_number'));
+            $phones->push(config('services.telnyx.admin_notify_number'));
         }
         if ($row['contact_email'] ?? false) {
             $emails->push(Setting::getValue('contact_email'));
@@ -342,7 +357,7 @@ class GuestAlertService
 
     /**
      * Strip formatting characters (spaces, dashes, parens) from a phone number
-     * pulled from Settings/users so it's in a Twilio-friendly format. Returns
+     * pulled from Settings/users so it's in an E.164-friendly format. Returns
      * null if the input is empty so callers can skip sending cleanly.
      */
     protected static function normalizePhoneForSms(?string $number): ?string

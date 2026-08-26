@@ -21,6 +21,7 @@ Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.store');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::post('/webhooks/seam', [App\Http\Controllers\SeamWebhookController::class, 'handle'])->name('webhooks.seam');
+Route::post('/webhooks/channex', [App\Http\Controllers\ChannexWebhookController::class, 'handle'])->name('webhooks.channex');
 
 Route::get('/checkin', [GuestController::class, 'checkinByReservation'])->name('checkin.rid');
 Route::post('/checkin/verify', [GuestController::class, 'verifyReservationLogin'])->name('checkin.verify');
@@ -33,6 +34,10 @@ Route::prefix('guest/{booking_id}/{token}')->name('guest.')->group(function () {
     Route::post('/verify-gps', [GuestController::class, 'verifyGps'])->name('gps');
     Route::post('/confirm-checkin', [GuestController::class, 'confirmCheckin'])->name('confirm-checkin');
     Route::post('/confirm-checkout', [GuestController::class, 'confirmCheckout'])->name('confirm-checkout');
+    Route::post('/deposit/intent', [GuestController::class, 'createDepositIntent'])->name('deposit.intent');
+    Route::post('/deposit/confirm', [GuestController::class, 'confirmDepositPayment'])->name('deposit.confirm');
+    Route::post('/charge/intent', [GuestController::class, 'createChargeIntent'])->name('charge.intent');
+    Route::post('/charge/confirm', [GuestController::class, 'confirmChargePayment'])->name('charge.confirm');
     Route::post('/unlock-door/{lock}', [GuestController::class, 'unlockDoor'])->name('unlock-door');
     Route::post('/lock-door/{lock}', [GuestController::class, 'lockDoor'])->name('lock-door');
     Route::get('/lock-status/{lock}', [GuestController::class, 'lockStatus'])->name('lock-status');
@@ -171,6 +176,7 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     // ─── Activity Logs ────────────────────────────────────────────────────────
     Route::middleware('role:owner,manager')->group(function () {
         Route::get('logs', [LogController::class, 'index'])->name('logs.index');
+        Route::get('payments', [App\Http\Controllers\Admin\PaymentController::class, 'index'])->name('payments.index');
         Route::get('logs/{log}', [LogController::class, 'show'])->name('logs.show');
     });
 

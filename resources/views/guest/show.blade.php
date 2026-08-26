@@ -386,6 +386,20 @@
                         </div>
                         @endif
 
+                        @php
+                            $rentalContract = \App\Models\Setting::getValue('rental_contract', '');
+                        @endphp
+                        @if(filled($rentalContract) && ! $booking->contract_accepted_at)
+                        <div class="mt-6 rounded-xl border border-slate-200 p-4">
+                            <p class="mb-2 text-sm font-semibold text-slate-900">Terms & Rental Contract</p>
+                            <div class="max-h-40 overflow-y-auto rounded-lg bg-slate-50 p-3 text-xs leading-5 text-slate-600">{!! $rentalContract !!}</div>
+                            <label class="mt-3 flex items-start gap-2 text-sm text-slate-700">
+                                <input type="checkbox" name="contract_accepted" id="contract-accepted-checkbox" value="1" required class="mt-0.5 rounded border-slate-300">
+                                <span>I have read and agree to the terms and rental contract.</span>
+                            </label>
+                        </div>
+                        @endif
+
                         <div class="mt-6 grid grid-cols-2 gap-3">
                             <button type="button" class="guest-outline-btn w-full" data-prev="1">Back</button>
                             <button type="button" class="guest-primary-btn w-full" id="id-capture-next-btn">Next</button>
@@ -1252,6 +1266,11 @@
                         if (idwFrontRequired && !frontBlur.classList.contains("hidden")) { alert("Front ID photo is blurry. Please retake."); return; }
                         if (!isPassport && idwBackRequired && !backBlur.classList.contains("hidden")) { alert("Back ID photo is blurry. Please retake."); return; }
                     }
+                    var contractCheckbox = document.getElementById("contract-accepted-checkbox");
+                    if (contractCheckbox && !contractCheckbox.checked) {
+                        alert("Please agree to the terms and rental contract to continue.");
+                        return;
+                    }
 
                     function b64toBlob(b64) {
                         var arr = b64.split(","), mime = arr[0].match(/:(.*?);/)[1];
@@ -1262,6 +1281,9 @@
                     var form = document.getElementById("guest-booking-form");
                     var fd = new FormData();
                     fd.append("_token", document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : "");
+                    if (contractCheckbox) {
+                        fd.append("contract_accepted", contractCheckbox.checked ? "1" : "0");
+                    }
                     if (photoIdRequired) {
                         if (idwFrontRequired) {
                             fd.set("photo_id", b64toBlob(document.getElementById("photo-id-data").value), "front.jpg");
@@ -1433,6 +1455,37 @@
             </div>
             </div>
 
+            @php
+                $stripeConfiguredForCharges = filled(config('services.stripe.key')) && filled(config('services.stripe.secret'));
+
+                $parkingAmountCents = (int) round(($booking->effectiveParkingCharge() ?? 0) * 100);
+                $parkingPaid = $booking->charges()->where('type', \App\Models\Charge::TYPE_PARKING)->where('status', \App\Models\Charge::STATUS_CAPTURED)->exists();
+                $showParkingCharge = $booking->pay_by_cc && $booking->parking_needed && $parkingAmountCents > 0 && ! $parkingPaid && $stripeConfiguredForCharges;
+
+                $earlyCheckinAmountCents = (int) round(($booking->earlyCheckinCharge() ?? 0) * 100);
+                $earlyCheckinPaid = $booking->charges()->where('type', \App\Models\Charge::TYPE_EARLY_CHECKIN)->where('status', \App\Models\Charge::STATUS_CAPTURED)->exists();
+                // Only bill this standalone if the combined pre-checkin
+                // charge has already been captured — otherwise this tier
+                // was granted before that charge happened and is already
+                // folded into it (see calculatePreCheckinChargeCents()).
+                $showEarlyCheckinCharge = $booking->pay_by_cc && $booking->early_checkin_tier && $earlyCheckinAmountCents > 0 && ! $earlyCheckinPaid && $booking->isDepositCaptured() && $stripeConfiguredForCharges;
+            @endphp
+            @if($showParkingCharge || $showEarlyCheckinCharge)
+                @if($showParkingCharge)
+                    <x-guest-charge-card type="parking" label="Parking fee" description="A parking fee applies for your stay." :amount-cents="$parkingAmountCents" :booking="$booking" />
+                @endif
+                @if($showEarlyCheckinCharge)
+                    <x-guest-charge-card type="early_checkin" label="Early check-in fee" description="Your requested early check-in has been approved — payment finalizes it." :amount-cents="$earlyCheckinAmountCents" :booking="$booking" />
+                @endif
+                @include('guest.partials.charge-card-script')
+                <script>
+                (function() {
+                    @if($showParkingCharge) initGuestChargeCard("parking"); @endif
+                    @if($showEarlyCheckinCharge) initGuestChargeCard("early_checkin"); @endif
+                })();
+                </script>
+            @endif
+
             @if($booking->canViewAddress())
             <div class="guest-portal-card mt-4">
                 <div class="p-6 md:p-8 text-center text-xl text-slate-950">{!! $gpsVerifyMessage !!}</div>
@@ -1490,13 +1543,108 @@
                     <h1 class="guest-status-title">Almost there</h1>
                 </div>
                 <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="w-full block rounded-xl mt-4">
-                <div class="p-6 md:p-10 text-center">
-                    @if($booking->status === 'pre_checkin_complete')
+                <div class="p-6 md:p-10">
+                    @php
+                        $depositAmountCents = $booking->calculatePreCheckinChargeCents();
+                        $stripeConfigured = filled(config('services.stripe.key')) && filled(config('services.stripe.secret'));
+                    @endphp
+                    @if($booking->pay_by_cc && $stripeConfigured && $depositAmountCents > 0)
+                        <div class="text-center">
+                            <h2 class="text-xl font-extrabold text-slate-950">Incidentals hold</h2>
+                            <p class="mt-3 text-sm leading-6 text-slate-600">A refundable hold of <strong>${{ number_format($depositAmountCents / 100, 2) }}</strong> is required before check-in. Enter your card below — this stays on our site, nothing is shared with a third party.</p>
+                        </div>
+                        <div id="deposit-payment-error" class="mt-4 hidden rounded-lg bg-red-50 p-3 text-center text-sm text-red-700"></div>
+                        <form id="deposit-payment-form" class="mt-5" data-intent-url="{{ route('guest.deposit.intent', [$booking->booking_id, $booking->token]) }}" data-confirm-url="{{ route('guest.deposit.confirm', [$booking->booking_id, $booking->token]) }}">
+                            <div id="deposit-payment-element" class="rounded-xl border border-slate-200 p-4"></div>
+                            <button type="submit" id="deposit-pay-btn" class="guest-primary-btn mt-4 w-full" disabled>Pay ${{ number_format($depositAmountCents / 100, 2) }}</button>
+                        </form>
+                        <script src="https://js.stripe.com/v3/"></script>
+                        <script>
+                        (function() {
+                            var form = document.getElementById("deposit-payment-form");
+                            if (!form) return;
+                            var payBtn = document.getElementById("deposit-pay-btn");
+                            var errorBox = document.getElementById("deposit-payment-error");
+                            var stripe, elements;
+
+                            function showError(msg) {
+                                errorBox.textContent = msg;
+                                errorBox.classList.remove("hidden");
+                            }
+
+                            fetch(form.dataset.intentUrl, {
+                                method: "POST",
+                                headers: {
+                                    "Accept": "application/json",
+                                    "Content-Type": "application/json",
+                                    "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : ""
+                                }
+                            })
+                                .then(function(r) { return r.json(); })
+                                .then(function(data) {
+                                    if (!data.ok) {
+                                        showError(data.error || "Unable to start payment. Please contact us.");
+                                        return;
+                                    }
+                                    stripe = Stripe(data.publishable_key);
+                                    elements = stripe.elements({ clientSecret: data.client_secret });
+                                    var paymentElement = elements.create("payment");
+                                    paymentElement.mount("#deposit-payment-element");
+                                    payBtn.disabled = false;
+                                })
+                                .catch(function() { showError("Network error. Please try again."); });
+
+                            form.addEventListener("submit", function(e) {
+                                e.preventDefault();
+                                if (!stripe || !elements) return;
+                                payBtn.disabled = true;
+                                payBtn.textContent = "Processing…";
+                                errorBox.classList.add("hidden");
+
+                                stripe.confirmPayment({ elements: elements, redirect: "if_required" })
+                                    .then(function(result) {
+                                        if (result.error) {
+                                            showError(result.error.message || "Payment failed. Please try again.");
+                                            payBtn.disabled = false;
+                                            payBtn.textContent = "Pay {{ '$' . number_format($depositAmountCents / 100, 2) }}";
+                                            return;
+                                        }
+                                        return fetch(form.dataset.confirmUrl, {
+                                            method: "POST",
+                                            headers: {
+                                                "Accept": "application/json",
+                                                "Content-Type": "application/json",
+                                                "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : ""
+                                            },
+                                            body: JSON.stringify({ payment_intent_id: result.paymentIntent.id })
+                                        })
+                                            .then(function(r) { return r.json(); })
+                                            .then(function(confirmData) {
+                                                if (confirmData.ok) {
+                                                    window.location.reload();
+                                                } else {
+                                                    showError(confirmData.error || "Payment could not be confirmed. Please contact us.");
+                                                    payBtn.disabled = false;
+                                                }
+                                            });
+                                    })
+                                    .catch(function() {
+                                        showError("Network error confirming payment. Please try again.");
+                                        payBtn.disabled = false;
+                                    });
+                            });
+                        })();
+                        </script>
+                    @elseif($booking->status === 'pre_checkin_complete')
+                        <div class="text-center">
                         <h2 class="text-xl font-extrabold text-slate-950">Pre-check in completed!</h2>
                         <p class="mt-3 text-sm leading-6 text-slate-600">Please submit your required incidentals hold payment on the booking platform. This hold is refundable after check out.</p>
+                        </div>
                     @else
+                        <div class="text-center">
                         <h2 class="text-xl font-extrabold text-slate-950">Pending incidentals hold payment</h2>
                         <p class="mt-3 text-sm leading-6 text-slate-600">If you have already submitted the payment, please send us a message so that we can expedite this for you. It usually doesn't take that long.</p>
+                        </div>
                     @endif
                 </div>
             </div>
@@ -1628,6 +1776,33 @@
                     <p class="max-w-md text-sm leading-6 text-slate-600">We appreciate it. If you'd like to stay with us again, please contact us directly for a discount.</p>
                 </div>
             </div>
+
+            @php
+                $stripeConfiguredForCharges = filled(config('services.stripe.key')) && filled(config('services.stripe.secret'));
+
+                $lateCheckoutAmountCents = (int) round(($booking->lateCheckoutCharge() ?? 0) * 100);
+                $lateCheckoutPaid = $booking->charges()->where('type', \App\Models\Charge::TYPE_LATE_CHECKOUT)->where('status', \App\Models\Charge::STATUS_CAPTURED)->exists();
+                $showLateCheckoutCharge = $booking->pay_by_cc && $lateCheckoutAmountCents > 0 && ! $lateCheckoutPaid && $stripeConfiguredForCharges;
+
+                $incidentalsAmountCents = $booking->unbilledIncidentalsCents();
+                $incidentalsPaid = $booking->charges()->where('type', \App\Models\Charge::TYPE_INCIDENTALS)->where('status', \App\Models\Charge::STATUS_CAPTURED)->exists();
+                $showIncidentalsCharge = $booking->pay_by_cc && $incidentalsAmountCents > 0 && ! $incidentalsPaid && $stripeConfiguredForCharges;
+            @endphp
+            @if($showLateCheckoutCharge || $showIncidentalsCharge)
+                @if($showLateCheckoutCharge)
+                    <x-guest-charge-card type="late_checkout" label="Late checkout fee" description="A fee applies for checking out later than the standard time." :amount-cents="$lateCheckoutAmountCents" :booking="$booking" />
+                @endif
+                @if($showIncidentalsCharge)
+                    <x-guest-charge-card type="incidentals" label="Incidentals" description="Additional charges from your stay." :amount-cents="$incidentalsAmountCents" :booking="$booking" />
+                @endif
+                @include('guest.partials.charge-card-script')
+                <script>
+                (function() {
+                    @if($showLateCheckoutCharge) initGuestChargeCard("late_checkout"); @endif
+                    @if($showIncidentalsCharge) initGuestChargeCard("incidentals"); @endif
+                })();
+                </script>
+            @endif
         @elseif($state === 'checkout_locked')
             @if($booking->status === 'checked_out')
                 <div class="guest-portal-card">

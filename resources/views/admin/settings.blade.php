@@ -17,6 +17,8 @@
                 <label class="field-label">Brand color<input type="color" name="brand_color" value="{{ old('brand_color', $settings['brand_color']) }}" class="input h-12"></label>
                 <label class="field-label">Contact phone<input name="contact_phone" value="{{ old('contact_phone', $settings['contact_phone']) }}" class="input"></label>
                 <label class="field-label">Contact email<input name="contact_email" value="{{ old('contact_email', $settings['contact_email']) }}" class="input"></label>
+                <label class="field-label">Default deposit cap (USD)<input type="number" step="0.01" min="0" name="default_deposit_cap_dollars" value="{{ old('default_deposit_cap_dollars', $settings['default_deposit_cap_dollars']) }}" class="input"><span class="field-help">Used when a property doesn't have its own cap set. Guests are charged parking + incidentals up to this amount.</span></label>
+                <label class="field-label">Processing fee (%)<input type="number" step="0.01" min="0" max="100" name="processing_fee_percent" value="{{ old('processing_fee_percent', $settings['processing_fee_percent']) }}" class="input"><span class="field-help">Added on top of the capped parking + incidentals total.</span></label>
                 <div class="md:col-span-2">
                     @php
                         $messageFields = [
@@ -24,6 +26,7 @@
                             'gps_verify_message' => ['label' => 'GPS Verify Message', 'help' => 'Shown above the map on the location verification step.', 'rows' => 3],
                             'lock_message' => ['label' => 'Smart Lock Message', 'help' => 'Shown on the smart lock step when a property has a lock configured.', 'rows' => 3],
                             'background_check_step_instructions' => ['label' => \App\Models\Setting::getValue('background_check_step_name', 'Background Check'), 'help' => 'Shown to guests on the waiting screen for this step.', 'rows' => 3],
+                            'rental_contract' => ['label' => 'Terms & Rental Contract', 'help' => 'Shown to guests at registration with a required checkbox before they can continue. Editing and saving this automatically bumps the contract version — guests who already accepted an earlier version are not re-prompted.', 'rows' => 10],
                         ];
                     @endphp
                     <div class="mb-3 flex flex-wrap gap-2">

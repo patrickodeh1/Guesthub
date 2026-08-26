@@ -250,6 +250,154 @@ class GuestController extends Controller
         return response()->json(['ok' => true]);
     }
 
+    public function createDepositIntent(string $bookingId, string $token)
+    {
+        $booking = $this->booking($bookingId, $token);
+        $service = app(\App\Services\Payments\PaymentService::class);
+
+        if (! $service->isConfigured()) {
+            return response()->json(['ok' => false, 'error' => 'Payments are not available right now. Please contact us.'], 503);
+        }
+
+        if (! $booking->pay_by_cc) {
+            return response()->json(['ok' => false, 'error' => 'Online card payment is not enabled for this booking.'], 403);
+        }
+
+        if ($booking->isDepositCaptured() || $booking->deposit_verified_at) {
+            return response()->json(['ok' => false, 'error' => 'Deposit already paid.'], 422);
+        }
+
+        $amountCents = $booking->calculatePreCheckinChargeCents();
+
+        if ($amountCents <= 0) {
+            return response()->json(['ok' => false, 'error' => 'No deposit is configured for this stay.'], 422);
+        }
+
+        $result = $service->createPendingIntent(
+            $booking,
+            \App\Models\Charge::TYPE_DEPOSIT,
+            $amountCents,
+            'precheckin_approval',
+            $booking->preCheckinChargeBreakdown()
+        );
+
+        return response()->json([
+            'ok' => true,
+            'client_secret' => $result['client_secret'],
+            'publishable_key' => config('services.stripe.key'),
+            'amount_cents' => $amountCents,
+        ]);
+    }
+
+    public function confirmDepositPayment(Request $request, string $bookingId, string $token)
+    {
+        $booking = $this->booking($bookingId, $token);
+        $request->validate(['payment_intent_id' => ['required', 'string']]);
+
+        $charge = app(\App\Services\Payments\PaymentService::class)->finalize($request->input('payment_intent_id'));
+
+        if (! $charge || $charge->booking_id !== $booking->id) {
+            return response()->json(['ok' => false, 'error' => 'Payment not found.'], 404);
+        }
+
+        if ($charge->status !== \App\Models\Charge::STATUS_CAPTURED) {
+            return response()->json(['ok' => false, 'error' => 'Payment was not successful. Please try again.'], 422);
+        }
+
+        ActivityLogService::guest('deposit_paid_online', "Guest {$booking->guest_name} paid the incidentals deposit online.", 'check', [
+            'booking_id'  => $booking->id,
+            'property_id' => $booking->property_id,
+            'actor_name'  => $booking->guest_name,
+            'actor_email' => $booking->email,
+            'severity'    => 'success',
+            'metadata'    => ['amount_cents' => $charge->amount_cents, 'charge_id' => $charge->id],
+        ]);
+
+        \App\Services\GuestAlertService::send('deposit_paid', $booking);
+
+        return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Generic charge-intent creation, reusable for any charge type beyond
+     * the deposit (parking, early check-in, the portion of late
+     * checkout/incidentals not covered by the deposit). $type must be one
+     * of Charge::TYPE_* and have a known, positive amount already computed
+     * on the booking — this endpoint never accepts an arbitrary
+     * client-supplied amount.
+     */
+    public function createChargeIntent(Request $request, string $bookingId, string $token)
+    {
+        $booking = $this->booking($bookingId, $token);
+        $service = app(\App\Services\Payments\PaymentService::class);
+
+        if (! $service->isConfigured()) {
+            return response()->json(['ok' => false, 'error' => 'Payments are not available right now. Please contact us.'], 503);
+        }
+
+        $type = $request->validate(['type' => ['required', 'string', 'in:parking,early_checkin,late_checkout,incidentals']])['type'];
+
+        $amountCents = match ($type) {
+            \App\Models\Charge::TYPE_PARKING => (int) round(($booking->effectiveParkingCharge() ?? 0) * 100),
+            \App\Models\Charge::TYPE_EARLY_CHECKIN => (int) round(($booking->earlyCheckinCharge() ?? 0) * 100),
+            \App\Models\Charge::TYPE_LATE_CHECKOUT => (int) round(($booking->lateCheckoutCharge() ?? 0) * 100),
+            \App\Models\Charge::TYPE_INCIDENTALS => $booking->unbilledIncidentalsCents(),
+            default => 0,
+        };
+
+        if ($amountCents <= 0) {
+            return response()->json(['ok' => false, 'error' => 'Nothing is currently due for this.'], 422);
+        }
+
+        // Avoid creating a duplicate outstanding intent for the same type —
+        // reuse the existing pending one if there is one already.
+        $existing = $booking->charges()->where('type', $type)->where('status', \App\Models\Charge::STATUS_PENDING)->latest()->first();
+        if ($existing) {
+            return response()->json([
+                'ok' => true,
+                'client_secret' => null,
+                'existing_charge_id' => $existing->id,
+                'amount_cents' => $existing->amount_cents,
+            ]);
+        }
+
+        $result = $service->createPendingIntent($booking, $type, $amountCents, 'guest_initiated');
+
+        return response()->json([
+            'ok' => true,
+            'client_secret' => $result['client_secret'],
+            'publishable_key' => config('services.stripe.key'),
+            'amount_cents' => $amountCents,
+        ]);
+    }
+
+    public function confirmChargePayment(Request $request, string $bookingId, string $token)
+    {
+        $booking = $this->booking($bookingId, $token);
+        $request->validate(['payment_intent_id' => ['required', 'string']]);
+
+        $charge = app(\App\Services\Payments\PaymentService::class)->finalize($request->input('payment_intent_id'));
+
+        if (! $charge || $charge->booking_id !== $booking->id) {
+            return response()->json(['ok' => false, 'error' => 'Payment not found.'], 404);
+        }
+
+        if ($charge->status !== \App\Models\Charge::STATUS_CAPTURED) {
+            return response()->json(['ok' => false, 'error' => 'Payment was not successful. Please try again.'], 422);
+        }
+
+        ActivityLogService::guest('charge_paid_online', "Guest {$booking->guest_name} paid a {$charge->type} charge online.", 'check', [
+            'booking_id'  => $booking->id,
+            'property_id' => $booking->property_id,
+            'actor_name'  => $booking->guest_name,
+            'actor_email' => $booking->email,
+            'severity'    => 'success',
+            'metadata'    => ['type' => $charge->type, 'amount_cents' => $charge->amount_cents, 'charge_id' => $charge->id],
+        ]);
+
+        return response()->json(['ok' => true]);
+    }
+
     public function submitIdentity(Request $request, string $bookingId, string $token)
     {
         $booking = $this->booking($bookingId, $token);
@@ -260,9 +408,12 @@ class GuestController extends Controller
         $frontRequired = ! $booking->photo_id_received && blank($booking->photo_id_path);
         $backRequired = ! $booking->photo_id_received && blank($booking->photo_id_back_path) && $booking->id_type !== 'passport';
 
+        $requiresContractAcceptance = filled(\App\Models\Setting::getValue('rental_contract', '')) && ! $booking->contract_accepted_at;
+
         $data = $request->validate([
             'photo_id' => [$frontRequired ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
             'photo_id_back' => [$backRequired ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
+            'contract_accepted' => [$requiresContractAcceptance ? 'accepted' : 'nullable'],
         ]);
 
         $advancedStatuses = ['guest_approved', 'awaiting_deposit', 'currently_hosting', 'checked_out'];
@@ -272,6 +423,15 @@ class GuestController extends Controller
             'decline_reason' => null,
             'photo_id_received' => true,
         ];
+
+        if ($requiresContractAcceptance) {
+            // Forward-only: stamped once, at the moment of acceptance, never
+            // re-checked against a "current" version later. If the admin
+            // edits the contract text afterward, this guest is not
+            // re-prompted — see settings controller for the version bump.
+            $updates['contract_version'] = \App\Models\Setting::getValue('rental_contract_version', '1');
+            $updates['contract_accepted_at'] = now();
+        }
 
         $archiveFolder = 'photo-ids-archive/'.$booking->booking_id.'-'.\Illuminate\Support\Str::slug($booking->guest_name);
 
@@ -506,10 +666,73 @@ class GuestController extends Controller
         return response()->json($eventsResult);
     }
 
-    public function unlockDoor(string $bookingId, string $token, PropertyLock $lock)
+    /**
+     * Enforced on every unlock/lock attempt (not just once at arrival, per
+     * the existing gps_verified flow). Closes the gap where a leaked link
+     * could operate the door from anywhere, indefinitely: requires both an
+     * active stay window and a live, in-range GPS reading submitted with
+     * this specific request. Returns an error JsonResponse if blocked, or
+     * null if the action may proceed.
+     */
+    private function assertLockActionAllowed(Request $request, Booking $booking): ?\Illuminate\Http\JsonResponse
+    {
+        $today = now()->toDateString();
+        $checkIn = optional($booking->check_in_date)->toDateString();
+        $checkOut = optional($booking->check_out_date)->toDateString();
+
+        if (($checkIn && $today < $checkIn) || ($checkOut && $today > $checkOut)) {
+            ActivityLogService::guest('door_action_blocked_stay_window', "Blocked door action for {$booking->guest_name}: outside active stay dates.", 'guest_portal', [
+                'booking_id'  => $booking->id,
+                'property_id' => $booking->property_id,
+                'actor_name'  => $booking->guest_name,
+                'severity'    => 'warning',
+            ]);
+            return response()->json(['ok' => false, 'error' => 'Door access is only available during your stay dates.'], 403);
+        }
+
+        $property = $booking->property;
+        if (! $property->latitude || ! $property->longitude) {
+            // No coordinates configured for this property — can't
+            // location-gate, fall back to the stay-window check alone
+            // rather than blocking every guest due to missing admin setup.
+            return null;
+        }
+
+        $data = $request->validate([
+            'latitude'  => ['required', 'numeric'],
+            'longitude' => ['required', 'numeric'],
+        ]);
+
+        $distance = $this->distanceMeters(
+            (float) $data['latitude'],
+            (float) $data['longitude'],
+            (float) $property->latitude,
+            (float) $property->longitude
+        );
+        $radius = (int) Setting::getValue('gps_radius_meters', 150);
+
+        if ($distance > $radius) {
+            ActivityLogService::guest('door_action_blocked_gps', "Blocked door action for {$booking->guest_name}: outside property radius (distance: ".round($distance)."m, radius: {$radius}m).", 'guest_portal', [
+                'booking_id'  => $booking->id,
+                'property_id' => $booking->property_id,
+                'actor_name'  => $booking->guest_name,
+                'severity'    => 'warning',
+                'metadata'    => ['distance_meters' => round($distance), 'radius_meters' => $radius],
+            ]);
+            return response()->json(['ok' => false, 'error' => 'You must be at the property to lock or unlock the door.'], 403);
+        }
+
+        return null;
+    }
+
+    public function unlockDoor(Request $request, string $bookingId, string $token, PropertyLock $lock)
     {
         $booking = $this->booking($bookingId, $token);
         abort_unless($lock->property_id === $booking->property_id, 404);
+
+        if ($blocked = $this->assertLockActionAllowed($request, $booking)) {
+            return $blocked;
+        }
         try {
             $attempt = app(SeamService::class)->unlock($lock->seam_device_id);
         } catch (\Throwable $e) {
@@ -544,10 +767,14 @@ class GuestController extends Controller
             'updated_at' => optional($lock->last_status_at)->toIso8601String(),
         ]);
     }
-    public function lockDoor(string $bookingId, string $token, PropertyLock $lock)
+    public function lockDoor(Request $request, string $bookingId, string $token, PropertyLock $lock)
     {
         $booking = $this->booking($bookingId, $token);
         abort_unless($lock->property_id === $booking->property_id, 404);
+
+        if ($blocked = $this->assertLockActionAllowed($request, $booking)) {
+            return $blocked;
+        }
         try {
             $attempt = app(SeamService::class)->lock($lock->seam_device_id);
         } catch (\Throwable $e) {
@@ -656,7 +883,7 @@ class GuestController extends Controller
         }
         }
 
-        if (in_array($booking->status, ['pre_checkin_complete', 'awaiting_deposit'], true) && ! $booking->deposit_verified_at) {
+        if (in_array($booking->status, ['pre_checkin_complete', 'awaiting_deposit'], true) && ! $booking->deposit_verified_at && ! $booking->isDepositCaptured()) {
             return 'awaiting_deposit';
         }
 

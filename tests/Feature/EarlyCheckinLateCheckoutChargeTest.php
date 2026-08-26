@@ -81,16 +81,19 @@ class EarlyCheckinLateCheckoutChargeTest extends TestCase
 
     // ─── Late checkout billing: authorized ──────────────────────────────────
 
-    public function test_authorized_late_checkout_charge_is_hours_times_rate(): void
+    public function test_authorized_late_checkout_charge_bills_per_half_hour_block(): void
     {
-        $property = Property::factory()->create(['late_checkout_rate_authorized_hourly' => 15]);
+        // Billing model corrected per client clarification: late checkout is
+        // priced per half-hour block, not a flat hours x hourly rate.
+        // 3 hours = 6 half-hour blocks x $15 = $90.
+        $property = Property::factory()->create(['late_checkout_rate_authorized_per_30min' => 15]);
         $booking = Booking::factory()->create([
             'property_id' => $property->id,
             'late_checkout_type' => 'authorized',
             'late_checkout_hours' => 3,
         ]);
 
-        $this->assertSame(45.0, $booking->lateCheckoutCharge());
+        $this->assertSame(90.0, $booking->lateCheckoutCharge());
     }
 
     public function test_authorized_late_checkout_charge_is_null_without_hours_entered(): void
@@ -146,11 +149,12 @@ class EarlyCheckinLateCheckoutChargeTest extends TestCase
         $this->assertSame(0.0, $booking->lateCheckoutHoursUnauthorized());
     }
 
-    public function test_unauthorized_late_checkout_charge_multiplies_computed_hours_by_rate(): void
+    public function test_unauthorized_late_checkout_charge_bills_per_half_hour_block(): void
     {
+        // 1 hour late = 2 half-hour blocks x $20 = $40.
         $property = Property::factory()->create([
             'checkout_time' => '10:00',
-            'late_checkout_rate_unauthorized_hourly' => 20,
+            'late_checkout_rate_unauthorized_per_30min' => 20,
         ]);
         $booking = Booking::factory()->create([
             'property_id' => $property->id,
@@ -159,7 +163,7 @@ class EarlyCheckinLateCheckoutChargeTest extends TestCase
             'late_checkout_actual_time' => '2026-08-27 11:00:00', // 1 hour late
         ]);
 
-        $this->assertSame(20.0, $booking->lateCheckoutCharge());
+        $this->assertSame(40.0, $booking->lateCheckoutCharge());
     }
 
     public function test_unauthorized_late_checkout_uses_guest_approved_checkout_preference_as_standard(): void
@@ -212,7 +216,7 @@ class EarlyCheckinLateCheckoutChargeTest extends TestCase
         // the manually-recorded late_checkout_actual_time, never by that.
         $property = Property::factory()->create([
             'checkout_time' => '10:00',
-            'late_checkout_rate_unauthorized_hourly' => 10,
+            'late_checkout_rate_unauthorized_per_30min' => 10,
         ]);
         $booking = Booking::factory()->create([
             'property_id' => $property->id,
@@ -226,6 +230,7 @@ class EarlyCheckinLateCheckoutChargeTest extends TestCase
         ]);
 
         $this->assertEqualsWithDelta(1.0, $booking->lateCheckoutHoursUnauthorized(), 0.01);
-        $this->assertSame(10.0, $booking->lateCheckoutCharge());
+        // 1 hour = 2 half-hour blocks x $10 = $20.
+        $this->assertSame(20.0, $booking->lateCheckoutCharge());
     }
 }
