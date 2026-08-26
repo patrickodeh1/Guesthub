@@ -23,6 +23,9 @@
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="CACHE_STORE" value="array"/>
+        <!-- In-memory SQLite: no external DB needed, no slow disk I/O,
+             fully isolated from the real MySQL data. This is the main
+             reason the old suite was slow — it's what makes it fast. -->
         <env name="DB_CONNECTION" value="sqlite"/>
         <env name="DB_DATABASE" value=":memory:"/>
         <env name="MAIL_MAILER" value="array"/>

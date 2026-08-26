@@ -10,6 +10,12 @@ return new class extends Migration
         if (DB::getDriverName() === 'mysql') {
             DB::statement("ALTER TABLE instruction_steps MODIFY action ENUM('content', 'unlock_door', 'lock_door', 'door_lock') NOT NULL DEFAULT 'content'");
         } elseif (DB::getDriverName() === 'sqlite') {
+            // Same SQLite CHECK-constraint issue as
+            // 2026_08_10_093740_add_local_events_action_to_categories.php —
+            // the original enum() only allowed content/unlock_door/lock_door,
+            // so the UPDATE below (introducing 'door_lock') would violate it
+            // on SQLite. Widen to a plain string column; app-level
+            // validation already enforces the real allowed-values rule.
             Schema::table('instruction_steps', function (Blueprint $table) {
                 $table->string('action_tmp')->default('content')->after('action');
             });

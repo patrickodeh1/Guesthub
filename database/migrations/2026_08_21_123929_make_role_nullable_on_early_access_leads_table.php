@@ -12,6 +12,9 @@ return new class extends Migration
         if (DB::getDriverName() === 'mysql') {
             DB::statement("ALTER TABLE early_access_leads MODIFY role VARCHAR(255) NULL");
         } elseif (DB::getDriverName() === 'sqlite') {
+            // SQLite has no ALTER MODIFY and doctrine/dbal isn't installed
+            // for ->change(), so swap in a nullable column the portable way
+            // (same technique as the two enum-CHECK migration fixes above).
             Schema::table('early_access_leads', function (Blueprint $table) {
                 $table->string('role_tmp')->nullable()->after('role');
             });
