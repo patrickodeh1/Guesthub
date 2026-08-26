@@ -22,6 +22,7 @@ Route::post('/login', [AuthController::class, 'login'])->name('login.store');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::post('/webhooks/seam', [App\Http\Controllers\SeamWebhookController::class, 'handle'])->name('webhooks.seam');
 Route::post('/webhooks/channex', [App\Http\Controllers\ChannexWebhookController::class, 'handle'])->name('webhooks.channex');
+Route::post('/webhooks/stripe', [App\Http\Controllers\StripeWebhookController::class, 'handle'])->name('webhooks.stripe');
 
 Route::get('/checkin', [GuestController::class, 'checkinByReservation'])->name('checkin.rid');
 Route::post('/checkin/verify', [GuestController::class, 'verifyReservationLogin'])->name('checkin.verify');
