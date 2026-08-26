@@ -41,7 +41,7 @@
                 @error('password')<p class="mt-1 text-xs text-red-700">{{ $message }}</p>@enderror
                 <label class="mt-4 flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" name="remember" value="1" class="rounded border-slate-300"> Remember me</label>
                 <button class="btn-primary mt-6 w-full">Sign in</button>
-                <p class="mt-5 rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-500">Demo access: admin@example.com / password. Change this password before production launch.</p>
+                {{--<p class="mt-5 rounded-xl bg-slate-50 p-3 text-xs leading-5 text-slate-500">Demo access: admin@example.com / password. Change this password before production launch.</p> --}}
             </form>
         </section>
     </main>
