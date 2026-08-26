@@ -36,7 +36,9 @@ class SmsNotificationService
                 ->acceptJson()
                 ->post('https://api.telnyx.com/v2/messages', $payload);
 
-            if (! $response->successful()) {
+            if ($response->successful()) {
+                Log::info("SMS notification sent ({$context}) to {$to}.");
+            } else {
                 Log::error("SMS notification failed ({$context}): ".$response->body());
             }
         } catch (\Throwable $e) {
