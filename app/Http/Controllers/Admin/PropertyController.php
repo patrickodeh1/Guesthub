@@ -99,86 +99,10 @@ class PropertyController extends Controller
         return redirect()->to($destination)->with('success', 'Property updated.');
     }
 
-    public function updateCheckoutTime(Request $request, Property $property)
-    {
-        $data = $request->validate([
-            'checkout_time' => ['required', 'date_format:H:i'],
-        ]);
 
-        $property->update(['checkout_time' => $data['checkout_time']]);
 
-        ActivityLog::record('property_updated', "{$property->name} check-out time was updated.", 'edit', $property);
 
-        return response()->json(['ok' => true, 'checkout_time' => $property->checkout_time]);
-    }
 
-    public function updateCheckinTime(Request $request, Property $property)
-    {
-        $data = $request->validate([
-            'checkin_time' => ['required', 'date_format:H:i'],
-        ]);
-
-        $property->update(['checkin_time' => $data['checkin_time']]);
-
-        ActivityLog::record('property_updated', "{$property->name} check-in time was updated.", 'edit', $property);
-
-        return response()->json(['ok' => true, 'checkin_time' => $property->checkin_time]);
-    }
-
-    public function updateLockboxCode(Request $request, Property $property)
-    {
-        $data = $request->validate([
-            'lockbox_code' => ['nullable', 'string', 'max:255'],
-        ]);
-
-        $property->update(['lockbox_code' => $data['lockbox_code'] ?? null]);
-
-        ActivityLog::record('property_updated', "{$property->name} lockbox code was updated.", 'edit', $property);
-
-        return back()->with('success', 'Lockbox code updated.');
-    }
-
-    public function updateParkingRates(Request $request, Property $property)
-    {
-        $data = $request->validate([
-            'parking_rate_sunday'    => ['nullable', 'numeric', 'min:0'],
-            'parking_rate_monday'    => ['nullable', 'numeric', 'min:0'],
-            'parking_rate_tuesday'   => ['nullable', 'numeric', 'min:0'],
-            'parking_rate_wednesday' => ['nullable', 'numeric', 'min:0'],
-            'parking_rate_thursday'  => ['nullable', 'numeric', 'min:0'],
-            'parking_rate_friday'    => ['nullable', 'numeric', 'min:0'],
-            'parking_rate_saturday'  => ['nullable', 'numeric', 'min:0'],
-        ]);
-
-        $property->update($data);
-
-        // Recalculate parking charges for any bookings that need it, since the
-        // rates that drive their auto-calculated charge just changed (task 20/25).
-        foreach ($property->bookings()->where('parking_needed', true)->get() as $booking) {
-            $booking->recalculateParkingCharge();
-        }
-
-        ActivityLog::record('property_updated', "{$property->name} parking rates were updated.", 'edit', $property);
-
-        return back()->with('success', 'Parking rates updated.');
-    }
-
-    public function updateCheckinCheckoutRates(Request $request, Property $property)
-    {
-        $data = $request->validate([
-            'early_checkin_rate_8am_12pm' => ['nullable', 'numeric', 'min:0'],
-            'early_checkin_rate_12pm_2pm' => ['nullable', 'numeric', 'min:0'],
-            'early_checkin_rate_2pm_4pm'  => ['nullable', 'numeric', 'min:0'],
-            'late_checkout_rate_authorized_per_30min'   => ['nullable', 'numeric', 'min:0'],
-            'late_checkout_rate_unauthorized_per_30min' => ['nullable', 'numeric', 'min:0'],
-        ]);
-
-        $property->update($data);
-
-        ActivityLog::record('property_updated', "{$property->name} early check-in / late checkout rates were updated.", 'edit', $property);
-
-        return back()->with('success', 'Early check-in / late checkout rates updated.');
-    }
 
     public function destroy(Property $property)
     {
@@ -282,6 +206,19 @@ class PropertyController extends Controller
             'checkin_time' => ['nullable', 'date_format:H:i'],
             'channex_property_id' => ['nullable', 'string', 'max:255', 'unique:properties,channex_property_id,'.($property?->id ?? 'NULL')],
             'deposit_cap_dollars' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            'lockbox_code' => ['nullable', 'string', 'max:255'],
+            'parking_rate_sunday' => ['nullable', 'numeric', 'min:0'],
+            'parking_rate_monday' => ['nullable', 'numeric', 'min:0'],
+            'parking_rate_tuesday' => ['nullable', 'numeric', 'min:0'],
+            'parking_rate_wednesday' => ['nullable', 'numeric', 'min:0'],
+            'parking_rate_thursday' => ['nullable', 'numeric', 'min:0'],
+            'parking_rate_friday' => ['nullable', 'numeric', 'min:0'],
+            'parking_rate_saturday' => ['nullable', 'numeric', 'min:0'],
+            'early_checkin_rate_8am_12pm' => ['nullable', 'numeric', 'min:0'],
+            'early_checkin_rate_12pm_2pm' => ['nullable', 'numeric', 'min:0'],
+            'early_checkin_rate_2pm_4pm' => ['nullable', 'numeric', 'min:0'],
+            'late_checkout_rate_authorized_per_30min' => ['nullable', 'numeric', 'min:0'],
+            'late_checkout_rate_unauthorized_per_30min' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $data['deposit_cap_cents'] = $request->filled('deposit_cap_dollars')
@@ -318,4 +255,8 @@ class PropertyController extends Controller
         }
         return $existing ?? 'America/New_York';
     }
+
+
+
+
 }
