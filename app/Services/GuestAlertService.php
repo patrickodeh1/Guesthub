@@ -81,6 +81,16 @@ class GuestAlertService
             'default_guest_message' => '', // guest not notified for this event; see defaultToggleOverrides()
             'default_staff_message' => 'GuestHub alert: New booking for {guest_name} at {property_name} ({check_in_date} to {check_out_date}) came in via the channel manager. Review it in the admin panel.',
         ],
+        'pms_booking_cancelled' => [
+            'label' => 'Channel booking cancelled',
+            'default_guest_message' => '', // guest not notified for this event; see defaultToggleOverrides()
+            'default_staff_message' => 'GuestHub alert: The booking for {guest_name} at {property_name} ({check_in_date} to {check_out_date}) was cancelled on the channel manager.',
+        ],
+        'pms_booking_updated' => [
+            'label' => 'Channel booking updated',
+            'default_guest_message' => '', // guest not notified for this event; see defaultToggleOverrides()
+            'default_staff_message' => 'GuestHub alert: The booking for {guest_name} at {property_name} was updated via the channel manager -- now {check_in_date} to {check_out_date}. Review it in the admin panel.',
+        ],
         'photo_id_uploaded' => [
             'label' => 'Photo ID uploaded',
             'default_guest_message' => 'GuestHub: Hi {guest_name}, your photo ID for {property_name} was received and is being reviewed. No action needed for now.',
@@ -134,6 +144,22 @@ class GuestAlertService
     {
         return [
             'pms_booking_received' => [
+                'guest_sms' => false,
+                'guest_email' => false,
+                'contact_sms' => true,
+                'contact_email' => true,
+                'owner_sms' => true,
+                'owner_email' => true,
+            ],
+            'pms_booking_cancelled' => [
+                'guest_sms' => false,
+                'guest_email' => false,
+                'contact_sms' => true,
+                'contact_email' => true,
+                'owner_sms' => true,
+                'owner_email' => true,
+            ],
+            'pms_booking_updated' => [
                 'guest_sms' => false,
                 'guest_email' => false,
                 'contact_sms' => true,

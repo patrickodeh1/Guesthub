@@ -98,7 +98,20 @@ class BookingImportService
             $attributes['booking_id'] = 'CX-' . Str::upper(Str::random(8));
             $attributes['reservation_id'] = $pmsBooking->externalBookingId;
             $attributes['token'] = (string) Str::uuid();
-            $attributes['status'] = 'pending';
+
+            // Normally a fresh PMS-sourced booking starts 'pending' for staff
+            // review. But if this is the very first revision Guesthub has
+            // ever seen for this external_booking_id and it already arrives
+            // cancelled/declined (guest booked and cancelled on the OTA
+            // before our webhook/poll caught the original creation), don't
+            // manufacture a live 'pending' booking for something that's
+            // already dead on arrival.
+            $arrivesCancelled = in_array($pmsBooking->status, ['cancelled', 'declined'], true);
+            $attributes['status'] = $arrivesCancelled ? 'cancelled' : 'pending';
+            if ($arrivesCancelled) {
+                $attributes['cancelled_at'] = now();
+                $attributes['archived_at'] = now();
+            }
 
             if ($pmsBooking->guestEmail) {
                 $attributes['email'] = $pmsBooking->guestEmail;
@@ -109,12 +122,25 @@ class BookingImportService
 
             $booking = Booking::create($attributes);
 
-            // Notify staff (owner/contact desk, email + SMS) that a booking
-            // just arrived from the channel manager -- otherwise a
-            // PMS-sourced booking can sit unnoticed until someone happens
-            // to open the admin panel. Guest is never messaged for this
-            // event; they only hear from us once staff has reviewed it.
-            \App\Services\GuestAlertService::send('pms_booking_received', $booking);
+            if ($arrivesCancelled) {
+                // Don't tell staff "new booking" for something that was
+                // already cancelled before we ever saw it -- that's
+                // misleading and would make them go look for a live
+                // reservation that doesn't exist. Send the cancellation
+                // notice instead so they at least know it happened.
+                Log::info('PMS booking created already cancelled (first-ever revision)', [
+                    'booking_id' => $booking->id,
+                    'external_booking_id' => $pmsBooking->externalBookingId,
+                ]);
+                \App\Services\GuestAlertService::send('pms_booking_cancelled', $booking);
+            } else {
+                // Notify staff (owner/contact desk, email + SMS) that a booking
+                // just arrived from the channel manager -- otherwise a
+                // PMS-sourced booking can sit unnoticed until someone happens
+                // to open the admin panel. Guest is never messaged for this
+                // event; they only hear from us once staff has reviewed it.
+                \App\Services\GuestAlertService::send('pms_booking_received', $booking);
+            }
         } else {
             // Cancellation always wins, regardless of how far the booking
             // has progressed internally (approved/checked-in/etc.) -- a
@@ -135,6 +161,12 @@ class BookingImportService
                 $booking->update([
                     'status' => 'cancelled',
                     'cancelled_at' => now(),
+                    // Archived immediately rather than waiting for the
+                    // original checkout date to pass (archiveOverdue()'s
+                    // usual path) -- staff are notified via
+                    // pms_booking_cancelled below, so there's no need to
+                    // keep it cluttering the active list until then.
+                    'archived_at' => now(),
                 ]);
 
                 Log::info('PMS booking marked cancelled', [
@@ -155,7 +187,44 @@ class BookingImportService
             // need to see that change immediately, not just on first import.
             // Guest-entered contact info is still never touched here (see
             // $attributes construction above).
+            //
+            // Only the fields that are actually visible/meaningful to staff
+            // are compared here (dates, property, name) -- this doubles as
+            // the double-ack/double-import guard: if the webhook and the
+            // poller both process the same revision (or a poll re-delivers
+            // a revision we already applied), the second call finds nothing
+            // changed and exits quietly instead of writing a duplicate
+            // update + duplicate log line + duplicate staff alert.
+            $changed = [];
+            foreach (['check_in_date', 'check_out_date', 'property_id', 'guest_name'] as $field) {
+                $new = $attributes[$field] ?? null;
+                $old = $field === 'check_in_date' || $field === 'check_out_date'
+                    ? $booking->{$field}?->format('Y-m-d')
+                    : $booking->{$field};
+
+                if ($new != $old) {
+                    $changed[$field] = ['old' => $old, 'new' => $new];
+                }
+            }
+
+            if (empty($changed)) {
+                Log::info('PMS booking import skipped: no changes on re-delivered revision', [
+                    'booking_id' => $booking->id,
+                    'external_booking_id' => $pmsBooking->externalBookingId,
+                ]);
+
+                return $booking->fresh();
+            }
+
             $booking->update($attributes);
+
+            Log::info('PMS booking updated from channel manager', [
+                'booking_id' => $booking->id,
+                'external_booking_id' => $pmsBooking->externalBookingId,
+                'changed' => $changed,
+            ]);
+
+            \App\Services\GuestAlertService::send('pms_booking_updated', $booking->fresh());
         }
 
         return $booking->fresh();
