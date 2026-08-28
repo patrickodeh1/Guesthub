@@ -519,6 +519,75 @@ document.addEventListener('change', function(e) {
 <div id="toast-container" class="pointer-events-none fixed right-4 top-20 z-[99999] flex flex-col gap-2"></div>
 
 {{-- ══════════════════════════════════════════════════════════════════════════
+     SITE CONFIRM MODAL  (replaces window.confirm() with our own popup)
+══════════════════════════════════════════════════════════════════════════ --}}
+<div id="site-confirm-modal" class="fixed inset-0 z-[100000] hidden items-center justify-center bg-slate-950/50 backdrop-blur-sm p-4">
+    <div class="w-full max-w-md rounded-xl bg-white p-5 shadow-2xl">
+        <h3 id="site-confirm-title" class="text-base font-semibold text-slate-900">Are you sure?</h3>
+        <p id="site-confirm-body" class="mt-2 whitespace-pre-line text-sm text-slate-600"></p>
+        <div class="mt-5 flex justify-end gap-2">
+            <button type="button" id="site-confirm-cancel" class="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50">Cancel</button>
+            <button type="button" id="site-confirm-ok" class="rounded-lg bg-[#082b49] px-3 py-2 text-sm font-medium text-white transition hover:bg-[#0b3a63]">Confirm</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// Site-styled replacement for window.confirm(). Usage on any <form>:
+//   <form data-confirm="Some message" data-confirm-title="Optional title">
+// Submits the form only after the user clicks "Confirm" in our own modal —
+// no native browser dialog involved.
+(function () {
+    const modal = document.getElementById('site-confirm-modal');
+    const titleEl = document.getElementById('site-confirm-title');
+    const bodyEl = document.getElementById('site-confirm-body');
+    const okBtn = document.getElementById('site-confirm-ok');
+    const cancelBtn = document.getElementById('site-confirm-cancel');
+    let pendingForm = null;
+
+    function openConfirmModal(form) {
+        pendingForm = form;
+        titleEl.textContent = form.dataset.confirmTitle || 'Are you sure?';
+        bodyEl.textContent = form.dataset.confirm || '';
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function closeConfirmModal() {
+        pendingForm = null;
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    document.addEventListener('submit', function (e) {
+        const form = e.target;
+        if (!(form instanceof HTMLFormElement)) return;
+        if (!form.dataset.confirm) return;
+        if (form.dataset.confirmed === 'true') return; // already confirmed via modal, let it through
+        e.preventDefault();
+        openConfirmModal(form);
+    });
+
+    okBtn.addEventListener('click', function () {
+        const form = pendingForm;
+        closeConfirmModal();
+        if (form) {
+            form.dataset.confirmed = 'true';
+            form.requestSubmit ? form.requestSubmit() : form.submit();
+        }
+    });
+
+    cancelBtn.addEventListener('click', closeConfirmModal);
+    modal.addEventListener('click', function (e) {
+        if (e.target === modal) closeConfirmModal();
+    });
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeConfirmModal();
+    });
+})();
+</script>
+
+{{-- ══════════════════════════════════════════════════════════════════════════
      SPOTLIGHT TOUR  (shown only on first visit)
 ══════════════════════════════════════════════════════════════════════════ --}}
 @if(auth()->check() && ! auth()->user()->admin_tour_completed_at)

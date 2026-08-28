@@ -19,7 +19,7 @@ class Booking extends Model
         'approved_at', 'decline_reason', 'archived_at', 'background_check_completed_at', 'deposit_verified_at',
         'contract_version', 'contract_accepted_at',
         'deposit_payment_status', 'deposit_stripe_payment_intent_id', 'deposit_amount_cents',
-        'incidentals_billed_cents',
+        'incidentals_billed_cents', 'parking_billed_cents', 'early_checkin_billed_cents',
         'pay_by_cc',
         'access_blocked_at', 'access_blocked_reason',
         'photo_id_front_approved_at', 'photo_id_front_declined_reason',
@@ -51,6 +51,8 @@ class Booking extends Model
             'contract_accepted_at' => 'datetime',
             'deposit_amount_cents' => 'integer',
             'incidentals_billed_cents' => 'integer',
+            'parking_billed_cents' => 'integer',
+            'early_checkin_billed_cents' => 'integer',
             'pay_by_cc' => 'boolean',
             'access_blocked_at' => 'datetime',
             'photo_id_front_approved_at' => 'datetime',
@@ -175,6 +177,32 @@ class Booking extends Model
         $currentCents = (int) round(($this->incidentals_charge ?? 0) * 100);
 
         return max(0, $currentCents - ($this->incidentals_billed_cents ?? 0));
+    }
+
+    /**
+     * effectiveParkingCharge() minus whatever's already been billed (via
+     * the combined pre-checkin charge or a prior standalone parking
+     * charge). Same idea as unbilledIncidentalsCents() — prevents the
+     * standalone "pay now" card from re-charging parking that was already
+     * paid as part of the deposit.
+     */
+    public function unbilledParkingCents(): int
+    {
+        $currentCents = (int) round(($this->effectiveParkingCharge() ?? 0) * 100);
+
+        return max(0, $currentCents - ($this->parking_billed_cents ?? 0));
+    }
+
+    /**
+     * earlyCheckinCharge() minus whatever's already been billed (via the
+     * combined pre-checkin charge or a prior standalone early check-in
+     * charge). Same idea as unbilledIncidentalsCents().
+     */
+    public function unbilledEarlyCheckinCents(): int
+    {
+        $currentCents = (int) round(($this->earlyCheckinCharge() ?? 0) * 100);
+
+        return max(0, $currentCents - ($this->early_checkin_billed_cents ?? 0));
     }
 
     public function scopeNotArchived($query)

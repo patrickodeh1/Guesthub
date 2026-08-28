@@ -338,8 +338,13 @@ class GuestController extends Controller
         $type = $request->validate(['type' => ['required', 'string', 'in:parking,early_checkin,late_checkout,incidentals']])['type'];
 
         $subtotalCents = match ($type) {
-            \App\Models\Charge::TYPE_PARKING => (int) round(($booking->effectiveParkingCharge() ?? 0) * 100),
-            \App\Models\Charge::TYPE_EARLY_CHECKIN => (int) round(($booking->earlyCheckinCharge() ?? 0) * 100),
+            // Parking/early check-in/incidentals all use the *unbilled*
+            // remainder — if it was already paid as part of the combined
+            // pre-checkin (deposit) charge, this is $0 and nothing is
+            // charged again. Late checkout has no combined-charge
+            // counterpart, so it always uses the full current amount.
+            \App\Models\Charge::TYPE_PARKING => $booking->unbilledParkingCents(),
+            \App\Models\Charge::TYPE_EARLY_CHECKIN => $booking->unbilledEarlyCheckinCents(),
             \App\Models\Charge::TYPE_LATE_CHECKOUT => (int) round(($booking->lateCheckoutCharge() ?? 0) * 100),
             \App\Models\Charge::TYPE_INCIDENTALS => $booking->unbilledIncidentalsCents(),
             default => 0,

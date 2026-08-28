@@ -101,6 +101,23 @@ class PaymentService
             ]);
         }
 
+        if ($charge->status === Charge::STATUS_CAPTURED && in_array($charge->type, [Charge::TYPE_DEPOSIT, Charge::TYPE_PARKING], true)) {
+            // Same idea, for parking: the combined pre-checkin charge (or a
+            // standalone parking charge) settles whatever parking currently
+            // is, so unbilledParkingCents() should return 0 right after and
+            // the guest is never charged parking a second time.
+            $charge->booking->update([
+                'parking_billed_cents' => (int) round(($charge->booking->effectiveParkingCharge() ?? 0) * 100),
+            ]);
+        }
+
+        if ($charge->status === Charge::STATUS_CAPTURED && in_array($charge->type, [Charge::TYPE_DEPOSIT, Charge::TYPE_EARLY_CHECKIN], true)) {
+            // Same idea, for early check-in.
+            $charge->booking->update([
+                'early_checkin_billed_cents' => (int) round(($charge->booking->earlyCheckinCharge() ?? 0) * 100),
+            ]);
+        }
+
         if ($charge->type === Charge::TYPE_DEPOSIT) {
             $charge->booking->update([
                 'deposit_payment_status' => $charge->status,
