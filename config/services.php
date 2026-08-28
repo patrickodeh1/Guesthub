@@ -18,10 +18,6 @@ return [
         'key' => env('POSTMARK_API_KEY'),
     ],
 
-    'resend' => [
-        'key' => env('RESEND_API_KEY'),
-    ],
-
     'ses' => [
         'key' => env('AWS_ACCESS_KEY_ID'),
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
@@ -42,13 +38,6 @@ return [
 
     'ticketmaster' => [
         'api_key' => env('TICKETMASTER_API_KEY'),
-    ],
-
-    'telnyx' => [
-        'api_key' => env('TELNYX_API_KEY'),
-        'from_number' => env('TELNYX_FROM_NUMBER'),
-        'messaging_profile_id' => env('TELNYX_MESSAGING_PROFILE_ID'),
-        'admin_notify_number' => env('TELNYX_ADMIN_NOTIFY_NUMBER'),
     ],
 
     'twilio' => [

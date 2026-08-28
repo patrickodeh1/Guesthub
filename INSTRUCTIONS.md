@@ -2,8 +2,8 @@
 
 This covers everything added on this branch: Channex PMS sync, terms &
 rental contract, Stripe payments (deposit/parking/early check-in/late
-checkout/incidentals), the door-lock security fix, the Telnyx SMS switch,
-and the automated test suite.
+checkout/incidentals), the door-lock security fix, and the automated test
+suite.
 
 ## 1. Pull and install
 
@@ -16,6 +16,13 @@ composer install
 `composer install` is required — `stripe/stripe-php` was added to
 `composer.json` this branch but never installed in this sandbox.
 
+`resend/resend-php` was removed from `composer.json` (email is SMTP-only
+now) but `composer.lock` couldn't be regenerated in this sandbox (no
+network access to Packagist). Run this once after pulling, to sync the
+lock file and actually remove the package:
+```bash
+composer update resend/resend-php --no-interaction
+```
 ## 2. Run the new migrations
 
 ```bash
@@ -60,17 +67,12 @@ Webhook endpoint to give Channex (or point ngrok at):
 POST https://your-domain/webhooks/channex
 ```
 
-### Telnyx (SMS, replacing Twilio)
-```
-TELNYX_API_KEY=...
-TELNYX_FROM_NUMBER=+1...
-TELNYX_MESSAGING_PROFILE_ID=...
-TELNYX_ADMIN_NOTIFY_NUMBER=+1...
-```
-Old `TWILIO_*` vars can stay in `.env` untouched — the code no longer reads
-them, they're just inert.
+### SMS (Twilio)
+No new env vars needed here beyond what you already have —
+`TWILIO_SID`/`TWILIO_AUTH_TOKEN`/`TWILIO_FROM_NUMBER`/
+`TWILIO_ADMIN_NOTIFY_NUMBER` continue to work unchanged.
 
-### Email (dropping Resend, using SMTP)
+### Email (SMTP only)
 No third-party service required. cPanel's own mail service works, or for
 local testing, Gmail SMTP:
 ```
@@ -107,7 +109,7 @@ Covers:
   and a browser, since it's an embedded Payment Element)
 - The door-lock GPS/stay-window gate (needs a real device with location
   services, or manually POSTing coordinates)
-- Telnyx SMS sending (needs real API key)
+- Twilio SMS sending (needs real credentials)
 
 ## 5. Manual testing checklist
 

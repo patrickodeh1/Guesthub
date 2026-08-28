@@ -44,10 +44,10 @@ config keys exist, but will not "fix" working code based on a config issue.
 
 ## 3. Email provider
 
-**Decision:** Using Resend for guest email notifications going forward. Will need
-a `RESEND_API_KEY` (or equivalent) set in prod `.env` when the notification feature
-(registration received / declined / approved / etc.) is deployed. We'll flag exact
-env var names once that code is written.
+**Decision:** SMTP only — no third-party email API. Works with cPanel's own
+mail service; set standard `MAIL_MAILER=smtp`, `MAIL_HOST`, `MAIL_PORT`,
+`MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS` in prod `.env` to
+cPanel's real SMTP details. (Resend was tried and removed.)
 
 ---
 
