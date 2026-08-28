@@ -61,10 +61,9 @@ POST https://your-domain/webhooks/channex
 ```
 
 ### SMS (Twilio)
-This branch briefly switched SMS to Telnyx and has since been reverted back
-to Twilio per the client's decision — no new env vars needed here, your
-existing `TWILIO_SID`/`TWILIO_AUTH_TOKEN`/`TWILIO_FROM_NUMBER`/
-`TWILIO_ADMIN_NOTIFY_NUMBER` setup continues to work unchanged.
+No new env vars needed here beyond what you already have —
+`TWILIO_SID`/`TWILIO_AUTH_TOKEN`/`TWILIO_FROM_NUMBER`/
+`TWILIO_ADMIN_NOTIFY_NUMBER` continue to work unchanged.
 
 ### Email (dropping Resend, using SMTP)
 No third-party service required. cPanel's own mail service works, or for
