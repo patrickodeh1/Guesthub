@@ -125,7 +125,7 @@ class Booking extends Model
             $summary .= ', capped at $' . number_format($capCents / 100, 2);
         }
         if ($feePercent > 0) {
-            $summary .= ", +{$feePercent}% processing fee";
+            $summary .= ", plus {$feePercent}% processing fee";
         }
 
         return $summary;
