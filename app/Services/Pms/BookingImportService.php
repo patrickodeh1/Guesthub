@@ -6,6 +6,7 @@ use App\Models\Booking;
 use App\Models\Property;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use App\Services\Pms\PmsProviderInterface;
 
 /**
  * Turns a normalized PmsBooking into a Guesthub Booking row.
@@ -19,8 +20,10 @@ use Illuminate\Support\Str;
  */
 class BookingImportService
 {
-    public function __construct(private readonly string $providerName = 'channex')
-    {
+    public function __construct(
+        private readonly PmsProviderInterface $provider,
+        private readonly string $providerName = 'channex',
+    ) {
     }
 
     /**
@@ -53,6 +56,17 @@ class BookingImportService
                 'external_booking_id' => $pmsBooking->externalBookingId,
                 'status' => $pmsBooking->status,
             ]);
+
+            // Unlike the "property not mapped" skip above, this is never
+            // going to resolve itself on a future poll -- a cancelled/dateless
+            // revision won't retroactively grow dates. Acknowledge it now so
+            // Channex stops re-delivering the same revision on every cycle.
+            // (revisionId is null for providers with no revision concept,
+            // e.g. NextPax -- nothing to ack there.)
+            if ($pmsBooking->revisionId) {
+                $this->provider->acknowledgeBooking($pmsBooking->revisionId);
+            }
+
             return null;
         }
 
