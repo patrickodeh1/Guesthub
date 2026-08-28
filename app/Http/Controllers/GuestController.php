@@ -481,8 +481,7 @@ class GuestController extends Controller
         ]);
 
         return back()
-            ->with('success', 'All complete. Your arrival information has been received securely.')
-            ->with('identity_complete', true);
+            ->with('success', 'All complete. Your arrival information has been received securely.');
     }
 
     public function parking(Request $request, string $bookingId, string $token)

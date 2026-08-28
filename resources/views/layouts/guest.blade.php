@@ -57,18 +57,16 @@
 
 <div id="toast-container" class="pointer-events-none fixed right-4 top-4 z-[99999] flex flex-col gap-2"></div>
 
-@if(session('identity_complete'))
-    <div id="completion-prompt" class="fixed inset-0 z-[9998] grid place-items-center bg-slate-950/35 px-4 backdrop-blur-sm">
-        <div class="w-full max-w-[340px] rounded-lg bg-white p-6 text-center shadow-xl">
-            <span class="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-500 text-white">
-                <x-icon name="check" class="h-8 w-8" />
-            </span>
-            <h2 class="mt-4 text-xl font-semibold">Check-in details received</h2>
-            <p class="mt-2 text-sm leading-6 text-slate-600">Your information was submitted securely.</p>
-            <button type="button" data-close-completion class="guest-primary-btn mt-5 w-full">Continue</button>
-        </div>
+<div id="completion-prompt" class="hidden fixed inset-0 z-[9998] grid place-items-center bg-slate-950/35 px-4 backdrop-blur-sm">
+    <div class="w-full max-w-[340px] rounded-lg bg-white p-6 text-center shadow-xl">
+        <span class="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-500 text-white">
+            <x-icon name="check" class="h-8 w-8" />
+        </span>
+        <h2 class="mt-4 text-xl font-semibold">Check-in details received</h2>
+        <p class="mt-2 text-sm leading-6 text-slate-600">Your information was submitted securely.</p>
+        <button type="button" data-close-completion class="guest-primary-btn mt-5 w-full">Continue</button>
     </div>
-@endif
+</div>
 
 </body>
 </html>

@@ -589,16 +589,18 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ── Guest portal tour (localStorage — no server required) ────────────────
     const guestTourEl = document.getElementById('guest-tour-data');
+    const completionPrompt = document.getElementById('completion-prompt');
+    const completionPromptVisible = completionPrompt && !completionPrompt.classList.contains('hidden');
+
+    if (completionPromptVisible) {
+        localStorage.setItem((guestTourEl?.dataset.tourKey) || 'guest_tour_seen', '1');
+    }
+
     if (guestTourEl) {
         const guestSteps   = JSON.parse(guestTourEl.dataset.steps || '[]');
         const guestTourKey = guestTourEl.dataset.tourKey || 'guest_tour_seen';
-        const completionPrompt = document.getElementById('completion-prompt');
 
-        if (completionPrompt) {
-            localStorage.setItem(guestTourKey, '1');
-        }
-
-        if (guestSteps.length && !localStorage.getItem(guestTourKey) && !completionPrompt) {
+        if (guestSteps.length && !localStorage.getItem(guestTourKey) && !completionPromptVisible) {
             setTimeout(() => {
                 const tour = new SpotlightTour(guestSteps, {
                     onComplete: () => {

@@ -1317,6 +1317,12 @@
                                 restore();
                                 idwClearState();
                                 goToStep(3);
+
+                                var prompt = document.getElementById("completion-prompt");
+                                if (prompt) {
+                                    prompt.classList.remove("hidden");
+                                    localStorage.setItem(document.getElementById("guest-tour-data")?.dataset.tourKey || "guest_tour_seen", "1");
+                                }
                             })
                             .catch(function(e) {
                                 restore();
