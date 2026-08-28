@@ -2,8 +2,8 @@
 
 This covers everything added on this branch: Channex PMS sync, terms &
 rental contract, Stripe payments (deposit/parking/early check-in/late
-checkout/incidentals), the door-lock security fix, the Telnyx SMS switch,
-and the automated test suite.
+checkout/incidentals), the door-lock security fix, and the automated test
+suite.
 
 ## 1. Pull and install
 
@@ -60,15 +60,11 @@ Webhook endpoint to give Channex (or point ngrok at):
 POST https://your-domain/webhooks/channex
 ```
 
-### Telnyx (SMS, replacing Twilio)
-```
-TELNYX_API_KEY=...
-TELNYX_FROM_NUMBER=+1...
-TELNYX_MESSAGING_PROFILE_ID=...
-TELNYX_ADMIN_NOTIFY_NUMBER=+1...
-```
-Old `TWILIO_*` vars can stay in `.env` untouched — the code no longer reads
-them, they're just inert.
+### SMS (Twilio)
+This branch briefly switched SMS to Telnyx and has since been reverted back
+to Twilio per the client's decision — no new env vars needed here, your
+existing `TWILIO_SID`/`TWILIO_AUTH_TOKEN`/`TWILIO_FROM_NUMBER`/
+`TWILIO_ADMIN_NOTIFY_NUMBER` setup continues to work unchanged.
 
 ### Email (dropping Resend, using SMTP)
 No third-party service required. cPanel's own mail service works, or for
@@ -107,7 +103,7 @@ Covers:
   and a browser, since it's an embedded Payment Element)
 - The door-lock GPS/stay-window gate (needs a real device with location
   services, or manually POSTing coordinates)
-- Telnyx SMS sending (needs real API key)
+- Twilio SMS sending (needs real credentials)
 
 ## 5. Manual testing checklist
 
