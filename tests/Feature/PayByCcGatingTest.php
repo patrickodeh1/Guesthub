@@ -105,4 +105,45 @@ class PayByCcGatingTest extends TestCase
 
         $response->assertStatus(422);
     }
+
+    public function test_paid_card_booking_stays_behind_admin_deposit_verification(): void
+    {
+        $property = Property::factory()->create();
+        $booking = Booking::factory()->create([
+            'property_id' => $property->id,
+            'status' => 'awaiting_deposit',
+            'identity_confirmed_at' => now(),
+            'photo_id_received' => true,
+            'approved_at' => now(),
+            'background_check_completed_at' => now(),
+            'deposit_payment_status' => 'success',
+            'pay_by_cc' => true,
+        ]);
+
+        $response = $this->get(route('guest.show', [$booking->booking_id, $booking->token]));
+
+        $response->assertOk();
+        $response->assertSee('Payment received');
+        $response->assertSee('We are confirming your deposit now');
+        $response->assertDontSee('Approved for check in!');
+    }
+
+    public function test_admin_deposit_verification_releases_paid_booking_to_next_guest_state(): void
+    {
+        $booking = Booking::factory()->create([
+            'status' => 'awaiting_deposit',
+            'identity_confirmed_at' => now(),
+            'photo_id_received' => true,
+            'approved_at' => now(),
+            'background_check_completed_at' => now(),
+            'deposit_payment_status' => 'success',
+            'deposit_verified_at' => now(),
+            'pay_by_cc' => true,
+        ]);
+
+        $response = $this->get(route('guest.show', [$booking->booking_id, $booking->token]));
+
+        $response->assertOk();
+        $response->assertDontSee('Payment received');
+    }
 }

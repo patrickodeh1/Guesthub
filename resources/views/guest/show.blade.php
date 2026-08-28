@@ -1461,37 +1461,6 @@
             </div>
             </div>
 
-            @php
-                $stripeConfiguredForCharges = filled(config('services.stripe.key')) && filled(config('services.stripe.secret'));
-
-                $parkingAmountCents = (int) round(($booking->effectiveParkingCharge() ?? 0) * 100);
-                $parkingPaid = $booking->charges()->where('type', \App\Models\Charge::TYPE_PARKING)->where('status', \App\Models\Charge::STATUS_SUCCESS)->exists();
-                $showParkingCharge = $booking->pay_by_cc && $booking->parking_needed && $parkingAmountCents > 0 && ! $parkingPaid && $stripeConfiguredForCharges;
-
-                $earlyCheckinAmountCents = (int) round(($booking->earlyCheckinCharge() ?? 0) * 100);
-                $earlyCheckinPaid = $booking->charges()->where('type', \App\Models\Charge::TYPE_EARLY_CHECKIN)->where('status', \App\Models\Charge::STATUS_SUCCESS)->exists();
-                // Only bill this standalone if the combined pre-checkin
-                // charge has already been captured — otherwise this tier
-                // was granted before that charge happened and is already
-                // folded into it (see calculatePreCheckinChargeCents()).
-                $showEarlyCheckinCharge = $booking->pay_by_cc && $booking->early_checkin_tier && $earlyCheckinAmountCents > 0 && ! $earlyCheckinPaid && $booking->isDepositCaptured() && $stripeConfiguredForCharges;
-            @endphp
-            @if($showParkingCharge || $showEarlyCheckinCharge)
-                @if($showParkingCharge)
-                    <x-guest-charge-card type="parking" label="Parking fee" description="A parking fee applies for your stay." :amount-cents="$parkingAmountCents" :booking="$booking" />
-                @endif
-                @if($showEarlyCheckinCharge)
-                    <x-guest-charge-card type="early_checkin" label="Early check-in fee" description="Your requested early check-in has been approved — payment finalizes it." :amount-cents="$earlyCheckinAmountCents" :booking="$booking" />
-                @endif
-                @include('guest.partials.charge-card-script')
-                <script>
-                (function() {
-                    @if($showParkingCharge) initGuestChargeCard("parking"); @endif
-                    @if($showEarlyCheckinCharge) initGuestChargeCard("early_checkin"); @endif
-                })();
-                </script>
-            @endif
-
             @if($booking->canViewAddress())
             <div class="guest-portal-card mt-4">
                 <div class="p-6 md:p-8 text-center text-xl text-slate-950">{!! $gpsVerifyMessage !!}</div>
@@ -1554,7 +1523,15 @@
                         $depositAmountCents = $booking->calculatePreCheckinChargeCents();
                         $stripeConfigured = filled(config('services.stripe.key')) && filled(config('services.stripe.secret'));
                     @endphp
-                    @if($booking->pay_by_cc && $stripeConfigured && $depositAmountCents > 0)
+                    @if($booking->isDepositCaptured())
+                        <div class="text-center">
+                            <div class="guest-big-check mx-auto">
+                                <x-icon name="check" class="h-8 w-8" />
+                            </div>
+                            <h2 class="mt-4 text-xl font-extrabold text-slate-950">Payment received</h2>
+                            <p class="mt-3 text-sm leading-6 text-slate-600">Thank you. Your payment has been received. We are confirming your deposit now, and you will receive a message with your check-in details once it has been verified.</p>
+                        </div>
+                    @elseif($booking->pay_by_cc && $stripeConfigured && $depositAmountCents > 0)
                         <div class="text-center">
                             <h2 class="text-xl font-extrabold text-slate-950">Incidentals payment</h2>
                             <p class="mt-3 text-sm leading-6 text-slate-600">A payment of <strong>${{ number_format($depositAmountCents / 100, 2) }}</strong> is required before check-in. Enter your card below. Payment details stay on our site and are not shared with a third party.</p>
@@ -1607,6 +1584,24 @@
                                 errorBox.classList.remove("hidden");
                             }
 
+                            function showSuccess(msg) {
+                                var container = form.parentElement;
+                                container.innerHTML = "";
+                                var check = document.createElement("div");
+                                check.className = "guest-big-check mx-auto";
+                                check.textContent = "✓";
+                                var heading = document.createElement("h2");
+                                heading.className = "mt-4 text-xl font-extrabold text-slate-950";
+                                heading.textContent = "Payment received";
+                                var message = document.createElement("p");
+                                message.className = "mt-3 text-sm leading-6 text-slate-600";
+                                message.textContent = (msg || "Your payment has been received.") + " We are confirming your deposit now, and you will receive a message with your check-in details once it has been verified.";
+                                var success = document.createElement("div");
+                                success.className = "text-center";
+                                success.append(check, heading, message);
+                                container.appendChild(success);
+                            }
+
                             fetch(form.dataset.intentUrl, {
                                 method: "POST",
                                 headers: {
@@ -1656,7 +1651,7 @@
                                             .then(function(r) { return r.json(); })
                                             .then(function(confirmData) {
                                                 if (confirmData.ok) {
-                                                    window.location.reload();
+                                                    showSuccess(confirmData.message);
                                                 } else {
                                                     showError(confirmData.error || "Payment could not be confirmed. Please contact us.");
                                                     payBtn.disabled = false;

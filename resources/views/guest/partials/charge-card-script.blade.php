@@ -18,6 +18,23 @@ function initGuestChargeCard(type) {
         errorBox.classList.remove("hidden");
     }
 
+    function showSuccess(msg) {
+        cardEl.innerHTML = "";
+        var content = document.createElement("div");
+        content.className = "p-6 md:p-8 text-center";
+        var check = document.createElement("div");
+        check.className = "guest-big-check mx-auto";
+        check.textContent = "✓";
+        var heading = document.createElement("p");
+        heading.className = "mt-4 text-base font-bold text-slate-950";
+        heading.textContent = "Payment received";
+        var message = document.createElement("p");
+        message.className = "mt-2 text-sm leading-6 text-slate-600";
+        message.textContent = msg || "Your payment has been received.";
+        content.append(check, heading, message);
+        cardEl.appendChild(content);
+    }
+
     fetch(intentUrl, {
         method: "POST",
         headers: { "Accept": "application/json", "Content-Type": "application/json", "X-CSRF-TOKEN": csrfToken },
@@ -56,13 +73,7 @@ function initGuestChargeCard(type) {
                     .then(function(r) { return r.json(); })
                     .then(function(confirmData) {
                         if (confirmData.ok) {
-                            try {
-                                sessionStorage.setItem("gh_payment_toast", JSON.stringify({
-                                    type: "success",
-                                    message: confirmData.message || "Payment received."
-                                }));
-                            } catch (e) {}
-                            window.location.reload();
+                            showSuccess(confirmData.message || "Your payment has been received.");
                         } else {
                             showError(confirmData.error || "Payment could not be confirmed. Please contact us.");
                             payBtn.disabled = false;

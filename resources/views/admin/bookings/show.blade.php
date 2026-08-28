@@ -1,5 +1,3 @@
-201~
-
 <x-admin-layout title="Guest Details">
     <a href="{{ route('admin.guests.index') }}" class="mb-4 inline-flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-slate-800">
         <x-icon name="arrow-left" class="h-4 w-4" />

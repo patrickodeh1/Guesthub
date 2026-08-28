@@ -55,21 +55,6 @@
     {{ $slot }}
 </main>
 
-<div id="toast-container" class="pointer-events-none fixed right-4 top-4 z-[99999] flex flex-col gap-2"></div>
-
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    try {
-        var raw = sessionStorage.getItem("gh_payment_toast");
-        if (raw && window.Toast) {
-            var t = JSON.parse(raw);
-            window.Toast[t.type === "error" ? "error" : "success"](t.message);
-        }
-        sessionStorage.removeItem("gh_payment_toast");
-    } catch (e) {}
-});
-</script>
-
 <div id="completion-prompt" class="hidden fixed inset-0 z-[9998] grid place-items-center bg-slate-950/35 px-4 backdrop-blur-sm">
     <div class="w-full max-w-[340px] rounded-lg bg-white p-6 text-center shadow-xl">
         <span class="mx-auto grid h-14 w-14 place-items-center rounded-full bg-emerald-500 text-white">

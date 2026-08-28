@@ -348,6 +348,10 @@ class GuestController extends Controller
             return response()->json(['ok' => false, 'error' => 'Payments are not available right now. Please contact us.'], 503);
         }
 
+        if (! $booking->pay_by_cc) {
+            return response()->json(['ok' => false, 'error' => 'Online card payment is not enabled for this booking.'], 403);
+        }
+
         $type = $request->validate(['type' => ['required', 'string', 'in:parking,early_checkin,late_checkout,incidentals']])['type'];
 
         $subtotalCents = match ($type) {
@@ -908,7 +912,7 @@ class GuestController extends Controller
         }
         }
 
-        if (in_array($booking->status, ['pre_checkin_complete', 'awaiting_deposit'], true) && ! $booking->deposit_verified_at && ! $booking->isDepositCaptured()) {
+        if (in_array($booking->status, ['pre_checkin_complete', 'awaiting_deposit'], true) && ! $booking->deposit_verified_at) {
             return 'awaiting_deposit';
         }
 
