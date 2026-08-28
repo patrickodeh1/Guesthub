@@ -102,14 +102,46 @@ class BookingImportService
             // event; they only hear from us once staff has reviewed it.
             \App\Services\GuestAlertService::send('pms_booking_received', $booking);
         } else {
-            // Existing PMS-sourced booking: only refresh dates/property in
-            // case the OTA reservation changed — never touch guest-entered
-            // contact info, and never touch anything if this booking has
-            // already progressed past 'pending' (admin/guest has started
-            // working with it — a stale re-poll shouldn't reset progress).
-            if ($booking->status === 'pending') {
-                $booking->update($attributes);
+            // Cancellation always wins, regardless of how far the booking
+            // has progressed internally (approved/checked-in/etc.) -- a
+            // guest who cancelled on the OTA needs staff to see that, not
+            // have it silently swallowed because the workflow had moved on.
+            // Once cancelled, the booking is terminal: further stale
+            // revisions (retries, late polls) are ignored rather than
+            // reviving it.
+            if ($booking->status === 'cancelled') {
+                Log::info('PMS booking import skipped: booking already cancelled', [
+                    'booking_id' => $booking->id,
+                    'external_booking_id' => $pmsBooking->externalBookingId,
+                ]);
+                return $booking->fresh();
             }
+
+            if (in_array($pmsBooking->status, ['cancelled', 'declined'], true)) {
+                $booking->update([
+                    'status' => 'cancelled',
+                    'cancelled_at' => now(),
+                ]);
+
+                Log::info('PMS booking marked cancelled', [
+                    'booking_id' => $booking->id,
+                    'external_booking_id' => $pmsBooking->externalBookingId,
+                ]);
+
+                \App\Services\GuestAlertService::send('pms_booking_cancelled', $booking);
+
+                return $booking->fresh();
+            }
+
+            // Existing PMS-sourced booking, still active on the OTA: refresh
+            // dates/property/name as soon as a webhook or poll picks up a
+            // change -- no longer gated on 'pending' only, since a guest can
+            // change dates on the OTA after Guesthub has already moved the
+            // booking further along (approved, checked in, etc.), and staff
+            // need to see that change immediately, not just on first import.
+            // Guest-entered contact info is still never touched here (see
+            // $attributes construction above).
+            $booking->update($attributes);
         }
 
         return $booking->fresh();

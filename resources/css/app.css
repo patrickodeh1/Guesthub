@@ -167,6 +167,10 @@
         @apply border-slate-200 bg-slate-100 text-slate-600;
     }
 
+    .badge-cancelled {
+        @apply border-red-200 bg-red-50 text-red-700;
+    }
+
     .badge-inactive {
         @apply border-slate-200 bg-slate-50 text-slate-500;
     }

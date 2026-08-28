@@ -413,7 +413,7 @@ class BookingController extends Controller
     public function updateStatus(Request $request, Booking $booking)
     {
         $data = $request->validate([
-            'status' => ['required', 'in:pending,pre_checkin_complete,awaiting_deposit,guest_approved,currently_hosting,checked_out'],
+            'status' => ['required', 'in:pending,pre_checkin_complete,awaiting_deposit,guest_approved,currently_hosting,checked_out,cancelled'],
         ]);
 
         $booking->update(['status' => $data['status']]);
@@ -719,7 +719,7 @@ class BookingController extends Controller
             'photo_id_received' => ['nullable', 'boolean'],
             'checkin_time_preference'  => ['nullable', 'date_format:H:i'],
             'checkout_time_preference' => ['nullable', 'date_format:H:i'],
-            'status'         => ['required', 'in:pending,pre_checkin_complete,awaiting_deposit,guest_approved,currently_hosting,checked_out'],
+            'status'         => ['required', 'in:pending,pre_checkin_complete,awaiting_deposit,guest_approved,currently_hosting,checked_out,cancelled'],
             'notes'          => ['nullable', 'string'],
         ]);
     }
