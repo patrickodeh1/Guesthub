@@ -8,6 +8,7 @@ use App\Models\Property;
 use App\Models\Setting;
 use App\Services\ActivityLogService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -87,6 +88,7 @@ class BookingController extends Controller
     public function store(Request $request)
     {
         $data               = $this->validated($request);
+        $this->enforcePreCheckinCap($data);
         $data['booking_id'] = $data['booking_id'] ?: 'BK-'.strtoupper(Str::random(8));
         $data['token']      = Str::random(40);
         $data['early_checkin'] = $request->boolean('early_checkin');
@@ -203,6 +205,7 @@ class BookingController extends Controller
         $oldLateCheckoutCharge = $booking->lateCheckoutCharge();
         $oldIncidentalsCharge = (float) ($booking->incidentals_charge ?? 0);
         $data = $this->validated($request, $booking);
+        $this->enforcePreCheckinCap($data);
         $data['early_checkin'] = $request->boolean('early_checkin');
         $data['pay_by_cc'] = $request->boolean('pay_by_cc');
         $data['photo_id_received'] = $request->boolean('photo_id_received');
@@ -722,5 +725,51 @@ class BookingController extends Controller
             'status'         => ['required', 'in:pending,pre_checkin_complete,awaiting_deposit,guest_approved,currently_hosting,checked_out,cancelled'],
             'notes'          => ['nullable', 'string'],
         ]);
+    }
+
+    /**
+     * Keep the admin-entered incidentals charge and the combined pre-check-in
+     * subtotal within the property's cap, falling back to the global cap.
+     * Processing fees are intentionally excluded because the cap represents
+     * the charge subtotal and the fee is applied on top.
+     */
+    private function enforcePreCheckinCap(array $data): void
+    {
+        $property = Property::findOrFail($data['property_id']);
+        $capCents = $property->deposit_cap_cents !== null
+            ? (int) $property->deposit_cap_cents
+            : (int) Setting::getValue('default_deposit_cap_cents', 0);
+
+        if ($capCents <= 0) {
+            return;
+        }
+
+        $incidentalsCents = (int) round(((float) ($data['incidentals_charge'] ?? 0)) * 100);
+        if ($incidentalsCents > $capCents) {
+            throw ValidationException::withMessages([
+                'incidentals_charge' => 'Incidentals cannot exceed the deposit threshold of $'.number_format($capCents / 100, 2).'.',
+            ]);
+        }
+
+        $booking = new Booking($data);
+        $booking->setRelation('property', $property);
+        $booking->parking_needed = (bool) ($data['parking_needed'] ?? false);
+        $booking->check_in_date = $data['check_in_date'];
+        $booking->check_out_date = $data['check_out_date'];
+        $parkingCharge = $booking->parking_charge_override !== null
+            ? (float) $booking->parking_charge_override
+            : ($booking->calculateParkingCharge() ?? 0);
+
+        $subtotalCents = (int) round((
+            $parkingCharge
+            + ((float) ($data['incidentals_charge'] ?? 0))
+            + ($booking->earlyCheckinCharge() ?? 0)
+        ) * 100);
+
+        if ($subtotalCents > $capCents) {
+            throw ValidationException::withMessages([
+                'incidentals_charge' => 'Incidentals, parking, and early check-in total cannot exceed the deposit threshold of $'.number_format($capCents / 100, 2).'.',
+            ]);
+        }
     }
 }

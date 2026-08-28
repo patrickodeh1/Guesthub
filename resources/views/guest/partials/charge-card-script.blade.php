@@ -73,7 +73,14 @@ function initGuestChargeCard(type) {
                     .then(function(r) { return r.json(); })
                     .then(function(confirmData) {
                         if (confirmData.ok) {
-                            showSuccess(confirmData.message || "Your payment has been received.");
+                            if (type === "late_checkout") {
+                                showSuccess(confirmData.message || "Your late checkout payment has been received.");
+                                window.setTimeout(function() {
+                                    cardEl.remove();
+                                }, 15000);
+                            } else {
+                                showSuccess(confirmData.message || "Your payment has been received.");
+                            }
                         } else {
                             showError(confirmData.error || "Payment could not be confirmed. Please contact us.");
                             payBtn.disabled = false;

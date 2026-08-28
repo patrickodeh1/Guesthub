@@ -380,9 +380,12 @@ class GuestController extends Controller
         // reuse the existing pending one if there is one already.
         $existing = $booking->charges()->where('type', $type)->where('status', \App\Models\Charge::STATUS_PENDING)->latest()->first();
         if ($existing) {
+            $clientSecret = $service->retrieveClientSecret($existing->stripe_payment_intent_id);
+
             return response()->json([
                 'ok' => true,
-                'client_secret' => null,
+                'client_secret' => $clientSecret,
+                'publishable_key' => config('services.stripe.key'),
                 'existing_charge_id' => $existing->id,
                 'amount_cents' => $existing->amount_cents,
             ]);

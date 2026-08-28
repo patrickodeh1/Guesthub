@@ -1696,6 +1696,7 @@
                     <p class="mt-2 text-sm leading-6 text-slate-600">Your check-out time is {{ $booking->effectiveCheckoutTimeFormatted() }} tomorrow. You'll still have full access to the guide until then.</p>
                     <a href="#guide-grid" class="guest-primary-btn w-full mt-4">View Guide</a>
                 </div>
+                @include('guest.partials.late-checkout-charge', ['booking' => $booking])
                 @if($locks->isNotEmpty())
                     <div class="px-6 pb-2">
                         <div class="grid gap-6 {{ $locks->count() > 1 ? 'sm:grid-cols-2' : '' }}">
@@ -1749,6 +1750,7 @@
                         Checked in
                     </span>
                 </div>
+                @include('guest.partials.late-checkout-charge', ['booking' => $booking])
                 <x-checkout-today-card :booking="$booking" :has-steps="count($checkoutSteps) > 0" class="p-6" />
                 <div class="guest-guide-body px-6 pb-6">
                     <x-weather-badge :property="$property" class="guest-weather-card" />
@@ -1810,25 +1812,15 @@
             @php
                 $stripeConfiguredForCharges = filled(config('services.stripe.key')) && filled(config('services.stripe.secret'));
 
-                $lateCheckoutAmountCents = (int) round(($booking->lateCheckoutCharge() ?? 0) * 100);
-                $lateCheckoutPaid = $booking->charges()->where('type', \App\Models\Charge::TYPE_LATE_CHECKOUT)->where('status', \App\Models\Charge::STATUS_SUCCESS)->exists();
-                $showLateCheckoutCharge = $booking->pay_by_cc && $lateCheckoutAmountCents > 0 && ! $lateCheckoutPaid && $stripeConfiguredForCharges;
-
                 $incidentalsAmountCents = $booking->unbilledIncidentalsCents();
                 $incidentalsPaid = $booking->charges()->where('type', \App\Models\Charge::TYPE_INCIDENTALS)->where('status', \App\Models\Charge::STATUS_SUCCESS)->exists();
                 $showIncidentalsCharge = $booking->pay_by_cc && $incidentalsAmountCents > 0 && ! $incidentalsPaid && $stripeConfiguredForCharges;
             @endphp
-            @if($showLateCheckoutCharge || $showIncidentalsCharge)
-                @if($showLateCheckoutCharge)
-                    <x-guest-charge-card type="late_checkout" label="Late checkout fee" description="A fee applies for checking out later than the standard time." :amount-cents="$lateCheckoutAmountCents" :booking="$booking" />
-                @endif
-                @if($showIncidentalsCharge)
+            @if($showIncidentalsCharge)
                     <x-guest-charge-card type="incidentals" label="Incidentals" description="Additional charges from your stay." :amount-cents="$incidentalsAmountCents" :booking="$booking" />
-                @endif
                 @include('guest.partials.charge-card-script')
                 <script>
                 (function() {
-                    @if($showLateCheckoutCharge) initGuestChargeCard("late_checkout"); @endif
                     @if($showIncidentalsCharge) initGuestChargeCard("incidentals"); @endif
                 })();
                 </script>
