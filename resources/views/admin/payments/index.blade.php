@@ -62,8 +62,8 @@
         <div class="card card-pad flex items-center gap-3">
             <span class="icon-chip h-10 w-10"><x-icon name="check" class="h-4 w-4" /></span>
             <div>
-                <p class="text-xl font-semibold text-slate-950">${{ number_format($totals['captured_cents'] / 100, 2) }}</p>
-                <p class="text-xs text-slate-500">Captured</p>
+                <p class="text-xl font-semibold text-slate-950">${{ number_format($totals['success_cents'] / 100, 2) }}</p>
+                <p class="text-xs text-slate-500">Success</p>
             </div>
         </div>
         <div class="card card-pad flex items-center gap-3">
@@ -118,7 +118,7 @@
                         <td>
                             @php
                                 $statusBadge = match($charge->status) {
-                                    'captured' => 'badge-active',
+                                    'success' => 'badge-active',
                                     'failed' => 'badge-pending',
                                     default => 'badge-inactive',
                                 };

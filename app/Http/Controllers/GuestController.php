@@ -273,6 +273,19 @@ class GuestController extends Controller
             return response()->json(['ok' => false, 'error' => 'No deposit is configured for this stay.'], 422);
         }
 
+        // Avoid creating a duplicate PaymentIntent on page reload/refresh —
+        // reuse the existing pending one if there is one, re-fetching its
+        // client_secret from Stripe so the guest can still complete payment.
+        $existing = $booking->charges()->where('type', \App\Models\Charge::TYPE_DEPOSIT)->where('status', \App\Models\Charge::STATUS_PENDING)->latest()->first();
+        if ($existing) {
+            return response()->json([
+                'ok' => true,
+                'client_secret' => $service->retrieveClientSecret($existing->stripe_payment_intent_id),
+                'publishable_key' => config('services.stripe.key'),
+                'amount_cents' => $existing->amount_cents,
+            ]);
+        }
+
         $result = $service->createPendingIntent(
             $booking,
             \App\Models\Charge::TYPE_DEPOSIT,
@@ -300,7 +313,7 @@ class GuestController extends Controller
             return response()->json(['ok' => false, 'error' => 'Payment not found.'], 404);
         }
 
-        if ($charge->status !== \App\Models\Charge::STATUS_CAPTURED) {
+        if ($charge->status !== \App\Models\Charge::STATUS_SUCCESS) {
             return response()->json(['ok' => false, 'error' => 'Payment was not successful. Please try again.'], 422);
         }
 
@@ -392,7 +405,7 @@ class GuestController extends Controller
             return response()->json(['ok' => false, 'error' => 'Payment not found.'], 404);
         }
 
-        if ($charge->status !== \App\Models\Charge::STATUS_CAPTURED) {
+        if ($charge->status !== \App\Models\Charge::STATUS_SUCCESS) {
             return response()->json(['ok' => false, 'error' => 'Payment was not successful. Please try again.'], 422);
         }
 

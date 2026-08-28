@@ -40,6 +40,16 @@ class PaymentService
     }
 
     /**
+     * Re-fetches a PaymentIntent's client_secret from Stripe. Used when we
+     * reuse an existing pending intent (e.g. on guest page reload) instead
+     * of creating a new one.
+     */
+    public function retrieveClientSecret(string $paymentIntentId): ?string
+    {
+        return $this->client()->paymentIntents->retrieve($paymentIntentId)->client_secret;
+    }
+
+    /**
      * Create a PaymentIntent without a payment method or confirmation — the
      * correct pattern for an embedded Stripe Payment Element, where the
      * guest enters card details directly into Stripe's own embedded
@@ -86,11 +96,11 @@ class PaymentService
         $intent = $this->client()->paymentIntents->retrieve($paymentIntentId);
 
         $charge->update([
-            'status' => $intent->status === 'succeeded' ? Charge::STATUS_CAPTURED : Charge::STATUS_FAILED,
+            'status' => $intent->status === 'succeeded' ? Charge::STATUS_SUCCESS : Charge::STATUS_FAILED,
             'captured_at' => $intent->status === 'succeeded' ? now() : null,
         ]);
 
-        if ($charge->status === Charge::STATUS_CAPTURED && in_array($charge->type, [Charge::TYPE_DEPOSIT, Charge::TYPE_INCIDENTALS], true)) {
+        if ($charge->status === Charge::STATUS_SUCCESS && in_array($charge->type, [Charge::TYPE_DEPOSIT, Charge::TYPE_INCIDENTALS], true)) {
             // Whatever the current incidentals_charge is at the moment this
             // charge succeeds is now considered "billed" — the combined
             // pre-checkin charge includes incidentals as of that moment,
@@ -101,7 +111,7 @@ class PaymentService
             ]);
         }
 
-        if ($charge->status === Charge::STATUS_CAPTURED && in_array($charge->type, [Charge::TYPE_DEPOSIT, Charge::TYPE_PARKING], true)) {
+        if ($charge->status === Charge::STATUS_SUCCESS && in_array($charge->type, [Charge::TYPE_DEPOSIT, Charge::TYPE_PARKING], true)) {
             // Same idea, for parking: the combined pre-checkin charge (or a
             // standalone parking charge) settles whatever parking currently
             // is, so unbilledParkingCents() should return 0 right after and
@@ -111,7 +121,7 @@ class PaymentService
             ]);
         }
 
-        if ($charge->status === Charge::STATUS_CAPTURED && in_array($charge->type, [Charge::TYPE_DEPOSIT, Charge::TYPE_EARLY_CHECKIN], true)) {
+        if ($charge->status === Charge::STATUS_SUCCESS && in_array($charge->type, [Charge::TYPE_DEPOSIT, Charge::TYPE_EARLY_CHECKIN], true)) {
             // Same idea, for early check-in.
             $charge->booking->update([
                 'early_checkin_billed_cents' => (int) round(($charge->booking->earlyCheckinCharge() ?? 0) * 100),
@@ -151,7 +161,7 @@ class PaymentService
         $charge = $booking->charges()->create([
             'type' => $type,
             'amount_cents' => $amountCents,
-            'status' => $intent->status === 'succeeded' ? Charge::STATUS_CAPTURED : Charge::STATUS_FAILED,
+            'status' => $intent->status === 'succeeded' ? Charge::STATUS_SUCCESS : Charge::STATUS_FAILED,
             'stripe_payment_intent_id' => $intent->id,
             'billing_moment' => $billingMoment,
             'captured_at' => $intent->status === 'succeeded' ? now() : null,

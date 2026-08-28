@@ -86,7 +86,7 @@ class Booking extends Model
 
     public function isDepositCaptured(): bool
     {
-        return $this->deposit_payment_status === 'captured';
+        return $this->deposit_payment_status === 'success';
     }
 
     /**

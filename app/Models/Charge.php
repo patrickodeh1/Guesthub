@@ -18,7 +18,7 @@ class Charge extends Model
 
     public const STATUS_PENDING = 'pending';
     public const STATUS_HELD = 'held';
-    public const STATUS_CAPTURED = 'captured';
+    public const STATUS_SUCCESS = 'success';
     public const STATUS_PARTIALLY_CAPTURED = 'partially_captured';
     public const STATUS_RELEASED = 'released';
     public const STATUS_FAILED = 'failed';

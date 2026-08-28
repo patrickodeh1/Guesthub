@@ -25,7 +25,7 @@ class PaymentController extends Controller
             ->withQueryString();
 
         $totals = [
-            'captured_cents' => Charge::where('status', Charge::STATUS_CAPTURED)->sum('amount_cents'),
+            'success_cents' => Charge::where('status', Charge::STATUS_SUCCESS)->sum('amount_cents'),
             'pending_cents' => Charge::where('status', Charge::STATUS_PENDING)->sum('amount_cents'),
             'failed_count' => Charge::where('status', Charge::STATUS_FAILED)->count(),
         ];
@@ -42,7 +42,7 @@ class PaymentController extends Controller
             ],
             'statuses' => [
                 Charge::STATUS_PENDING => 'Pending',
-                Charge::STATUS_CAPTURED => 'Captured',
+                Charge::STATUS_SUCCESS => 'Success',
                 Charge::STATUS_FAILED => 'Failed',
             ],
             'stripeConfigured' => filled(config('services.stripe.secret')),
