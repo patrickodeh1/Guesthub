@@ -16,6 +16,13 @@ composer install
 `composer install` is required — `stripe/stripe-php` was added to
 `composer.json` this branch but never installed in this sandbox.
 
+`resend/resend-php` was removed from `composer.json` (email is SMTP-only
+now) but `composer.lock` couldn't be regenerated in this sandbox (no
+network access to Packagist). Run this once after pulling, to sync the
+lock file and actually remove the package:
+```bash
+composer update resend/resend-php --no-interaction
+```
 ## 2. Run the new migrations
 
 ```bash
@@ -65,7 +72,7 @@ No new env vars needed here beyond what you already have —
 `TWILIO_SID`/`TWILIO_AUTH_TOKEN`/`TWILIO_FROM_NUMBER`/
 `TWILIO_ADMIN_NOTIFY_NUMBER` continue to work unchanged.
 
-### Email (dropping Resend, using SMTP)
+### Email (SMTP only)
 No third-party service required. cPanel's own mail service works, or for
 local testing, Gmail SMTP:
 ```

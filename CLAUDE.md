@@ -67,9 +67,8 @@ GPS + smart lock (Seam integration), see a digital welcome guide, and check out.
   or run tests directly. Manual code review substitutes for `php -l`.
 - Sandbox network is allowlisted and does **not** include `packagist.org` —
   cannot run `composer require` for new PHP dependencies. If a task needs a
-  new package (e.g. `resend/resend-php` for email), write the code assuming
-  it will be installed, and tell the human to run the composer command
-  locally after pulling.
+  new package, write the code assuming it will be installed, and tell the
+  human to run the composer command locally after pulling.
 - No prod database/`.env` access — anything requiring prod state must go
   through `PROD_INSTRUCTIONS.md` for the client to check/run.
 
@@ -96,9 +95,9 @@ changed.
 
 ## Notification stack decisions already made
 
-- **Email:** Resend (`resend/resend-php`, Laravel's built-in `resend` mail
-  transport is already configured in `config/mail.php`). Needs
-  `RESEND_API_KEY` in prod `.env` and `MAIL_MAILER=resend`.
+- **Email:** SMTP only (`MAIL_MAILER=smtp` in `config/mail.php`), works with
+  cPanel's own mail service or, for local testing, Gmail SMTP. No
+  third-party email API — Resend was tried and removed.
 - **SMS:** Twilio, via `App\Services\SmsNotificationService`. Was
   admin-only originally; being extended to guest-facing sends. Config keys
   live under `services.twilio.*`.
