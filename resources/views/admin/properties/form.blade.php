@@ -126,8 +126,9 @@
             @if($property->exists)
             <div class="mt-6 border-t border-slate-200 pt-6">
                 <h3 class="mb-3 text-sm font-bold uppercase tracking-wide text-slate-500">Quick settings</h3>
-                <label class="field-label">Deposit cap (USD)
+                <label class="field-label">Incidentals threshold (USD)
                     <input type="number" step="0.01" min="0" name="deposit_cap_dollars" value="{{ old('deposit_cap_dollars', $property->deposit_cap_cents !== null ? number_format($property->deposit_cap_cents / 100, 2, '.', '') : '') }}" placeholder="e.g. 150.00" class="input">
+                    <p class="mt-1 text-xs text-slate-500">Parking fees plus incidentals will be capped at this amount for the property. A global processing fee percentage (set in Admin Settings) is applied on top.</p>
                     <span class="field-help">Leave blank to use the global default.</span>
                 </label>
                 <label class="field-label mt-4">Channex property ID

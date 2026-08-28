@@ -17,7 +17,7 @@
                 <label class="field-label">Brand color<input type="color" name="brand_color" value="{{ old('brand_color', $settings['brand_color']) }}" class="input h-12"></label>
                 <label class="field-label">Contact phone<input name="contact_phone" value="{{ old('contact_phone', $settings['contact_phone']) }}" class="input"></label>
                 <label class="field-label">Contact email<input name="contact_email" value="{{ old('contact_email', $settings['contact_email']) }}" class="input"></label>
-                <label class="field-label">Default deposit cap (USD)<input type="number" step="0.01" min="0" name="default_deposit_cap_dollars" value="{{ old('default_deposit_cap_dollars', $settings['default_deposit_cap_dollars']) }}" class="input"><span class="field-help">Used when a property doesn't have its own cap set. Guests are charged parking + incidentals up to this amount.</span></label>
+                <label class="field-label">Default incidentals threshold (USD)<input type="number" step="0.01" min="0" name="default_deposit_cap_dollars" value="{{ old('default_deposit_cap_dollars', $settings['default_deposit_cap_dollars']) }}" class="input"><span class="field-help">Used when a property doesn't have its own cap set. Guests are charged parking + incidentals up to this amount.</span></label>
                 <label class="field-label">Processing fee (%)<input type="number" step="0.01" min="0" max="100" name="processing_fee_percent" value="{{ old('processing_fee_percent', $settings['processing_fee_percent']) }}" class="input"><span class="field-help">Added on top of the capped parking + incidentals total.</span></label>
                 <div class="md:col-span-2">
                     @php
