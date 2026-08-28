@@ -40,7 +40,7 @@
                 </div>
                 <div class="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center md:py-24">
                     <h1 class="guest-status-title">Access unavailable</h1>
-                    <p class="max-w-md text-sm leading-6 text-slate-600">{{ $booking->access_blocked_reason }}</p>
+                    <p class="max-w-md text-sm leading-6 text-slate-600">{!! nl2br(e(strip_tags($booking->access_blocked_reason))) !!}</p>
                 </div>
             </div>
         @elseif($state === 'identity' && $booking->isIdentityComplete() && $booking->photo_id_received && ($booking->needsIdApproval() || ! $booking->isBackgroundCheckComplete()))
@@ -56,7 +56,7 @@
                 <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="w-full block rounded-xl mt-4">
                 <div class="p-6 md:p-10 text-center">
                     <h1 class="guest-status-title">{{ $backgroundCheckStepName }}</h1>
-                    <p class="mt-2 text-sm leading-6 text-slate-600">{{ $backgroundCheckStepInstructions }}</p>
+                    <p class="mt-2 text-sm leading-6 text-slate-600">{!! nl2br(e(strip_tags($backgroundCheckStepInstructions))) !!}</p>
                 </div>
             </div>
         @elseif($state === 'identity')

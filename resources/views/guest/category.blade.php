@@ -159,7 +159,7 @@
                                 <div>
                                     <p class="font-black text-slate-950">{{ $amenity->title }}</p>
                                     @if($amenity->details)
-                                        <p class="mt-1 text-sm leading-6 text-slate-600">{{ $amenity->details }}</p>
+                                        <p class="mt-1 text-sm leading-6 text-slate-600">{!! nl2br(e(strip_tags($amenity->details))) !!}</p>
                                     @endif
                                 </div>
                             </div>

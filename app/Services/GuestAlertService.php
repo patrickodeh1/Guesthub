@@ -76,6 +76,11 @@ class GuestAlertService
             'default_guest_message' => 'GuestHub: Hi {guest_name}, an additional balance is due for your stay at {property_name}. Please visit your check-in link to complete payment.',
             'default_staff_message' => 'GuestHub alert: A post-checkout balance (late checkout / incidentals) is now due for {guest_name} at {property_name}.',
         ],
+        'pms_booking_received' => [
+            'label' => 'New channel booking received',
+            'default_guest_message' => '', // guest not notified for this event; see defaultToggleOverrides()
+            'default_staff_message' => 'GuestHub alert: New booking for {guest_name} at {property_name} ({check_in_date} to {check_out_date}) came in via the channel manager. Review it in the admin panel.',
+        ],
         'photo_id_uploaded' => [
             'label' => 'Photo ID uploaded',
             'default_guest_message' => 'GuestHub: Hi {guest_name}, your photo ID for {property_name} was received and is being reviewed. No action needed for now.',
@@ -128,6 +133,14 @@ class GuestAlertService
     public static function defaultToggleOverrides(): array
     {
         return [
+            'pms_booking_received' => [
+                'guest_sms' => false,
+                'guest_email' => false,
+                'contact_sms' => true,
+                'contact_email' => true,
+                'owner_sms' => true,
+                'owner_email' => true,
+            ],
             'photo_id_uploaded' => [
                 'guest_sms' => false,
                 'guest_email' => false,

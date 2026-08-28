@@ -43,6 +43,19 @@ class BookingImportService
             return null;
         }
 
+        // check_in_date/check_out_date are NOT NULL on bookings. Some PMS
+        // revisions (e.g. cancelled Channex test/staging bookings) arrive
+        // with no arrival/departure dates at all -- there is nothing useful
+        // to store yet, so skip rather than violate the DB constraint.
+        if (! $pmsBooking->checkInDate || ! $pmsBooking->checkOutDate) {
+            Log::warning('PMS booking import skipped: missing check-in/check-out date', [
+                'external_property_id' => $pmsBooking->externalPropertyId,
+                'external_booking_id' => $pmsBooking->externalBookingId,
+                'status' => $pmsBooking->status,
+            ]);
+            return null;
+        }
+
         $booking = Booking::query()
             ->where('source', $this->providerName)
             ->where('channex_booking_id', $pmsBooking->externalBookingId)
@@ -81,6 +94,13 @@ class BookingImportService
             }
 
             $booking = Booking::create($attributes);
+
+            // Notify staff (owner/contact desk, email + SMS) that a booking
+            // just arrived from the channel manager -- otherwise a
+            // PMS-sourced booking can sit unnoticed until someone happens
+            // to open the admin panel. Guest is never messaged for this
+            // event; they only hear from us once staff has reviewed it.
+            \App\Services\GuestAlertService::send('pms_booking_received', $booking);
         } else {
             // Existing PMS-sourced booking: only refresh dates/property in
             // case the OTA reservation changed — never touch guest-entered
