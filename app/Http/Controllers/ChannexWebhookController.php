@@ -15,18 +15,14 @@ class ChannexWebhookController extends Controller
         $secret = config('services.channex.webhook_secret');
 
         if ($secret) {
-            // ASSUMPTION: Channex signs webhooks via an
-            // X-Channex-Signature header containing an HMAC-SHA256 of the
-            // raw body using the webhook secret. Confirm exact header name
-            // and signing scheme against live docs before relying on this
-            // in production — left permissive (skips verification) when no
-            // secret is configured so local/dev testing via ngrok isn't
-            // blocked before that's set up.
-            $signature = $request->header('X-Channex-Signature');
-            $expected = hash_hmac('sha256', $request->getContent(), $secret);
+            // Channex has no built-in HMAC signing. Per their docs, auth is
+            // via a custom shared-secret header you configure on the
+            // webhook itself (headers: {"X-Channex-Webhook-Secret": "..."})
+            // and we just compare it exactly on receipt.
+            $provided = $request->header('X-Channex-Webhook-Secret');
 
-            if (! $signature || ! hash_equals($expected, $signature)) {
-                ActivityLogService::security('channex_webhook_invalid_signature', 'Rejected a Channex webhook with an invalid signature.', [
+            if (! $provided || ! hash_equals($secret, $provided)) {
+                ActivityLogService::security('channex_webhook_invalid_signature', 'Rejected a Channex webhook with an invalid or missing secret header.', [
                     'severity' => 'warning',
                 ]);
                 return response()->json(['ok' => false, 'error' => 'Invalid signature'], 401);
@@ -45,7 +41,10 @@ class ChannexWebhookController extends Controller
         $booking = $importer->import($pmsBooking);
 
         if ($booking) {
-            $provider->acknowledgeBooking($pmsBooking->externalBookingId);
+            // Channex acknowledges Booking Revisions, not Bookings — must
+            // use revisionId here, not externalBookingId, or the ack call
+            // 404s against the real API.
+            $provider->acknowledgeBooking($pmsBooking->revisionId ?? $pmsBooking->externalBookingId);
         }
 
         return response()->json(['ok' => true]);

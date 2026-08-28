@@ -22,6 +22,7 @@ Route::post('/login', [AuthController::class, 'login'])->name('login.store');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::post('/webhooks/seam', [App\Http\Controllers\SeamWebhookController::class, 'handle'])->name('webhooks.seam');
 Route::post('/webhooks/channex', [App\Http\Controllers\ChannexWebhookController::class, 'handle'])->name('webhooks.channex');
+Route::post('/webhooks/stripe', [App\Http\Controllers\StripeWebhookController::class, 'handle'])->name('webhooks.stripe');
 
 Route::get('/checkin', [GuestController::class, 'checkinByReservation'])->name('checkin.rid');
 Route::post('/checkin/verify', [GuestController::class, 'verifyReservationLogin'])->name('checkin.verify');
@@ -85,11 +86,6 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
 
     // ─── Properties ──────────────────────────────────────────────────────────
     Route::resource('properties', PropertyController::class)->except(['show']);
-    Route::post('properties/{property}/checkout-time', [PropertyController::class, 'updateCheckoutTime'])->name('properties.checkout-time');
-    Route::post('properties/{property}/checkin-time', [PropertyController::class, 'updateCheckinTime'])->name('properties.checkin-time');
-    Route::post('properties/{property}/lockbox-code', [PropertyController::class, 'updateLockboxCode'])->name('properties.lockbox-code');
-    Route::post('properties/{property}/parking-rates', [PropertyController::class, 'updateParkingRates'])->name('properties.parking-rates');
-    Route::post('properties/{property}/checkin-checkout-rates', [PropertyController::class, 'updateCheckinCheckoutRates'])->name('properties.checkin-checkout-rates');
 
     // ─── Guests / Bookings ────────────────────────────────────────────────────
     Route::resource('guests', BookingController::class)->parameters(['guests' => 'booking']);

@@ -209,6 +209,7 @@ class BookingController extends Controller
         if (($data['status'] ?? null) === 'pre_checkin_complete') {
             $data['photo_id_received'] = true;
         }
+        if ($data['photo_id_received'] && empty($booking->approved_at) && empty($data['approved_at'])) {
             $data['approved_at'] = now();
         }
         $booking->update($data);

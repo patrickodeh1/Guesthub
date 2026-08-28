@@ -262,6 +262,7 @@ class GuestAlertService
             if ($booking->email) {
                 try {
                     Mail::to($booking->email)->send(new GuestAlertMail(self::labels()[$event], $guestMessage));
+                    Log::info("Guest alert email sent (guest, {$event}) to {$booking->email}.");
                 } catch (\Throwable $e) {
                     Log::error("Guest alert email failed (guest, {$event}): ".$e->getMessage());
                 }
@@ -280,6 +281,7 @@ class GuestAlertService
             foreach ($staffEmails as $recipient) {
                 try {
                     Mail::to($recipient)->send(new GuestAlertMail(self::labels()[$event], $staffMessage));
+                    Log::info("Guest alert email sent (staff, {$event}) to {$recipient}.");
                 } catch (\Throwable $e) {
                     Log::error("Guest alert email failed (staff, {$event}, {$recipient}): ".$e->getMessage());
                 }

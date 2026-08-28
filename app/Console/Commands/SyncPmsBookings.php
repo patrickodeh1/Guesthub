@@ -36,7 +36,10 @@ class SyncPmsBookings extends Command
 
             if ($result) {
                 $imported++;
-                $provider->acknowledgeBooking($pmsBooking->externalBookingId);
+                // Channex acknowledges Booking Revisions, not Bookings —
+                // must use revisionId here, not externalBookingId, or the
+                // ack call 404s against the real API.
+                $provider->acknowledgeBooking($pmsBooking->revisionId ?? $pmsBooking->externalBookingId);
             } else {
                 $skipped++;
             }

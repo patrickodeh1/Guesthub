@@ -19,6 +19,12 @@ class PmsBooking
         public readonly string $checkOutDate,
         public readonly ?string $status = null,
         public readonly array $raw = [],
+        // Channex-specific: the Booking Revision ID, distinct from the
+        // Booking ID. Acknowledgement must target the revision, not the
+        // booking (POST /booking_revisions/:id/ack) — using externalBookingId
+        // there hits the wrong endpoint/resource. Null for providers (e.g.
+        // NextPax) with no revision concept.
+        public readonly ?string $revisionId = null,
     ) {
     }
 }

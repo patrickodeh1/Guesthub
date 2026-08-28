@@ -27,6 +27,8 @@ class SmsNotificationService
                 'from' => $from,
                 'body' => $message,
             ]);
+
+            Log::info("SMS notification sent ({$context}) to {$to}.");
         } catch (\Throwable $e) {
             Log::error("SMS notification failed ({$context}): ".$e->getMessage());
         }
