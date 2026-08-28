@@ -259,3 +259,27 @@ env vars are in place. Review the default message wording in Settings before
 going live; it's generic placeholder copy.
 
 Status: living doc, update as items are resolved.
+
+## 11. Confirm intended scope of "Mark Deposit Verified" for external payments
+
+`deposit_verified_at` (the manual admin "Mark Deposit Verified" action) and
+`deposit_payment_status` (set only by a successful Stripe payment) are
+completely separate fields — a successful Stripe payment does **not** set
+`deposit_verified_at`, and marking deposit verified does not touch Stripe or
+any charge row. `isDepositCaptured() || deposit_verified_at` is treated as
+equivalent for gating purposes (e.g. skipping the guest-facing deposit
+payment step), but that's a convenience check, not a merge of the two
+concepts.
+
+"Mark Deposit Verified" is really meant for guests who paid the deposit
+**outside** the platform (cash, external card terminal, etc.) — it's the
+admin's manual attestation that money changed hands, standing in for what
+Stripe would otherwise confirm automatically.
+
+**Action needed:** ask the client whether "Mark Deposit Verified" should
+*only* cover the externally-paid incidentals/deposit portion and still
+require parking (and any other add-on charges) to go through the platform
+normally, or whether it's meant to be a blanket "this guest is square"
+override. Current behavior is the former (it only ever touches
+`deposit_verified_at`; it doesn't touch parking, incidentals, or any Charge
+row), but that's implicit in the code, not a confirmed product decision.

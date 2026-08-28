@@ -315,7 +315,7 @@ class GuestController extends Controller
 
         \App\Services\GuestAlertService::send('deposit_paid', $booking);
 
-        return response()->json(['ok' => true]);
+        return response()->json(['ok' => true, 'message' => 'Deposit payment of $'.number_format($charge->amountDollars(), 2).' received.']);
     }
 
     /**
@@ -337,7 +337,7 @@ class GuestController extends Controller
 
         $type = $request->validate(['type' => ['required', 'string', 'in:parking,early_checkin,late_checkout,incidentals']])['type'];
 
-        $amountCents = match ($type) {
+        $subtotalCents = match ($type) {
             \App\Models\Charge::TYPE_PARKING => (int) round(($booking->effectiveParkingCharge() ?? 0) * 100),
             \App\Models\Charge::TYPE_EARLY_CHECKIN => (int) round(($booking->earlyCheckinCharge() ?? 0) * 100),
             \App\Models\Charge::TYPE_LATE_CHECKOUT => (int) round(($booking->lateCheckoutCharge() ?? 0) * 100),
@@ -345,9 +345,14 @@ class GuestController extends Controller
             default => 0,
         };
 
-        if ($amountCents <= 0) {
+        if ($subtotalCents <= 0) {
             return response()->json(['ok' => false, 'error' => 'Nothing is currently due for this.'], 422);
         }
+
+        // Same % processing fee as the combined pre-checkin charge, applied
+        // to this individual charge's subtotal so the fee is consistent
+        // whether the guest pays grouped or one item at a time.
+        $amountCents = $booking->applyProcessingFeeCents($subtotalCents);
 
         // Avoid creating a duplicate outstanding intent for the same type —
         // reuse the existing pending one if there is one already.
@@ -395,7 +400,10 @@ class GuestController extends Controller
             'metadata'    => ['type' => $charge->type, 'amount_cents' => $charge->amount_cents, 'charge_id' => $charge->id],
         ]);
 
-        return response()->json(['ok' => true]);
+        return response()->json([
+            'ok' => true,
+            'message' => ucfirst(str_replace('_', ' ', $charge->type)).' payment of $'.number_format($charge->amountDollars(), 2).' received.',
+        ]);
     }
 
     public function submitIdentity(Request $request, string $bookingId, string $token)

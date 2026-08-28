@@ -56,6 +56,12 @@ function initGuestChargeCard(type) {
                     .then(function(r) { return r.json(); })
                     .then(function(confirmData) {
                         if (confirmData.ok) {
+                            try {
+                                sessionStorage.setItem("gh_payment_toast", JSON.stringify({
+                                    type: "success",
+                                    message: confirmData.message || "Payment received."
+                                }));
+                            } catch (e) {}
                             window.location.reload();
                         } else {
                             showError(confirmData.error || "Payment could not be confirmed. Please contact us.");

@@ -1556,8 +1556,37 @@
                     @endphp
                     @if($booking->pay_by_cc && $stripeConfigured && $depositAmountCents > 0)
                         <div class="text-center">
-                            <h2 class="text-xl font-extrabold text-slate-950">Incidentals hold</h2>
-                            <p class="mt-3 text-sm leading-6 text-slate-600">A refundable hold of <strong>${{ number_format($depositAmountCents / 100, 2) }}</strong> is required before check-in. Enter your card below — this stays on our site, nothing is shared with a third party.</p>
+                            <h2 class="text-xl font-extrabold text-slate-950">Incidentals payment</h2>
+                            <p class="mt-3 text-sm leading-6 text-slate-600">A payment of <strong>${{ number_format($depositAmountCents / 100, 2) }}</strong> is required before check-in. Enter your card below. Payment details stay on our site and are not shared with a third party.</p>
+                            @php
+                                $capCents = $property->deposit_cap_cents !== null
+                                    ? $property->deposit_cap_cents
+                                    : (int) \App\Models\Setting::getValue('default_deposit_cap_cents', 0);
+                                $feePercent = (float) \App\Models\Setting::getValue('processing_fee_percent', 0);
+                                $parkingAmt = $booking->effectiveParkingCharge() ?? 0;
+                                $incidentalsAmt = $booking->incidentals_charge ?? 0;
+                                $earlyCheckinAmt = $booking->earlyCheckinCharge() ?? 0;
+                                $breakdownSubtotalCents = min(
+                                    (int) round(($parkingAmt + $incidentalsAmt + $earlyCheckinAmt) * 100),
+                                    $capCents > 0 ? $capCents : PHP_INT_MAX
+                                );
+                                $feeCents = $depositAmountCents - $breakdownSubtotalCents;
+                            @endphp
+                            <div class="mt-4 rounded-xl border border-slate-200 p-4 text-left text-sm text-slate-700">
+                                @if($incidentalsAmt > 0)
+                                    <div class="flex justify-between py-1"><span>Incidentals</span><span>${{ number_format($incidentalsAmt, 2) }}</span></div>
+                                @endif
+                                @if($parkingAmt > 0)
+                                    <div class="flex justify-between py-1"><span>Parking</span><span>${{ number_format($parkingAmt, 2) }}</span></div>
+                                @endif
+                                @if($earlyCheckinAmt > 0)
+                                    <div class="flex justify-between py-1"><span>Early check-in</span><span>${{ number_format($earlyCheckinAmt, 2) }}</span></div>
+                                @endif
+                                @if($feeCents > 0)
+                                    <div class="flex justify-between py-1"><span>Processing fee{{ $feePercent > 0 ? ' ('.rtrim(rtrim(number_format($feePercent, 2), '0'), '.').'%)' : '' }}</span><span>${{ number_format($feeCents / 100, 2) }}</span></div>
+                                @endif
+                                <div class="mt-1 flex justify-between border-t border-slate-200 pt-2 font-semibold text-slate-950"><span>Total</span><span>${{ number_format($depositAmountCents / 100, 2) }}</span></div>
+                            </div>
                         </div>
                         <div id="deposit-payment-error" class="mt-4 hidden rounded-lg bg-red-50 p-3 text-center text-sm text-red-700"></div>
                         <form id="deposit-payment-form" class="mt-5" data-intent-url="{{ route('guest.deposit.intent', [$booking->booking_id, $booking->token]) }}" data-confirm-url="{{ route('guest.deposit.confirm', [$booking->booking_id, $booking->token]) }}">

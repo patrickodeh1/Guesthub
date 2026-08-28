@@ -288,7 +288,7 @@
                         @if($booking->isDepositVerified())
                             <div class="rounded-lg bg-teal-50 border border-teal-200 p-3 text-sm text-teal-800 font-semibold">Deposit verified {{ $booking->deposit_verified_at->format('M j, Y g:i A') }}</div>
                         @else
-                            <form method="post" action="{{ route('admin.guests.deposit-verified', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="lock" class="h-4 w-4" />Mark Deposit Verified</button></form>
+                            <form method="post" action="{{ route('admin.guests.deposit-verified', $booking) }}" onsubmit="return confirm('Mark Deposit Verified?\n\nThis will fully approve the guest. Before continuing, verify the guest has actually paid everything owed outside the platform: incidentals, parking, and early check-in (if applicable). This action does not check or record any of those payments itself.')">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="lock" class="h-4 w-4" />Mark Deposit Verified</button></form>
                         @endif
                     @endif
                     <form method="post" action="{{ route('admin.guests.override-gps', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="map" class="h-4 w-4" />Override GPS Verification</button></form>

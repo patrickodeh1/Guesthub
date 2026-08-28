@@ -146,10 +146,22 @@ class Booking extends Model
             $subtotal = min($subtotal, $capCents);
         }
 
-        $feePercent = (float) \App\Models\Setting::getValue('processing_fee_percent', 0);
-        $fee = (int) round($subtotal * ($feePercent / 100));
+        return $this->applyProcessingFeeCents($subtotal);
+    }
 
-        return $subtotal + $fee;
+    /**
+     * Adds the global % processing fee on top of a subtotal, in cents.
+     * Shared by the combined pre-checkin charge and every standalone
+     * charge type (parking, early check-in, late checkout, incidentals)
+     * so the fee is consistently the same % of whatever is actually being
+     * charged in that request, grouped or individual.
+     */
+    public function applyProcessingFeeCents(int $subtotalCents): int
+    {
+        $feePercent = (float) \App\Models\Setting::getValue('processing_fee_percent', 0);
+        $fee = (int) round($subtotalCents * ($feePercent / 100));
+
+        return $subtotalCents + $fee;
     }
 
     /**
