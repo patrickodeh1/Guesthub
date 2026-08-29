@@ -12,7 +12,6 @@
         <p class="eyebrow mt-6">Link unavailable</p>
         <h1 class="mt-2 text-3xl font-semibold text-slate-950">We could not find that page.</h1>
         <p class="mt-3 leading-7 text-slate-600">The guest link may be incomplete, expired, or typed incorrectly. Please contact guest services for help.</p>
-        <a href="{{ route('login') }}" class="btn-primary mt-6">Go to Admin Login</a>
     </main>
 </body>
 </html>

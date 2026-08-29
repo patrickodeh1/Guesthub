@@ -12,7 +12,6 @@
         <p class="eyebrow mt-6">Temporary issue</p>
         <h1 class="mt-2 text-3xl font-semibold text-slate-950">We could not complete that request.</h1>
         <p class="mt-3 leading-7 text-slate-600">Please refresh the page or try again in a moment. If the issue continues, contact your site administrator.</p>
-        <a href="{{ route('login') }}" class="btn-primary mt-6">Return Home</a>
     </main>
 </body>
 </html>
