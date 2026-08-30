@@ -61,6 +61,12 @@ class SmsConsentService
             'sms_consent_version' => $version,
             'sms_consent_opted_in' => true,
         ])->save();
+
+        SmsNotificationService::guestAlert(
+            $phone,
+            'Guest Hub Guest Alerts: You are now opted in to receive reservation and access-related text updates from Guest Hub. Msg & data rates may apply. Reply STOP to cancel, HELP for help.',
+            false
+        );
     }
 
     public static function recordOptOut(Booking $booking, ?string $phone = null): void
