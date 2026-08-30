@@ -30,4 +30,9 @@ class NextPaxProvider implements PmsProviderInterface
     {
         throw new \RuntimeException('NextPaxProvider is not implemented yet.');
     }
+
+    public function getAllBookings(?array $dateRange = null): array
+    {
+        throw new \RuntimeException('NextPaxProvider is not implemented yet.');
+    }
 }

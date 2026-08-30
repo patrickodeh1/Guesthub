@@ -38,4 +38,23 @@ interface PmsProviderInterface
      * null if the payload isn't a booking event this provider cares about).
      */
     public function handleWebhookPayload(array $payload): ?PmsBooking;
+
+    /**
+     * BACKFILL ONLY. Fetch the full/current list of bookings, bypassing
+     * whatever "changed since" mechanism getBookings() normally uses.
+     *
+     * This exists for one-time historical imports (e.g. a Channex gap where
+     * bookings existed before revision tracking started and can never be
+     * recovered via the revision feed, since acknowledged/older revisions
+     * are permanently dropped from it). Providers whose regular
+     * getBookings() already returns everything (no revision/ack concept)
+     * may simply delegate this to getBookings($since = null).
+     *
+     * Must NOT be called from the regular scheduled sync -- only from a
+     * manual, explicitly-invoked backfill command.
+     *
+     * @param array{arrival_date_from?: string, arrival_date_to?: string, departure_date_from?: string, departure_date_to?: string}|null $dateRange
+     * @return PmsBooking[]
+     */
+    public function getAllBookings(?array $dateRange = null): array;
 }

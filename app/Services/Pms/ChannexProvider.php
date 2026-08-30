@@ -132,6 +132,115 @@ class ChannexProvider implements PmsProviderInterface
     }
 
     /**
+     * BACKFILL ONLY -- do not call this from the regular scheduled sync.
+     *
+     * Channex's own certification guidance says NOT to use GET /bookings
+     * for ongoing polling; /booking_revisions/feed must remain the only
+     * source for regular syncs. The one documented exception is an
+     * initial/one-time historical pull to populate a system with bookings
+     * that already existed before revision tracking started -- which is
+     * exactly what this method is for. It is intentionally not part of
+     * PmsProviderInterface's getBookings() contract/usage pattern; it's
+     * invoked directly (see channex:backfill-bookings) and only ever run
+     * manually, once, per gap.
+     *
+     * Handles pagination and optional arrival_date/departure_date range
+     * filtering via Channex's Bookings Collection endpoint.
+     *
+     * @return PmsBooking[]
+     */
+    public function getAllBookings(?array $dateRange = null): array
+    {
+        $results = [];
+        $page = 1;
+        $perPage = 100;
+
+        do {
+            $query = [
+                'page' => $page,
+                'limit' => $perPage,
+            ];
+
+            if (! empty($dateRange['arrival_date_from'])) {
+                $query['filter[arrival_date_from]'] = $dateRange['arrival_date_from'];
+            }
+            if (! empty($dateRange['arrival_date_to'])) {
+                $query['filter[arrival_date_to]'] = $dateRange['arrival_date_to'];
+            }
+            if (! empty($dateRange['departure_date_from'])) {
+                $query['filter[departure_date_from]'] = $dateRange['departure_date_from'];
+            }
+            if (! empty($dateRange['departure_date_to'])) {
+                $query['filter[departure_date_to]'] = $dateRange['departure_date_to'];
+            }
+
+            $response = $this->client()->get('/bookings', $query);
+
+            if (! $response->successful()) {
+                Log::warning('Channex getAllBookings (bookings, backfill) failed', [
+                    'page' => $page,
+                    'status' => $response->status(),
+                    'body' => $response->body(),
+                ]);
+                break;
+            }
+
+            $data = $response->json('data', []);
+
+            foreach ($data as $item) {
+                $booking = $this->normalizeBooking($item);
+                if ($booking) {
+                    $results[] = $booking;
+                }
+            }
+
+            $count = count($data);
+            $page++;
+        } while ($count === $perPage);
+
+        return $results;
+    }
+
+    /**
+     * Normalizes a Bookings Collection object (as returned by GET /bookings)
+     * into a PmsBooking. Distinct from normalizeRevision() because the shape
+     * differs: here `id` IS the booking ID and `revision_id` is a separate
+     * sibling field -- the inverse of the revision feed shape, where `id` is
+     * the revision ID and `booking_id` is separate. Mixing these two
+     * normalizers up will silently produce wrong IDs.
+     *
+     * revisionId is intentionally left null on the returned PmsBooking:
+     * these records did not come from the revision feed, so there is
+     * nothing to acknowledge, and BookingImportService/SyncPmsBookings must
+     * never attempt to ack a backfilled record.
+     */
+    private function normalizeBooking(array $item): ?PmsBooking
+    {
+        $attributes = $item['attributes'] ?? $item;
+
+        $bookingId = $attributes['id'] ?? $item['id'] ?? null;
+
+        if (empty($bookingId) || empty($attributes['property_id'])) {
+            return null;
+        }
+
+        $guest = $attributes['customer'] ?? [];
+
+        return new PmsBooking(
+            externalBookingId: (string) $bookingId,
+            externalPropertyId: (string) $attributes['property_id'],
+            guestName: trim(($guest['name'] ?? '') . ' ' . ($guest['surname'] ?? '')) ?: null,
+            guestEmail: $guest['mail'] ?? null,
+            guestPhone: $guest['phone'] ?? null,
+            checkInDate: $attributes['arrival_date'] ?? '',
+            checkOutDate: $attributes['departure_date'] ?? '',
+            status: $attributes['status'] ?? null,
+            raw: $attributes,
+            revisionId: null,
+        );
+    }
+
+    /**
      * Normalizes a Booking Revision object (as returned by
      * /booking_revisions/feed and /booking_revisions/:id) into a PmsBooking.
      * The revision's own `id` is the revision ID; `booking_id` is the
