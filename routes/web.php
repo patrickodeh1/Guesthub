@@ -15,6 +15,11 @@ use App\Services\ActivityLogService;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [App\Http\Controllers\EarlyAccessController::class, 'show'])->name('early-access');
+Route::get('/terms', [App\Http\Controllers\LegalPageController::class, 'terms'])->name('legal.terms');
+Route::get('/privacy-policy', [App\Http\Controllers\LegalPageController::class, 'privacyPolicy'])->name('legal.privacy');
+Route::get('/privacy-request', [App\Http\Controllers\PrivacyRequestController::class, 'index'])->name('privacy-request');
+Route::post('/privacy-request', [App\Http\Controllers\PrivacyRequestController::class, 'store'])->name('privacy-request.store');
+Route::get('/contact', [App\Http\Controllers\PrivacyRequestController::class, 'contact'])->name('contact');
 Route::post('/early-access', [App\Http\Controllers\EarlyAccessController::class, 'store'])->name('early-access.store');
 
 Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
@@ -23,6 +28,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::post('/webhooks/seam', [App\Http\Controllers\SeamWebhookController::class, 'handle'])->name('webhooks.seam');
 Route::post('/webhooks/channex', [App\Http\Controllers\ChannexWebhookController::class, 'handle'])->name('webhooks.channex');
 Route::post('/webhooks/stripe', [App\Http\Controllers\StripeWebhookController::class, 'handle'])->name('webhooks.stripe');
+Route::post('/webhooks/twilio/sms', [App\Http\Controllers\TwilioWebhookController::class, 'handle'])->name('webhooks.twilio.sms');
 
 Route::get('/checkin', [GuestController::class, 'checkinByReservation'])->name('checkin.rid');
 Route::post('/checkin/verify', [GuestController::class, 'verifyReservationLogin'])->name('checkin.verify');
@@ -153,6 +159,8 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     // ─── Settings ─────────────────────────────────────────────────────────────
     Route::get('settings', [SettingsController::class, 'edit'])->name('settings.edit');
     Route::put('settings', [SettingsController::class, 'update'])->name('settings.update');
+    Route::get('settings/legal', [SettingsController::class, 'legalEdit'])->name('settings.legal.edit');
+    Route::put('settings/legal', [SettingsController::class, 'legalUpdate'])->name('settings.legal.update');
     Route::get('settings/notifications', [NotificationSettingsController::class, 'edit'])->name('settings.notifications.edit');
     Route::put('settings/notifications', [NotificationSettingsController::class, 'update'])->name('settings.notifications.update');
 

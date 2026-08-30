@@ -45,5 +45,13 @@
             </form>
         </section>
     </main>
+    <footer class="border-t border-slate-200 bg-white px-4 py-5 text-center text-sm text-slate-600">
+        <div class="space-x-3">
+            <a href="{{ route('legal.terms') }}" class="underline hover:text-slate-900">Terms of Service</a>
+            <a href="{{ route('legal.privacy') }}" class="underline hover:text-slate-900">Privacy Policy</a>
+            <a href="{{ route('privacy-request') }}" class="underline hover:text-slate-900">Privacy Request</a>
+            <a href="{{ route('contact') }}" class="underline hover:text-slate-900">Contact</a>
+        </div>
+    </footer>
 </body>
 </html>

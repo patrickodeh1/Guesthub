@@ -1,6 +1,9 @@
 # Session Task List
 
 ## Resolved clarifications
+- Legal/public website pages are now admin-configurable via Settings > Legal, with configurable Terms, Privacy Policy and SMS disclosure content, a public footer copyright line, and public /terms /privacy-policy pages tied to the configured content.
+- Public privacy-request and contact pages are live at /privacy-request and /contact, with admin contact email routing and a stored request trail.
+- Footer and auth/legal entries now include Terms, Privacy Policy, Contact, and Privacy Request links across the public site.
 - Email: use Resend.
 - SMS: currently configured for admin only; guest SMS "not working" = Twilio
   misconfigured by client on their end, not a code bug. No SMS-sending code fix needed

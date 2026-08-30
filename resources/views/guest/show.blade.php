@@ -273,9 +273,33 @@
                             <p class="mt-1 text-xs text-slate-400">Check out time is 10am, we will try our best to accommodate late check out if desired, and then update you if available.</p>
                         </div>
 
+                        @php
+                            $termsUrl = route('legal.terms');
+                            $privacyUrl = route('legal.privacy');
+                        @endphp
+
+                        @if(! $booking->terms_accepted_at)
+                        <div class="mt-6 rounded-xl border border-slate-200 p-4">
+                            <p class="mb-2 text-sm font-semibold text-slate-900">Terms of Service &amp; Privacy Policy</p>
+                            <label class="mt-1 flex items-start gap-2 text-sm text-slate-700">
+                                <input type="checkbox" name="terms_accepted" id="terms-accepted-checkbox" value="1" required class="mt-0.5 rounded border-slate-300">
+                                <span>I agree to the <a href="{{ $termsUrl }}" class="font-medium underline" target="_blank" rel="noopener">Terms of Service</a> and <a href="{{ $privacyUrl }}" class="font-medium underline" target="_blank" rel="noopener">Privacy Policy</a>.</span>
+                            </label>
+                        </div>
+                        @endif
+
+                        <div class="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <p class="mb-2 text-sm font-semibold text-slate-900">SMS notifications</p>
+                            <p class="text-xs leading-5 text-slate-600">{!! \App\Models\Setting::getValue('legal_sms_consent_content', '<p>By checking this box, you agree to receive reservation and access-related text updates from Guest Hub.</p>') !!}</p>
+                            <label class="mt-3 flex items-start gap-2 text-sm text-slate-700">
+                                <input type="checkbox" name="sms_consent" id="sms-consent-checkbox" value="1" class="mt-0.5 rounded border-slate-300">
+                                <span>Yes, I agree to receive recurring non-marketing text messages from Guest Hub and the host or property manager for my reservation, including reservation confirmations, identity-verification codes, check-in and access instructions, stay and safety alerts, guest-support messages, checkout reminders, and post-stay review requests. Message frequency varies, up to 20 messages per month. Message and data rates may apply. Reply STOP to opt out or HELP for help. Consent is not a condition of booking or purchase. View the <a href="{{ $termsUrl }}" class="font-medium underline" target="_blank" rel="noopener">Terms of Service</a> and <a href="{{ $privacyUrl }}" class="font-medium underline" target="_blank" rel="noopener">Privacy Policy</a>.</span>
+                            </label>
+                        </div>
+
                         <div class="mt-6 grid grid-cols-2 gap-3">
                             <button type="button" class="guest-outline-btn w-full" data-prev="0">Back</button>
-                            <button type="button" id="step1-next-btn" class="guest-primary-btn w-full">Next</button>
+                            <button type="button" id="step1-next-btn" class="guest-primary-btn w-full">Agree &amp; Continue</button>
                         </div>
                     </div>
 
@@ -388,6 +412,8 @@
 
                         @php
                             $rentalContract = \App\Models\Setting::getValue('rental_contract', '');
+                            $termsUrl = route('legal.terms');
+                            $privacyUrl = route('legal.privacy');
                         @endphp
                         @if(filled($rentalContract) && ! $booking->contract_accepted_at)
                         <div class="mt-6 rounded-xl border border-slate-200 p-4">
@@ -395,7 +421,7 @@
                             <div class="max-h-40 overflow-y-auto rounded-lg bg-slate-50 p-3 text-xs leading-5 text-slate-600">{!! $rentalContract !!}</div>
                             <label class="mt-3 flex items-start gap-2 text-sm text-slate-700">
                                 <input type="checkbox" name="contract_accepted" id="contract-accepted-checkbox" value="1" required class="mt-0.5 rounded border-slate-300">
-                                <span>I have read and agree to the terms and rental contract.</span>
+                                <span>I have read and agree to the rental contract shown above.</span>
                             </label>
                         </div>
                         @endif
@@ -1209,6 +1235,12 @@
                         checkoutSelect.focus();
                         return;
                     }
+                    var step1TermsCheckbox = document.getElementById("terms-accepted-checkbox");
+                    if (step1TermsCheckbox && !step1TermsCheckbox.checked) {
+                        alert("Please agree to the Terms of Service and Privacy Policy to continue.");
+                        step1TermsCheckbox.scrollIntoView({ behavior: "smooth", block: "center" });
+                        return;
+                    }
 
                     var loginFd = new FormData();
                     loginFd.append("_token", document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : "");
@@ -1222,6 +1254,13 @@
                         if (plateFileInput && plateFileInput.files && plateFileInput.files.length) {
                             loginFd.append("license_plate_photo", plateFileInput.files[0]);
                         }
+                    }
+                    if (step1TermsCheckbox) {
+                        loginFd.append("terms_accepted", step1TermsCheckbox.checked ? "1" : "0");
+                    }
+                    var step1SmsConsentCheckbox = document.getElementById("sms-consent-checkbox");
+                    if (step1SmsConsentCheckbox) {
+                        loginFd.append("sms_consent", step1SmsConsentCheckbox.checked ? "1" : "0");
                     }
 
                     withButtonBusy(btn, "Saving…", function(restore) {
@@ -2008,6 +2047,16 @@
             </div>
             </div>
         @endif
+        <div class="px-6 py-5 text-center text-xs text-slate-400">
+            <p>{{ \App\Models\Setting::getValue('site_copyright', '© Dreamzone Media LLC d/b/a Guest Hub') }}</p>
+            <p class="mt-1">
+                <a href="{{ route('legal.terms') }}" class="underline hover:text-slate-600">Terms of Service</a>
+                &middot;
+                <a href="{{ route('legal.privacy') }}" class="underline hover:text-slate-600">Privacy Policy</a>
+                &middot;
+                <a href="{{ route('contact') }}" class="underline hover:text-slate-600">Contact</a>
+            </p>
+        </div>
     </div>
 </section>
 </x-guest-layout>

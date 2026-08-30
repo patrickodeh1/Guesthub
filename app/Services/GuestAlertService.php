@@ -294,7 +294,7 @@ class GuestAlertService
         $staffMessage = self::render($row['staff_message'], $booking, $extraTokens);
 
         if ($row['guest_sms'] && $booking->phone) {
-            SmsNotificationService::guestAlert($booking->phone, $guestMessage);
+            SmsNotificationService::guestAlert($booking->phone, $guestMessage, true);
         }
 
         if ($row['guest_email']) {
@@ -313,7 +313,7 @@ class GuestAlertService
         [$staffPhones, $staffEmails] = self::staffRecipients($row);
 
         foreach ($staffPhones as $phone) {
-            SmsNotificationService::guestAlert($phone, $staffMessage);
+            SmsNotificationService::guestAlert($phone, $staffMessage, false);
         }
 
         if (! empty($staffEmails)) {

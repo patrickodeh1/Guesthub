@@ -145,5 +145,9 @@
 
     </div>
 
+    <footer class="border-t border-slate-200 bg-white px-4 py-5 text-center text-sm text-slate-600">
+        <p>{{ \App\Models\Setting::getValue('site_copyright', '© Dreamzone Media LLC d/b/a Guest Hub') }} | <a href="{{ route('legal.terms') }}" class="underline hover:text-slate-900">Terms of Service</a> | <a href="{{ route('legal.privacy') }}" class="underline hover:text-slate-900">Privacy Policy</a></p>
+    </footer>
+
 </body>
 </html>

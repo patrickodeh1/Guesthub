@@ -13,23 +13,14 @@ class SettingsController extends Controller
     public function edit()
     {
         return view('admin.settings', [
-            'settings' => [
-                'gps_radius_meters' => Setting::getValue('gps_radius_meters', 150),
-                'site_logo' => Setting::getValue('site_logo'),
-                'favicon' => Setting::getValue('favicon'),
-                'brand_color' => Setting::getValue('brand_color', '#0f766e'),
-                'contact_phone' => Setting::getValue('contact_phone', '+1 555 123 4567'),
-                'contact_email' => Setting::getValue('contact_email', 'guestservices@example.com'),
-                'default_intro' => Setting::getValue('default_intro', 'Your arrival details and local guide are ready when you are.'),
-                'gps_verify_message' => Setting::getValue('gps_verify_message', "It's Go Time!"),
-                'lock_message' => Setting::getValue('lock_message', "If you'd like quicker access to the unit, you can download the August Home app."),
-                'background_check_step_name' => Setting::getValue('background_check_step_name', 'Background Check'),
-                'background_check_step_instructions' => Setting::getValue('background_check_step_instructions', 'Please be on the lookout for an email from Airbnb so that you can submit the required hold for incidentals. This hold is refunded after checkout.'),
-                'rental_contract' => Setting::getValue('rental_contract', ''),
-                'rental_contract_version' => Setting::getValue('rental_contract_version', '1'),
-                'default_deposit_cap_dollars' => Setting::getValue('default_deposit_cap_cents', 0) / 100,
-                'processing_fee_percent' => Setting::getValue('processing_fee_percent', 0),
-            ],
+            'settings' => $this->generalSettings(),
+        ]);
+    }
+
+    public function legalEdit()
+    {
+        return view('admin.settings-legal', [
+            'settings' => $this->legalSettings(),
         ]);
     }
 
@@ -99,5 +90,88 @@ class SettingsController extends Controller
         ActivityLog::record('settings_updated', 'Brand and system settings were updated.', 'settings');
 
         return back()->with('success', 'Settings saved.');
+    }
+
+    public function legalUpdate(Request $request)
+    {
+        $data = $request->validate([
+            'site_copyright' => ['nullable', 'string', 'max:255'],
+            'legal_terms_content' => ['nullable', 'string'],
+            'legal_privacy_content' => ['nullable', 'string'],
+            'legal_sms_consent_content' => ['nullable', 'string'],
+            'legal_effective_date' => ['nullable', 'string', 'max:255'],
+            'terms_page_title' => ['nullable', 'string', 'max:255'],
+            'privacy_page_title' => ['nullable', 'string', 'max:255'],
+            'terms_url' => ['nullable', 'string', 'max:255'],
+            'privacy_url' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        // Bump the relevant version counter whenever its content actually
+        // changes, mirroring the rental_contract_version pattern. This is
+        // what makes each SmsConsentEvent's stored version meaningful: a
+        // guest's consent record can be tied back to the exact text they
+        // saw, even after the admin edits it later.
+        $this->bumpVersionIfChanged($data, 'legal_terms_content', 'terms_version');
+        $this->bumpVersionIfChanged($data, 'legal_privacy_content', 'privacy_policy_version');
+        $this->bumpVersionIfChanged($data, 'legal_sms_consent_content', 'sms_consent_version');
+
+        foreach ($data as $key => $value) {
+            Setting::putValue($key, $value);
+        }
+
+        ActivityLog::record('settings_updated', 'Legal and privacy page settings were updated.', 'settings');
+
+        return back()->with('success', 'Legal settings saved.');
+    }
+
+    protected function bumpVersionIfChanged(array $data, string $contentKey, string $versionKey): void
+    {
+        if (! array_key_exists($contentKey, $data)) {
+            return;
+        }
+
+        $previous = Setting::getValue($contentKey, '');
+        if ($data[$contentKey] === $previous) {
+            return;
+        }
+
+        $current = (int) Setting::getValue($versionKey, '1');
+        Setting::putValue($versionKey, (string) ($current + 1));
+    }
+
+    protected function generalSettings(): array
+    {
+        return [
+            'gps_radius_meters' => Setting::getValue('gps_radius_meters', 150),
+            'site_logo' => Setting::getValue('site_logo'),
+            'favicon' => Setting::getValue('favicon'),
+            'brand_color' => Setting::getValue('brand_color', '#0f766e'),
+            'contact_phone' => Setting::getValue('contact_phone', '+1 555 123 4567'),
+            'contact_email' => Setting::getValue('contact_email', 'guestservices@example.com'),
+            'default_intro' => Setting::getValue('default_intro', 'Your arrival details and local guide are ready when you are.'),
+            'gps_verify_message' => Setting::getValue('gps_verify_message', "It's Go Time!"),
+            'lock_message' => Setting::getValue('lock_message', "If you'd like quicker access to the unit, you can download the August Home app."),
+            'background_check_step_name' => Setting::getValue('background_check_step_name', 'Background Check'),
+            'background_check_step_instructions' => Setting::getValue('background_check_step_instructions', 'Please be on the lookout for an email from Airbnb so that you can submit the required hold for incidentals. This hold is refunded after checkout.'),
+            'rental_contract' => Setting::getValue('rental_contract', ''),
+            'rental_contract_version' => Setting::getValue('rental_contract_version', '1'),
+            'default_deposit_cap_dollars' => Setting::getValue('default_deposit_cap_cents', 0) / 100,
+            'processing_fee_percent' => Setting::getValue('processing_fee_percent', 0),
+        ];
+    }
+
+    protected function legalSettings(): array
+    {
+        return [
+            'site_copyright' => Setting::getValue('site_copyright', '© Dreamzone Media LLC d/b/a Guest Hub'),
+            'legal_effective_date' => Setting::getValue('legal_effective_date', date('F j, Y')),
+            'terms_page_title' => Setting::getValue('terms_page_title', 'Terms of Service'),
+            'privacy_page_title' => Setting::getValue('privacy_page_title', 'Privacy Policy'),
+            'terms_url' => Setting::getValue('terms_url', '/terms'),
+            'privacy_url' => Setting::getValue('privacy_url', '/privacy-policy'),
+            'legal_terms_content' => Setting::getValue('legal_terms_content', '<p>Update your Terms of Service here.</p>'),
+            'legal_privacy_content' => Setting::getValue('legal_privacy_content', '<p>Update your Privacy Policy here.</p>'),
+            'legal_sms_consent_content' => Setting::getValue('legal_sms_consent_content', '<p>Update your SMS consent disclosure here.</p>'),
+        ];
     }
 }

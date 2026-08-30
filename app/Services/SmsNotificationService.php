@@ -10,8 +10,16 @@ class SmsNotificationService
      * Send an SMS to an arbitrary number (e.g. the guest's phone), as opposed to
      * the fixed admin-notify number used by the existing admin-facing alerts.
      */
-    protected static function sendTo(?string $to, string $message, string $context = 'guest'): void
+    protected static function sendTo(?string $to, string $message, string $context = 'guest', bool $requireConsent = true): void
     {
+        if ($requireConsent && ($context === 'guest' || $context === 'guest_alert')) {
+            $phone = preg_replace('/\D+/', '', (string) $to);
+            if (! $phone || ! \App\Services\SmsConsentService::canSendTo($phone)) {
+                Log::warning("SMS notification skipped ({$context}): no active SMS consent for recipient.");
+                return;
+            }
+        }
+
         $sid = config('services.twilio.sid');
         $authToken = config('services.twilio.auth_token');
         $from = config('services.twilio.from_number');
@@ -51,8 +59,8 @@ class SmsNotificationService
      * Send an already-rendered lifecycle alert message (task 30) to an
      * arbitrary number — the guest's phone, or the admin's notify number.
      */
-    public static function guestAlert(string $to, string $message): void
+    public static function guestAlert(string $to, string $message, bool $requireConsent = true): void
     {
-        self::sendTo($to, $message, 'guest_alert');
+        self::sendTo($to, $message, 'guest_alert', $requireConsent);
     }
 }

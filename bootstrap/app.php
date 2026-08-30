@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->validateCsrfTokens(except: [
             'webhooks/seam',
             'webhooks/channex',
+            'webhooks/twilio/sms',
             'webhooks/stripe',
         ]);
         // Trust the load balancer / reverse proxy in front of the app (if any) so

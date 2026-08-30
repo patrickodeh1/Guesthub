@@ -112,6 +112,7 @@
             </div>
             <div id="nav-settings-submenu" class="ml-2 grid min-w-0 gap-1 border-l border-white/10 pl-2 {{ $settingsActive ? '' : 'hidden' }}">
                 <a href="{{ route('admin.settings.edit') }}" class="block rounded-sm px-2 py-1.5 text-xs leading-snug transition {{ request()->routeIs('admin.settings.edit') ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white' }}">General</a>
+                <a href="{{ route('admin.settings.legal.edit') }}" class="block rounded-sm px-2 py-1.5 text-xs leading-snug transition {{ request()->routeIs('admin.settings.legal.*') ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white' }}">Legal</a>
                 <a href="{{ route('admin.settings.notifications.edit') }}" class="block rounded-sm px-2 py-1.5 text-xs leading-snug transition {{ request()->routeIs('admin.settings.notifications.*') ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white' }}">Notifications</a>
                 <a href="{{ route('admin.payments.index') }}" class="block rounded-sm px-2 py-1.5 text-xs leading-snug transition {{ request()->routeIs('admin.payments.*') ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white' }}">Payments</a>
             </div>

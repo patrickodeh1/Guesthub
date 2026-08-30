@@ -10,6 +10,8 @@ use App\Models\CategoryPage;
 use App\Models\Setting;
 use App\Services\ActivityLogService;
 use App\Services\SeamService;
+use App\Services\SmsConsentService;
+use App\Services\SmsNotificationService;
 use Illuminate\Http\Request;
 
 class GuestController extends Controller
@@ -110,6 +112,12 @@ class GuestController extends Controller
             ? filter_var($request->input('parking_needed'), FILTER_VALIDATE_BOOLEAN)
             : $booking->parking_needed;
 
+        // Terms/Privacy acceptance and SMS consent are collected here (Step 1
+        // of the guest wizard), not in submitIdentity() (Step 2) -- the
+        // rental contract acceptance is separate and intentionally stays in
+        // submitIdentity(), since it belongs alongside ID capture.
+        $requiresTermsAcceptance = ! $booking->terms_accepted_at;
+
         $data = $request->validate([
             'guest_name' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'string', 'max:50'],
@@ -125,6 +133,8 @@ class GuestController extends Controller
                 $parkingAnswer && ! $booking->license_plate_photo_path ? 'required' : 'nullable',
                 'image', 'max:8192',
             ],
+            'terms_accepted' => [$requiresTermsAcceptance ? 'accepted' : 'nullable'],
+            'sms_consent' => ['nullable', 'boolean'],
         ]);
 
         $newCheckinPreference = $data['checkin_time_preference'];
@@ -167,7 +177,29 @@ class GuestController extends Controller
             $updates['license_plate_photo_path'] = $request->file('license_plate_photo')->store('license-plates');
         }
 
+        if ($requiresTermsAcceptance) {
+            $updates['terms_accepted_at'] = now();
+            $updates['terms_accepted_version'] = \App\Models\Setting::getValue('terms_version', '1');
+        }
+
         $booking->update($updates);
+
+        if ($request->boolean('sms_consent')) {
+            SmsConsentService::recordOptIn($booking, $booking->phone, [
+                'disclosure_text' => Setting::getValue('legal_sms_consent_content', ''),
+                'disclosure_version' => Setting::getValue('sms_consent_version', '1'),
+                'terms_version' => Setting::getValue('terms_version', '1'),
+                'privacy_version' => Setting::getValue('privacy_policy_version', '1'),
+                'page_url' => url()->current(),
+                'opt_in_method' => 'guest_portal',
+            ]);
+
+            $hostName = $booking->property?->name ?? 'Guest Hub';
+            SmsNotificationService::guestAlert(
+                $booking->phone,
+                'Guest Hub Guest Alerts: You are subscribed to non-marketing guest messages for '.$hostName.'. Msg frequency varies, up to 20/month. Msg & data rates may apply. Reply HELP for help or STOP to cancel.'
+            );
+        }
 
         $booking->recalculateParkingCharge();
 
