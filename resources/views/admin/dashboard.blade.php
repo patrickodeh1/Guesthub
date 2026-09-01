@@ -101,7 +101,7 @@
                             <img src="{{ $entry['property']->heroImageUrl() }}" alt="" class="h-8 w-12 shrink-0 rounded-lg object-cover">
                             <div class="min-w-0 flex-1">
                                 <p class="font-semibold text-slate-950">{{ $booking->guest_name }}</p>
-                                <p class="text-xs font-medium text-slate-600">{{ $booking->phone }}</p>
+                                <p class="text-xs font-medium text-slate-600">{{ $booking->formatted_phone }}</p>
                                 <p class="text-xs {{ $item['is_today'] ? 'font-bold text-slate-950' : 'text-slate-500' }}">
                                     @if($item['kind'] === 'current')
                                         Currently hosting &middot; out {{ $booking->check_out_date->format('M j') }} {{ $booking->nightsLabel() }}

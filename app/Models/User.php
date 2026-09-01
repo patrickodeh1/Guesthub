@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\PhoneFormatter;
+
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -171,5 +173,10 @@ class User extends Authenticatable
     public function creator()
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function getFormattedPhoneAttribute(): ?string
+    {
+        return PhoneFormatter::format($this->phone);
     }
 }

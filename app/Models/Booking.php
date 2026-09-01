@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Support\PhoneFormatter;
+
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -772,5 +774,10 @@ class Booking extends Model
     public function statusLabel(): string
     {
         return str($this->effectiveStatus())->replace('_', ' ')->title()->toString();
+    }
+
+    public function getFormattedPhoneAttribute(): ?string
+    {
+        return PhoneFormatter::format($this->phone);
     }
 }

@@ -4,7 +4,7 @@
 **Name:** {{ $lead->name }}<br>
 **Email:** {{ $lead->email }}<br>
 @if($lead->phone)
-**Phone:** {{ $lead->phone }}<br>
+**Phone:** {{ \App\Support\PhoneFormatter::format($lead->phone) }}<br>
 @endif
 @if($lead->role)
 **Role:** {{ ucfirst($lead->role) }}<br>

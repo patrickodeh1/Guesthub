@@ -156,7 +156,7 @@
                         <div class="mt-5" id="phone-display-block">
                             <p class="text-sm font-bold">Phone number</p>
                             <div class="mt-2 flex items-center justify-between guest-input" style="cursor:default">
-                                <span>{{ $booking->phone }}</span>
+                                <span>{{ $booking->formatted_phone }}</span>
                                 <button type="button" id="phone-edit-pencil" class="text-slate-400 hover:text-slate-600" title="Edit phone number">
                                     <x-icon name="edit" class="h-4 w-4" />
                                 </button>
@@ -165,12 +165,20 @@
                         <div class="mt-5 hidden" id="phone-input-block">
                             <label class="block text-sm font-bold">Phone number</label>
                             <div class="mt-2 flex gap-2">
-                                <div class="relative w-40 shrink-0">
-                                    <button type="button" id="guest-phone-country-button" class="guest-input flex w-full items-center justify-between gap-2 px-2 text-left">
-                                        <span id="guest-phone-country-label">🇺🇸 +1</span>
-                                        <span aria-hidden="true">▾</span>
+                                <div class="relative w-28 shrink-0">
+                                    <button type="button" id="guest-phone-country-button" class="guest-input flex w-full items-center justify-between gap-1.5 px-2.5 text-left">
+                                        <span id="guest-phone-country-label" class="flex items-center gap-1.5 text-sm font-medium">
+                                            <span id="guest-phone-country-flag">🇺🇸</span>
+                                            <span id="guest-phone-country-dial">+1</span>
+                                        </span>
+                                        <span aria-hidden="true" class="text-xs text-slate-400">▾</span>
                                     </button>
-                                    <div id="guest-phone-country-menu" class="absolute left-0 top-full z-20 mt-1 hidden max-h-56 w-72 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg"></div>
+                                    <div id="guest-phone-country-menu" class="absolute left-0 top-full z-20 mt-1 hidden w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                                        <div class="border-b border-slate-100 p-2">
+                                            <input type="text" id="guest-phone-country-search" placeholder="Search country or code" class="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:border-slate-400 focus:outline-none" autocomplete="off">
+                                        </div>
+                                        <div id="guest-phone-country-list" class="max-h-56 overflow-y-auto"></div>
+                                    </div>
                                 </div>
                                 <input type="hidden" id="guest-phone-country-code" name="phone_country_code" value="+1">
                                 <input name="phone" type="tel" value="{{ old('phone', $booking->phone) }}" placeholder="(555) 000-0000" autocomplete="tel" class="guest-input flex-1 min-w-0">
@@ -180,12 +188,20 @@
                         <div class="mt-5">
                             <label class="block text-sm font-bold">Phone number</label>
                             <div class="mt-2 flex gap-2">
-                                <div class="relative w-40 shrink-0">
-                                    <button type="button" id="guest-phone-country-button" class="guest-input flex w-full items-center justify-between gap-2 px-2 text-left">
-                                        <span id="guest-phone-country-label">🇺🇸 +1</span>
-                                        <span aria-hidden="true">▾</span>
+                                <div class="relative w-28 shrink-0">
+                                    <button type="button" id="guest-phone-country-button" class="guest-input flex w-full items-center justify-between gap-1.5 px-2.5 text-left">
+                                        <span id="guest-phone-country-label" class="flex items-center gap-1.5 text-sm font-medium">
+                                            <span id="guest-phone-country-flag">🇺🇸</span>
+                                            <span id="guest-phone-country-dial">+1</span>
+                                        </span>
+                                        <span aria-hidden="true" class="text-xs text-slate-400">▾</span>
                                     </button>
-                                    <div id="guest-phone-country-menu" class="absolute left-0 top-full z-20 mt-1 hidden max-h-56 w-72 overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg"></div>
+                                    <div id="guest-phone-country-menu" class="absolute left-0 top-full z-20 mt-1 hidden w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                                        <div class="border-b border-slate-100 p-2">
+                                            <input type="text" id="guest-phone-country-search" placeholder="Search country or code" class="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm text-slate-700 focus:border-slate-400 focus:outline-none" autocomplete="off">
+                                        </div>
+                                        <div id="guest-phone-country-list" class="max-h-56 overflow-y-auto"></div>
+                                    </div>
                                 </div>
                                 <input type="hidden" id="guest-phone-country-code" name="phone_country_code" value="+1">
                                 <input name="phone" type="tel" value="{{ old('phone') }}" placeholder="(555) 000-0000" autocomplete="tel" required class="guest-input flex-1 min-w-0">
@@ -293,7 +309,7 @@
                             $rentalContractUrl = route('legal.rental-contract');
                         @endphp
 
-                        @if(! $booking->terms_accepted_at || (Setting::getValue('legal_rental_contract_content') && ! $booking->contract_accepted_at))
+                        @if(! $booking->terms_accepted_at || (\App\Models\Setting::getValue('legal_rental_contract_content') && ! $booking->contract_accepted_at))
                         <div class="mt-6 rounded-xl border border-slate-200 p-4">
                             <p class="mb-2 text-sm font-semibold text-slate-900">Terms of Service, Privacy Policy &amp; Rental Contract</p>
                             <label class="mt-3 flex items-start gap-2 text-sm text-slate-700">
@@ -446,6 +462,43 @@
 
                 </form>
 
+                <script src="{{ asset('js/guest-phone-country.js') }}"></script>
+                <script>
+                    (function () {
+                        document.querySelectorAll('input[name="phone"]').forEach(function (phoneInput) {
+                            phoneInput.addEventListener('input', function (e) {
+                                var digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                var formatted = digits;
+                                if (digits.length > 6) {
+                                    formatted = '(' + digits.slice(0, 3) + ') ' + digits.slice(3, 6) + '-' + digits.slice(6);
+                                } else if (digits.length > 3) {
+                                    formatted = '(' + digits.slice(0, 3) + ') ' + digits.slice(3);
+                                } else if (digits.length > 0) {
+                                    formatted = '(' + digits;
+                                }
+                                e.target.value = formatted;
+                            });
+                        });
+                    })();
+                </script>
+                <script>
+                    (function () {
+                        document.querySelectorAll('input[name="phone"]').forEach(function (phoneInput) {
+                            phoneInput.addEventListener('input', function (e) {
+                                var digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                var formatted = digits;
+                                if (digits.length > 6) {
+                                    formatted = '(' + digits.slice(0, 3) + ') ' + digits.slice(3, 6) + '-' + digits.slice(6);
+                                } else if (digits.length > 3) {
+                                    formatted = '(' + digits.slice(0, 3) + ') ' + digits.slice(3);
+                                } else if (digits.length > 0) {
+                                    formatted = '(' + digits;
+                                }
+                                e.target.value = formatted;
+                            });
+                        });
+                    })();
+                </script>
                 <script>
                 (function() {
                     var steps = document.querySelectorAll(".idw-step");
@@ -620,198 +673,7 @@
                         });
                     }
 
-                    var guestPhoneCountryButton = document.getElementById("guest-phone-country-button");
-                    var guestPhoneCountryCode = document.getElementById("guest-phone-country-code");
-                    var guestPhoneCountryLabel = document.getElementById("guest-phone-country-label");
-                    var guestPhoneCountryMenu = document.getElementById("guest-phone-country-menu");
-                    var guestPhoneInputs = document.querySelectorAll('input[name="phone"]');
-                    var fallbackCountryList = [
-                        { code: '+1', name: 'United States', flag: '🇺🇸' },
-                        { code: '+1', name: 'Canada', flag: '🇨🇦' },
-                        { code: '+44', name: 'United Kingdom', flag: '🇬🇧' },
-                        { code: '+61', name: 'Australia', flag: '🇦🇺' },
-                        { code: '+91', name: 'India', flag: '🇮🇳' },
-                        { code: '+52', name: 'Mexico', flag: '🇲🇽' },
-                        { code: '+55', name: 'Brazil', flag: '🇧🇷' },
-                        { code: '+81', name: 'Japan', flag: '🇯🇵' },
-                        { code: '+86', name: 'China', flag: '🇨🇳' },
-                        { code: '+27', name: 'South Africa', flag: '🇿🇦' },
-                        { code: '+971', name: 'United Arab Emirates', flag: '🇦🇪' },
-                        { code: '+49', name: 'Germany', flag: '🇩🇪' },
-                        { code: '+33', name: 'France', flag: '🇫🇷' },
-                        { code: '+34', name: 'Spain', flag: '🇪🇸' },
-                        { code: '+39', name: 'Italy', flag: '🇮🇹' },
-                        { code: '+31', name: 'Netherlands', flag: '🇳🇱' },
-                        { code: '+46', name: 'Sweden', flag: '🇸🇪' },
-                        { code: '+47', name: 'Norway', flag: '🇳🇴' },
-                        { code: '+45', name: 'Denmark', flag: '🇩🇰' },
-                        { code: '+41', name: 'Switzerland', flag: '🇨🇭' },
-                        { code: '+351', name: 'Portugal', flag: '🇵🇹' },
-                        { code: '+32', name: 'Belgium', flag: '🇧🇪' },
-                        { code: '+353', name: 'Ireland', flag: '🇮🇪' },
-                        { code: '+358', name: 'Finland', flag: '🇫🇮' },
-                        { code: '+64', name: 'New Zealand', flag: '🇳🇿' },
-                        { code: '+65', name: 'Singapore', flag: '🇸🇬' },
-                        { code: '+60', name: 'Malaysia', flag: '🇲🇾' },
-                        { code: '+66', name: 'Thailand', flag: '🇹🇭' },
-                        { code: '+63', name: 'Philippines', flag: '🇵🇭' },
-                        { code: '+62', name: 'Indonesia', flag: '🇮🇩' },
-                        { code: '+82', name: 'South Korea', flag: '🇰🇷' },
-                        { code: '+84', name: 'Vietnam', flag: '🇻🇳' },
-                        { code: '+7', name: 'Russia', flag: '🇷🇺' },
-                        { code: '+380', name: 'Ukraine', flag: '🇺🇦' },
-                        { code: '+48', name: 'Poland', flag: '🇵🇱' },
-                        { code: '+420', name: 'Czech Republic', flag: '🇨🇿' },
-                        { code: '+36', name: 'Hungary', flag: '🇭🇺' },
-                        { code: '+43', name: 'Austria', flag: '🇦🇹' },
-                        { code: '+54', name: 'Argentina', flag: '🇦🇷' },
-                        { code: '+56', name: 'Chile', flag: '🇨🇱' },
-                        { code: '+57', name: 'Colombia', flag: '🇨🇴' },
-                        { code: '+51', name: 'Peru', flag: '🇵🇪' },
-                        { code: '+593', name: 'Ecuador', flag: '🇪🇨' },
-                        { code: '+598', name: 'Uruguay', flag: '🇺🇾' },
-                        { code: '+591', name: 'Bolivia', flag: '🇧🇴' },
-                        { code: '+507', name: 'Panama', flag: '🇵🇦' },
-                        { code: '+506', name: 'Costa Rica', flag: '🇨🇷' },
-                        { code: '+503', name: 'El Salvador', flag: '🇸🇻' },
-                        { code: '+502', name: 'Guatemala', flag: '🇬🇹' },
-                        { code: '+504', name: 'Honduras', flag: '🇭🇳' },
-                        { code: '+505', name: 'Nicaragua', flag: '🇳🇮' },
-                        { code: '+509', name: 'Haiti', flag: '🇭🇹' },
-                        { code: '+595', name: 'Paraguay', flag: '🇵🇾' },
-                        { code: '+592', name: 'Guyana', flag: '🇬🇾' },
-                        { code: '+594', name: 'French Guiana', flag: '🇬🇫' },
-                        { code: '+599', name: 'Curacao', flag: '🇨🇼' },
-                        { code: '+972', name: 'Israel', flag: '🇮🇱' },
-                        { code: '+966', name: 'Saudi Arabia', flag: '🇸🇦' },
-                        { code: '+964', name: 'Iraq', flag: '🇮🇶' },
-                        { code: '+98', name: 'Iran', flag: '🇮🇷' },
-                        { code: '+92', name: 'Pakistan', flag: '🇵🇰' },
-                        { code: '+880', name: 'Bangladesh', flag: '🇧🇩' },
-                        { code: '+94', name: 'Sri Lanka', flag: '🇱🇰' },
-                        { code: '+977', name: 'Nepal', flag: '🇳🇵' },
-                        { code: '+975', name: 'Bhutan', flag: '🇧🇹' },
-                        { code: '+856', name: 'Laos', flag: '🇱🇦' },
-                        { code: '+855', name: 'Cambodia', flag: '🇰🇭' },
-                        { code: '+853', name: 'Macau', flag: '🇲🇴' },
-                        { code: '+852', name: 'Hong Kong', flag: '🇭🇰' },
-                        { code: '+886', name: 'Taiwan', flag: '🇹🇼' },
-                        { code: '+61', name: 'Christmas Island', flag: '🇨🇽' }
-                    ];
-                    var applyPhoneFormat = function(value, countryCode) {
-                        countryCode = countryCode || (guestPhoneCountryCode ? guestPhoneCountryCode.value : "+1");
-                        value = String(value || '');
-                        var digits = value.replace(/\D/g, '').slice(0, 10);
-                        var formatted = digits;
-                        if (digits.length > 6) {
-                            formatted = '(' + digits.slice(0, 3) + ') ' + digits.slice(3, 6) + '-' + digits.slice(6);
-                        } else if (digits.length > 3) {
-                            formatted = '(' + digits.slice(0, 3) + ') ' + digits.slice(3);
-                        } else if (digits.length > 0) {
-                            formatted = '(' + digits;
-                        }
-                        return countryCode + ' ' + formatted;
-                    };
-                    var setCountrySelection = function(code, flag, label) {
-                        if (!guestPhoneCountryCode) return;
-                        guestPhoneCountryCode.value = code;
-                        if (guestPhoneCountryLabel) {
-                            guestPhoneCountryLabel.textContent = (flag || '🌍') + ' ' + code;
-                        }
-                        if (guestPhoneCountryButton && label) {
-                            guestPhoneCountryButton.setAttribute('title', label + ' (' + code + ')');
-                        }
-                    };
-                    var renderCountryMenu = function(countries) {
-                        if (!guestPhoneCountryMenu) return;
-                        var uniqueCountries = [];
-                        var seenCodes = {};
-                        countries.forEach(function(country) {
-                            var code = country.code;
-                            var countryKey = code + '::' + (country.name || 'Unknown');
-                            if (!code || seenCodes[countryKey]) return;
-                            seenCodes[countryKey] = true;
-                            uniqueCountries.push(country);
-                        });
-                        var sortedCountries = uniqueCountries.sort(function(a, b) {
-                            if (a.code === '+1') return -1;
-                            if (b.code === '+1') return 1;
-                            return a.name.localeCompare(b.name);
-                        });
 
-                        guestPhoneCountryMenu.innerHTML = sortedCountries.map(function(country) {
-                            return '<button type="button" class="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50" data-country-code="' + country.code + '" data-country-flag="' + country.flag + '" data-country-label="' + country.name + '"><span>' + country.flag + ' ' + country.name + ' (' + country.code + ')</span><span class="text-xs text-slate-400">' + country.code + '</span></button>';
-                        }).join('');
-
-                        guestPhoneCountryMenu.querySelectorAll('[data-country-code]').forEach(function(option) {
-                            option.addEventListener('click', function() {
-                                var code = option.getAttribute('data-country-code');
-                                var flag = option.getAttribute('data-country-flag');
-                                var label = option.getAttribute('data-country-label');
-                                setCountrySelection(code, flag, label);
-                                guestPhoneCountryMenu.classList.add('hidden');
-                                guestPhoneInputs.forEach(function(phoneInput) {
-                                    phoneInput.value = phoneInput.value ? phoneInput.value.replace(/^\+\d+\s*/, '').trim() : '';
-                                    phoneInput.value = applyPhoneFormat(phoneInput.value, code);
-                                });
-                            });
-                        });
-                    };
-
-                    if (guestPhoneCountryButton && guestPhoneCountryMenu) {
-                        guestPhoneCountryButton.addEventListener('click', function() {
-                            guestPhoneCountryMenu.classList.toggle('hidden');
-                        });
-                        document.addEventListener('click', function(event) {
-                            if (!guestPhoneCountryMenu.contains(event.target) && !guestPhoneCountryButton.contains(event.target)) {
-                                guestPhoneCountryMenu.classList.add('hidden');
-                            }
-                        });
-                    }
-
-                    fetch('https://restcountries.com/v3.1/all?fields=name,flags,idd').then(function(response) {
-                        return response.ok ? response.json() : Promise.reject(new Error('fetch failed'));
-                    }).then(function(countries) {
-                        var normalized = [];
-                        countries.forEach(function(country) {
-                            if (!country || !country.idd || !country.idd.root) return;
-                            var root = country.idd.root;
-                            var suffixes = country.idd.suffixes || [''];
-                            suffixes.forEach(function(suffix) {
-                                normalized.push({
-                                    code: root + suffix,
-                                    name: country.name && country.name.common ? country.name.common : 'Unknown',
-                                    flag: country.flag || '🌍'
-                                });
-                            });
-                        });
-                        renderCountryMenu(normalized.length ? normalized : fallbackCountryList);
-                        if (guestPhoneCountryCode && !guestPhoneCountryCode.value) {
-                            setCountrySelection('+1', '🇺🇸', 'United States');
-                        } else if (guestPhoneCountryCode) {
-                            var activeCountry = normalized.find(function(country) { return country.code === guestPhoneCountryCode.value; }) || fallbackCountryList.find(function(country) { return country.code === guestPhoneCountryCode.value; });
-                            if (activeCountry) {
-                                setCountrySelection(activeCountry.code, activeCountry.flag, activeCountry.name);
-                            } else {
-                                setCountrySelection('+1', '🇺🇸', 'United States');
-                            }
-                        }
-                    }).catch(function() {
-                        renderCountryMenu(fallbackCountryList);
-                        setCountrySelection('+1', '🇺🇸', 'United States');
-                    });
-
-                    guestPhoneInputs.forEach(function(phoneInput) {
-                        if (!phoneInput.value) {
-                            phoneInput.value = applyPhoneFormat('', '+1');
-                        } else {
-                            phoneInput.value = applyPhoneFormat(phoneInput.value, guestPhoneCountryCode ? guestPhoneCountryCode.value : '+1');
-                        }
-
-                        phoneInput.addEventListener("input", function(e) {
-                            e.target.value = applyPhoneFormat(e.target.value, guestPhoneCountryCode ? guestPhoneCountryCode.value : '+1');
-                        });
-                    });
 
                     var emailPencil = document.getElementById("email-edit-pencil");
                     if (emailPencil) {
@@ -1437,6 +1299,8 @@
                         var input = step.querySelector('[name="' + name + '"]');
                         if (input) loginFd.append(name, input.value);
                     });
+                    var step1PhoneCountryCode = document.getElementById("guest-phone-country-code");
+                    if (step1PhoneCountryCode) loginFd.append("phone_country_code", step1PhoneCountryCode.value);
                     if (parkingChecked2) loginFd.append("parking_needed", parkingChecked2.value);
                     if (parkingIsYes) {
                         if (makeModelInput) loginFd.append("vehicle_make_model", makeModelInput.value);

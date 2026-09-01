@@ -27,7 +27,7 @@
                         <td class="py-3 font-semibold text-slate-950">{{ $lead->name }}</td>
                         <td class="py-3 capitalize">{{ $lead->role }}</td>
                         <td class="py-3"><a href="mailto:{{ $lead->email }}" class="text-teal-800">{{ $lead->email }}</a></td>
-                        <td class="py-3">{{ $lead->phone ?: '-' }}</td>
+                        <td class="py-3">{{ \App\Support\PhoneFormatter::format($lead->phone) ?: '-' }}</td>
                         <td class="py-3 max-w-xs truncate" title="{{ $lead->message }}">{{ $lead->message ?: '-' }}</td>
                         <td class="py-3 text-slate-500">{{ $lead->created_at->format('M j, Y g:i A') }}</td>
                         <td class="py-3">

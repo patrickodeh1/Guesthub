@@ -66,7 +66,7 @@
                 <h3 class="mt-3 text-lg font-semibold text-slate-950">{{ $user->name }}</h3>
                 <p class="text-sm text-slate-500">{{ $user->email }}</p>
                 @if($user->phone)
-                    <p class="text-sm text-slate-500">{{ $user->phone }}</p>
+                    <p class="text-sm text-slate-500">{{ $user->formatted_phone }}</p>
                 @endif
                 <div class="mt-3 flex justify-center gap-2">
                     <span class="badge {{ match($user->role) { 'owner' => 'border-purple-200 bg-purple-50 text-purple-700', 'manager' => 'border-blue-200 bg-blue-50 text-blue-700', 'staff' => 'badge-id_uploaded', default => 'badge-inactive' } }}">

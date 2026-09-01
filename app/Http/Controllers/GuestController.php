@@ -121,6 +121,7 @@ class GuestController extends Controller
         $data = $request->validate([
             'guest_name' => ['required', 'string', 'max:255'],
             'phone' => ['required', 'string', 'max:50'],
+            'phone_country_code' => ['nullable', 'string', 'max:10'],
             'email' => ['required', 'email', 'max:255'],
             'parking_needed' => [is_null($booking->parking_needed) ? 'required' : 'nullable'],
             'checkin_time_preference' => ['required', 'string'],
@@ -142,7 +143,7 @@ class GuestController extends Controller
 
         $updates = [
             'guest_name' => $data['guest_name'],
-            'phone' => $data['phone'],
+            'phone' => trim((($data['phone_country_code'] ?? '+1') . ' ' . $data['phone'])),
             'email' => $data['email'],
             'parking_needed' => array_key_exists('parking_needed', $data) && $data['parking_needed'] !== null
                 ? filter_var($data['parking_needed'], FILTER_VALIDATE_BOOLEAN)

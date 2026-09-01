@@ -36,7 +36,7 @@
                         ['calendar', 'Check-in Date', $booking->check_in_date ? $booking->check_in_date->format('M j, Y') : 'Not set'],
                         ['calendar', 'Check-out Date', $booking->check_out_date ? $booking->check_out_date->format('M j, Y').' '.$booking->nightsLabel() : 'Not set'],
                         ['mail', 'Email', $booking->email ?: 'No email yet'],
-                        ['contact-guest-services', 'Phone', $booking->phone ?: 'No phone on file'],
+                        ['contact-guest-services', 'Phone', $booking->formatted_phone ?: 'No phone on file'],
                         ['security', 'ID Type', $booking->id_type === 'passport' ? 'Passport' : 'State-issued ID'],
                         ['parking', 'Parking', is_null($booking->parking_needed) ? 'Unknown' : ($booking->parking_needed ? 'Needed' : 'Not needed')],
                         ...($booking->parking_needed ? [['parking', 'Parking Charge', '$'.number_format($booking->effectiveParkingCharge() ?? 0, 2).($booking->parking_charge_override !== null ? ' (manual override)' : ' (auto-calculated)')]] : []),
