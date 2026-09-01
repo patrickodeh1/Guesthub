@@ -116,10 +116,8 @@ class GuestController extends Controller
             ? filter_var($request->input('parking_needed'), FILTER_VALIDATE_BOOLEAN)
             : $booking->parking_needed;
 
-        // Terms/Privacy acceptance and SMS consent are collected here (Step 1
-        // of the guest wizard), not in submitIdentity() (Step 2) -- the
-        // rental contract acceptance is separate and intentionally stays in
-        // submitIdentity(), since it belongs alongside ID capture.
+        // Terms/Privacy acceptance, SMS consent, AND rental contract acceptance
+        // are all collected at Step 1 (login), not here in Step 2 (submitIdentity).
         $requiresTermsAcceptance = ! $booking->terms_accepted_at;
 
         $data = $request->validate([
@@ -183,6 +181,11 @@ class GuestController extends Controller
         if ($requiresTermsAcceptance) {
             $updates['terms_accepted_at'] = now();
             $updates['terms_accepted_version'] = \App\Models\Setting::getValue('terms_version', '1');
+        }
+
+        if ($request->boolean('contract_accepted') && filled(\App\Models\Setting::getValue('legal_rental_contract_content', '')) && ! $booking->contract_accepted_at) {
+            $updates['contract_accepted_at'] = now();
+            $updates['contract_version'] = \App\Models\Setting::getValue('legal_rental_contract_version', '1');
         }
 
         $booking->update($updates);
@@ -476,12 +479,9 @@ class GuestController extends Controller
         $frontRequired = ! $booking->photo_id_received && blank($booking->photo_id_path);
         $backRequired = ! $booking->photo_id_received && blank($booking->photo_id_back_path) && $booking->id_type !== 'passport';
 
-        $requiresContractAcceptance = filled(\App\Models\Setting::getValue('rental_contract', '')) && ! $booking->contract_accepted_at;
-
         $data = $request->validate([
             'photo_id' => [$frontRequired ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
             'photo_id_back' => [$backRequired ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
-            'contract_accepted' => [$requiresContractAcceptance ? 'accepted' : 'nullable'],
         ]);
 
         $advancedStatuses = ['guest_approved', 'awaiting_deposit', 'currently_hosting', 'checked_out'];
@@ -492,14 +492,7 @@ class GuestController extends Controller
             'photo_id_received' => true,
         ];
 
-        if ($requiresContractAcceptance) {
-            // Forward-only: stamped once, at the moment of acceptance, never
-            // re-checked against a "current" version later. If the admin
-            // edits the contract text afterward, this guest is not
-            // re-prompted — see settings controller for the version bump.
-            $updates['contract_version'] = \App\Models\Setting::getValue('rental_contract_version', '1');
-            $updates['contract_accepted_at'] = now();
-        }
+
 
         $archiveFolder = 'photo-ids-archive/'.$booking->booking_id.'-'.\Illuminate\Support\Str::slug($booking->guest_name);
 
