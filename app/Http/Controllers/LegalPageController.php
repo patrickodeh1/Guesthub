@@ -24,6 +24,15 @@ class LegalPageController extends Controller
         );
     }
 
+    public function rentalContract()
+    {
+        return $this->renderPage(
+            Setting::getValue('rental_contract_page_title', 'Rental Contract'),
+            Setting::getValue('legal_rental_contract_content', '<p>Rental contract content has not been configured yet.</p>'),
+            'rental-contract'
+        );
+    }
+
     protected function renderPage(string $title, string $content, string $pageType): \Illuminate\View\View
     {
         return view('public.legal-page', [

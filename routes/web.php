@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', [App\Http\Controllers\EarlyAccessController::class, 'show'])->name('early-access');
 Route::get('/terms', [App\Http\Controllers\LegalPageController::class, 'terms'])->name('legal.terms');
 Route::get('/privacy-policy', [App\Http\Controllers\LegalPageController::class, 'privacyPolicy'])->name('legal.privacy');
+Route::get('/rental-contract', [App\Http\Controllers\LegalPageController::class, 'rentalContract'])->name('legal.rental-contract');
 Route::get('/privacy-request', [App\Http\Controllers\PrivacyRequestController::class, 'index'])->name('privacy-request');
 Route::post('/privacy-request', [App\Http\Controllers\PrivacyRequestController::class, 'store'])->name('privacy-request.store');
 Route::get('/contact', [App\Http\Controllers\PrivacyRequestController::class, 'contact'])->name('contact');

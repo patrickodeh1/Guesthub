@@ -17,6 +17,7 @@
                 <nav class="flex flex-wrap items-center gap-3 text-sm text-slate-600">
                     <a href="{{ route('legal.terms') }}" class="hover:text-slate-900 underline">Terms</a>
                     <a href="{{ route('legal.privacy') }}" class="hover:text-slate-900 underline">Privacy Policy</a>
+                    <a href="{{ route('legal.rental-contract') }}" class="hover:text-slate-900 underline">Rental Contract</a>
                     <a href="{{ route('early-access') }}" class="hover:text-slate-900 underline">Home</a>
                 </nav>
             </div>
@@ -34,7 +35,7 @@
         </main>
 
         <footer class="mt-8 text-center text-sm text-slate-500">
-            <p>{{ $siteCopyright }} | <a href="{{ route('legal.terms') }}" class="underline hover:text-slate-900">Terms of Service</a> | <a href="{{ route('legal.privacy') }}" class="underline hover:text-slate-900">Privacy Policy</a> | <a href="{{ route('privacy-request') }}" class="underline hover:text-slate-900">Privacy Request</a> | <a href="{{ route('contact') }}" class="underline hover:text-slate-900">Contact</a></p>
+            <p>{{ $siteCopyright }} | <a href="{{ route('legal.terms') }}" class="underline hover:text-slate-900">Terms of Service</a> | <a href="{{ route('legal.privacy') }}" class="underline hover:text-slate-900">Privacy Policy</a> | <a href="{{ route('legal.rental-contract') }}" class="underline hover:text-slate-900">Rental Contract</a> | <a href="{{ route('privacy-request') }}" class="underline hover:text-slate-900">Privacy Request</a> | <a href="{{ route('contact') }}" class="underline hover:text-slate-900">Contact</a></p>
         </footer>
     </div>
 </body>

@@ -89,7 +89,7 @@ class BookingController extends Controller
     {
         $data               = $this->validated($request);
         $this->enforcePreCheckinCap($data);
-        $data['booking_id'] = $data['booking_id'] ?: 'BK-'.strtoupper(Str::random(8));
+        $data['booking_id'] = ($data['booking_id'] ?? null) ?: 'BK-'.strtoupper(Str::random(8));
         $data['token']      = Str::random(40);
         $data['early_checkin'] = $request->boolean('early_checkin');
         $data['pay_by_cc'] = $request->boolean('pay_by_cc');

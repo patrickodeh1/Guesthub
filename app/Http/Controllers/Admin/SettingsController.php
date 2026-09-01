@@ -39,7 +39,6 @@ class SettingsController extends Controller
             'gps_verify_message' => ['nullable', 'string', 'max:500'],
             'lock_message' => ['nullable', 'string', 'max:500'],
             'background_check_step_instructions' => ['nullable', 'string', 'max:1000'],
-            'rental_contract' => ['nullable', 'string'],
             'default_deposit_cap_dollars' => ['nullable', 'numeric', 'min:0', 'max:100000'],
             'processing_fee_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
@@ -76,14 +75,6 @@ class SettingsController extends Controller
             unset($data['processing_fee_percent']);
         }
 
-        if (array_key_exists('rental_contract', $data)) {
-            $previousContract = Setting::getValue('rental_contract', '');
-            if ($data['rental_contract'] !== $previousContract) {
-                $currentVersion = (int) Setting::getValue('rental_contract_version', '1');
-                Setting::putValue('rental_contract_version', (string) ($currentVersion + 1));
-            }
-        }
-
         foreach ($data as $key => $value) {
             Setting::putValue($key, $value);
         }
@@ -98,10 +89,12 @@ class SettingsController extends Controller
             'site_copyright' => ['nullable', 'string', 'max:255'],
             'legal_terms_content' => ['nullable', 'string'],
             'legal_privacy_content' => ['nullable', 'string'],
+            'legal_rental_contract_content' => ['nullable', 'string'],
             'legal_sms_consent_content' => ['nullable', 'string'],
             'legal_effective_date' => ['nullable', 'string', 'max:255'],
             'terms_page_title' => ['nullable', 'string', 'max:255'],
             'privacy_page_title' => ['nullable', 'string', 'max:255'],
+            'rental_contract_page_title' => ['nullable', 'string', 'max:255'],
             'terms_url' => ['nullable', 'string', 'max:255'],
             'privacy_url' => ['nullable', 'string', 'max:255'],
         ]);
@@ -113,6 +106,7 @@ class SettingsController extends Controller
         // saw, even after the admin edits it later.
         $this->bumpVersionIfChanged($data, 'legal_terms_content', 'terms_version');
         $this->bumpVersionIfChanged($data, 'legal_privacy_content', 'privacy_policy_version');
+        $this->bumpVersionIfChanged($data, 'legal_rental_contract_content', 'rental_contract_version');
         $this->bumpVersionIfChanged($data, 'legal_sms_consent_content', 'sms_consent_version');
 
         foreach ($data as $key => $value) {
@@ -153,8 +147,6 @@ class SettingsController extends Controller
             'lock_message' => Setting::getValue('lock_message', "If you'd like quicker access to the unit, you can download the August Home app."),
             'background_check_step_name' => Setting::getValue('background_check_step_name', 'Background Check'),
             'background_check_step_instructions' => Setting::getValue('background_check_step_instructions', 'Please be on the lookout for an email from Airbnb so that you can submit the required hold for incidentals. This hold is refunded after checkout.'),
-            'rental_contract' => Setting::getValue('rental_contract', ''),
-            'rental_contract_version' => Setting::getValue('rental_contract_version', '1'),
             'default_deposit_cap_dollars' => Setting::getValue('default_deposit_cap_cents', 0) / 100,
             'processing_fee_percent' => Setting::getValue('processing_fee_percent', 0),
         ];
@@ -167,10 +159,12 @@ class SettingsController extends Controller
             'legal_effective_date' => Setting::getValue('legal_effective_date', date('F j, Y')),
             'terms_page_title' => Setting::getValue('terms_page_title', 'Terms of Service'),
             'privacy_page_title' => Setting::getValue('privacy_page_title', 'Privacy Policy'),
+            'rental_contract_page_title' => Setting::getValue('rental_contract_page_title', 'Rental Contract'),
             'terms_url' => Setting::getValue('terms_url', '/terms'),
             'privacy_url' => Setting::getValue('privacy_url', '/privacy-policy'),
             'legal_terms_content' => Setting::getValue('legal_terms_content', '<p>Update your Terms of Service here.</p>'),
             'legal_privacy_content' => Setting::getValue('legal_privacy_content', '<p>Update your Privacy Policy here.</p>'),
+            'legal_rental_contract_content' => Setting::getValue('legal_rental_contract_content', '<p>Update your Rental Contract here.</p>'),
             'legal_sms_consent_content' => Setting::getValue('legal_sms_consent_content', '<p>Update your SMS consent disclosure here.</p>'),
         ];
     }

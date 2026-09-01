@@ -39,6 +39,9 @@
                 <label class="field-label">Privacy page title
                     <input type="text" name="privacy_page_title" value="{{ old('privacy_page_title', $settings['privacy_page_title']) }}" class="input">
                 </label>
+                <label class="field-label">Rental contract page title
+                    <input type="text" name="rental_contract_page_title" value="{{ old('rental_contract_page_title', $settings['rental_contract_page_title']) }}" class="input">
+                </label>
                 <label class="field-label">Terms URL
                     <input type="text" name="terms_url" value="{{ old('terms_url', $settings['terms_url']) }}" class="input">
                 </label>
@@ -60,6 +63,7 @@
                 $legalFields = [
                     'legal_terms_content' => ['label' => 'Terms of Service', 'help' => 'Public terms page content.', 'rows' => 18],
                     'legal_privacy_content' => ['label' => 'Privacy Policy', 'help' => 'Public privacy policy content.', 'rows' => 18],
+                    'legal_rental_contract_content' => ['label' => 'Rental Contract', 'help' => 'Public rental contract page content.', 'rows' => 18],
                     'legal_sms_consent_content' => ['label' => 'SMS Consent', 'help' => 'Disclosure text shown for the separate SMS opt-in checkbox.', 'rows' => 12],
                 ];
             @endphp

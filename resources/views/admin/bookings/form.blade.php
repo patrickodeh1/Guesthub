@@ -12,16 +12,16 @@
         @csrf @if($booking->exists) @method('put') @endif
         <section class="card card-pad">
             <h2 class="section-title">Guest and stay details</h2>
-            <p class="section-copy">Booking ID may be left blank to generate one automatically.</p>
             <div class="mt-6 grid gap-5 md:grid-cols-2">
-                <label class="field-label">Booking ID<input name="booking_id" value="{{ old('booking_id', $booking->booking_id) }}" placeholder="Auto-generated if blank" class="input"></label>
                 <label class="field-label">Reservation ID (Airbnb/VRBO) <span class="text-red-600">*</span><input name="reservation_id" value="{{ old('reservation_id', $booking->reservation_id) }}" placeholder="Required, from Airbnb/VRBO" required class="input"></label>
                 <label class="field-label">Guest name <span class="text-red-600">*</span><input name="guest_name" value="{{ old('guest_name', $booking->guest_name) }}" required placeholder="Jordan Taylor" class="input"></label>
-                <label class="field-label">Phone<input name="phone" value="{{ old('phone', $booking->phone) }}" placeholder="+1 555 555 0199" class="input"></label>
+                @if($booking->exists)
+                <label class="field-label">Phone<input id="guest-phone-input" name="phone" value="{{ old('phone', $booking->phone) }}" placeholder="(555) 555-0199" maxlength="14" class="input"></label>
                 <label class="field-label">Email<input name="email" value="{{ old('email', $booking->email) }}" placeholder="guest@example.com" class="input"></label>
+                @endif
                 <label class="field-label">Check-in <span class="text-red-600">*</span><input type="date" name="check_in_date" value="{{ old('check_in_date', optional($booking->check_in_date)->format('Y-m-d')) }}" required class="input"></label>
                 <label class="field-label">Check-out <span class="text-red-600">*</span><input type="date" name="check_out_date" value="{{ old('check_out_date', optional($booking->check_out_date)->format('Y-m-d')) }}" required class="input"></label>
-                <label class="field-label md:col-span-2">Property <span class="text-red-600">*</span><select name="property_id" required class="input">@foreach($properties as $property)<option value="{{ $property->id }}" @selected(old('property_id', $booking->property_id)==$property->id)>{{ $property->name }}</option>@endforeach</select></label>
+                <label class="field-label md:col-span-2">Property <span class="text-red-600">*</span><select name="property_id" required class="input"><option value="" disabled @selected(!old('property_id', $booking->property_id))>Select a property...</option>@foreach($properties as $property)<option value="{{ $property->id }}" @selected(old('property_id', $booking->property_id)==$property->id)>{{ $property->name }}</option>@endforeach</select></label>
                 <label class="field-label">ID type <span class="text-red-600">*</span><select name="id_type" required class="input"><option value="state_id" @selected(old('id_type', $booking->id_type ?: 'state_id')==='state_id')>State-issued ID (US guest)</option><option value="passport" @selected(old('id_type', $booking->id_type ?: 'state_id')==='passport')>Passport (international guest)</option></select></label>
             </div>
         </section>
@@ -29,8 +29,9 @@
         <aside class="card card-pad">
             <h2 class="section-title">Status controls</h2>
             <p class="section-copy">Use these to reflect what has happened outside the public guest flow.</p>
+@if($booking->exists)
             <label class="field-label mt-5">Parking<select name="parking_needed" class="input"><option value="">Unknown</option><option value="1" @selected(old('parking_needed', $booking->parking_needed)==='1' || old('parking_needed', $booking->parking_needed)===true)>Yes, guest needs parking</option><option value="0" @selected(old('parking_needed', $booking->parking_needed)==='0' || old('parking_needed', $booking->parking_needed)===false)>No parking needed</option></select></label>
-            @if($booking->exists && $booking->parking_needed)
+            @if($booking->parking_needed)
             <div class="field-label mt-5">
                 <span>Parking charge (admin only)</span>
                 <p class="field-help mt-1">Auto-calculated: ${{ number_format($booking->parking_charge ?? 0, 2) }} from the property's weekday rates across the stay.</p>
@@ -49,11 +50,13 @@
                 </div>
                 <span class="field-help">Any incidentals charge for this guest. Not visible to the guest.</span>
             </label>
+            @endif
             <label class="field-label mt-5 flex items-center gap-2">
                 <input type="checkbox" name="pay_by_cc" value="1" @checked(old('pay_by_cc', $booking->pay_by_cc))>
                 <span>Guest pays by credit card on our site</span>
             </label>
             <p class="field-help">If checked, the guest sees the online card payment step for their parking/incidentals charge. If unchecked, they instead see instructions to pay through the booking platform directly.</p>
+@if($booking->exists)
             <label class="field-label mt-5 flex items-center gap-2">
                 <input type="checkbox" name="early_checkin" value="1" @checked(old('early_checkin', $booking->early_checkin))>
                 <span>Early Check-in Exception</span>
@@ -67,7 +70,7 @@
                     <option value="12pm_2pm" @selected(old('early_checkin_tier', $booking->early_checkin_tier) === '12pm_2pm' || old('early_checkin_tier', $booking->early_checkin_tier) === '12pm')>12:00 PM - 2:00 PM</option>
                     <option value="2pm_4pm" @selected(old('early_checkin_tier', $booking->early_checkin_tier) === '2pm_4pm')>2:00 PM - 4:00 PM</option>
                 </select>
-                @if($booking->exists && $booking->early_checkin_tier)
+                @if($booking->early_checkin_tier)
                     <span class="field-help">Charge: ${{ number_format($booking->earlyCheckinCharge() ?? 0, 2) }} (from the property's rate for this window).</span>
                 @else
                     <span class="field-help">Independent of the exception checkbox above; set this if the early check-in should be billed.</span>
@@ -83,17 +86,20 @@
                 <label class="field-label mt-3">Hours late (authorized only)<input type="number" step="0.25" min="0" name="late_checkout_hours" value="{{ old('late_checkout_hours', $booking->late_checkout_hours) }}" placeholder="e.g. 2" class="input"></label>
                 <label class="field-label mt-3">Actual checkout time (unauthorized only)<input type="datetime-local" name="late_checkout_actual_time" value="{{ old('late_checkout_actual_time', optional($booking->late_checkout_actual_time)->format('Y-m-d\TH:i')) }}" class="input"></label>
                 <span class="field-help">Separate from the system's automatic checkout timestamp; enter what time the guest actually left for an unauthorized late checkout, so hours can be calculated.</span>
-                @if($booking->exists && $booking->late_checkout_type)
+                @if($booking->late_checkout_type)
                     <span class="field-help font-semibold">Charge: ${{ number_format($booking->lateCheckoutCharge() ?? 0, 2) }}</span>
                 @endif
             </div>
+            @endif
             <label class="field-label mt-5 flex items-center gap-2">
                 <input type="checkbox" name="photo_id_received" value="1" @checked(old('photo_id_received', $booking->photo_id_received))>
                 <span>Photo ID Already Received</span>
             </label>
             <p class="field-help">If enabled, the guest will not be asked to upload a photo ID during check-in.</p>
+@if($booking->exists)
             <label class="field-label mt-5">Requested Check-in Time<input type="time" name="checkin_time_preference" value="{{ old('checkin_time_preference', $booking->checkin_time_preference) }}" class="input"></label>
             <label class="field-label mt-5">Requested Check-out Time<input type="time" name="checkout_time_preference" value="{{ old('checkout_time_preference', $booking->checkout_time_preference) }}" class="input"></label>
+            @endif
             <label class="field-label mt-5">Status<select name="status" class="input">@foreach(['pending','pre_checkin_complete','awaiting_deposit','guest_approved','currently_hosting','checked_out'] as $status)<option value="{{ $status }}" @selected(old('status', $booking->status ?: 'pending')===$status)>{{ str($status)->replace('_',' ')->title() }}</option>@endforeach</select></label>
             <button class="btn-primary mt-6 w-full">Save guest</button>
             @if($booking->exists)
@@ -109,4 +115,23 @@
             <label class="field-label mt-5">Notes<textarea name="notes" rows="5" placeholder="Arrival requests, internal reminders, owner notes..." class="textarea">{{ old('notes', $booking->notes) }}</textarea></label>
         </section>
     </form>
+
+    <script>
+        (function () {
+            var phoneInput = document.getElementById('guest-phone-input');
+            if (!phoneInput) return;
+            phoneInput.addEventListener('input', function (e) {
+                var digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+                var formatted = digits;
+                if (digits.length > 6) {
+                    formatted = '(' + digits.slice(0, 3) + ') ' + digits.slice(3, 6) + '-' + digits.slice(6);
+                } else if (digits.length > 3) {
+                    formatted = '(' + digits.slice(0, 3) + ') ' + digits.slice(3);
+                } else if (digits.length > 0) {
+                    formatted = '(' + digits;
+                }
+                e.target.value = formatted;
+            });
+        })();
+    </script>
 </x-admin-layout>

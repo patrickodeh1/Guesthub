@@ -108,7 +108,7 @@
                                     <x-icon name="calendar" class="h-5 w-5" />
                                 </div>
                                 <p class="guest-stay-tile-label">Check-Out</p>
-                                <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }} {{ $booking->nightsLabel() }}</p>
+                                <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }}</p>
                             </div>
                         </div>
                         @php
@@ -146,17 +146,11 @@
                         {{-- Name --}}
                         <div class="mt-5" id="name-display-block">
                             <p class="text-sm font-bold">Name</p>
-                            <div class="mt-2 flex items-center justify-between guest-input" style="cursor:default">
+                            <div class="mt-2 flex items-center guest-input" style="cursor:default">
                                 <span>{{ $booking->guest_name }}</span>
-                                <button type="button" id="name-edit-pencil" class="text-slate-400 hover:text-slate-600" title="Edit name">
-                                    <x-icon name="edit" class="h-4 w-4" />
-                                </button>
                             </div>
                         </div>
-                        <label class="mt-5 hidden block text-sm font-bold" id="name-input-block">
-                            Name
-                            <input name="guest_name" type="text" value="{{ old('guest_name', $booking->guest_name) }}" placeholder="Full name" autocomplete="name" required class="guest-input mt-2">
-                        </label>
+                        <input type="hidden" name="guest_name" value="{{ $booking->guest_name }}">
                         {{-- Phone --}}
                         @if($booking->phone)
                         <div class="mt-5" id="phone-display-block">
@@ -276,14 +270,15 @@
                         @php
                             $termsUrl = route('legal.terms');
                             $privacyUrl = route('legal.privacy');
+                            $rentalContractUrl = route('legal.rental-contract');
                         @endphp
 
-                        @if(! $booking->terms_accepted_at)
+                        @if(! $booking->terms_accepted_at || (Setting::getValue('legal_rental_contract_content') && ! $booking->contract_accepted_at))
                         <div class="mt-6 rounded-xl border border-slate-200 p-4">
-                            <p class="mb-2 text-sm font-semibold text-slate-900">Terms of Service &amp; Privacy Policy</p>
-                            <label class="mt-1 flex items-start gap-2 text-sm text-slate-700">
+                            <p class="mb-2 text-sm font-semibold text-slate-900">Terms of Service, Privacy Policy &amp; Rental Contract</p>
+                            <label class="mt-3 flex items-start gap-2 text-sm text-slate-700">
                                 <input type="checkbox" name="terms_accepted" id="terms-accepted-checkbox" value="1" required class="mt-0.5 rounded border-slate-300">
-                                <span>I agree to the <a href="{{ $termsUrl }}" class="font-medium underline" target="_blank" rel="noopener">Terms of Service</a> and <a href="{{ $privacyUrl }}" class="font-medium underline" target="_blank" rel="noopener">Privacy Policy</a>.</span>
+                                <span>I agree to the <a href="{{ $termsUrl }}" class="font-medium underline" target="_blank" rel="noopener">Terms of Service</a>, <a href="{{ $privacyUrl }}" class="font-medium underline" target="_blank" rel="noopener">Privacy Policy</a>, and the <a href="{{ $rentalContractUrl }}" class="font-medium underline" target="_blank" rel="noopener">Rental Contract</a>.</span>
                             </label>
                         </div>
                         @endif
@@ -407,22 +402,6 @@
                             <input type="hidden" name="photo_id" id="photo-id-data">
                             <input type="hidden" name="photo_id_back" id="photo-id-back-data">
                             </div>
-                        </div>
-                        @endif
-
-                        @php
-                            $rentalContract = \App\Models\Setting::getValue('rental_contract', '');
-                            $termsUrl = route('legal.terms');
-                            $privacyUrl = route('legal.privacy');
-                        @endphp
-                        @if(filled($rentalContract) && ! $booking->contract_accepted_at)
-                        <div class="mt-6 rounded-xl border border-slate-200 p-4">
-                            <p class="mb-2 text-sm font-semibold text-slate-900">Terms & Rental Contract</p>
-                            <div class="max-h-40 overflow-y-auto rounded-lg bg-slate-50 p-3 text-xs leading-5 text-slate-600">{!! $rentalContract !!}</div>
-                            <label class="mt-3 flex items-start gap-2 text-sm text-slate-700">
-                                <input type="checkbox" name="contract_accepted" id="contract-accepted-checkbox" value="1" required class="mt-0.5 rounded border-slate-300">
-                                <span>I have read and agree to the rental contract shown above.</span>
-                            </label>
                         </div>
                         @endif
 
@@ -613,13 +592,6 @@
                         });
                     });
 
-                    var namePencil = document.getElementById("name-edit-pencil");
-                    if (namePencil) {
-                        namePencil.addEventListener("click", function() {
-                            document.getElementById("name-display-block").classList.add("hidden");
-                            document.getElementById("name-input-block").classList.remove("hidden");
-                        });
-                    }
                     var phonePencil = document.getElementById("phone-edit-pencil");
                     if (phonePencil) {
                         phonePencil.addEventListener("click", function() {
@@ -1237,13 +1209,17 @@
                     }
                     var step1TermsCheckbox = document.getElementById("terms-accepted-checkbox");
                     if (step1TermsCheckbox && !step1TermsCheckbox.checked) {
-                        alert("Please agree to the Terms of Service and Privacy Policy to continue.");
+                        alert("Please agree to the Terms of Service, Privacy Policy, and Rental Contract to continue.");
                         step1TermsCheckbox.scrollIntoView({ behavior: "smooth", block: "center" });
                         return;
                     }
 
                     var loginFd = new FormData();
                     loginFd.append("_token", document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : "");
+                    if (step1TermsCheckbox) {
+                        loginFd.append("terms_accepted", step1TermsCheckbox.checked ? "1" : "0");
+                        loginFd.append("contract_accepted", step1TermsCheckbox.checked ? "1" : "0");
+                    }
                     ["guest_name", "phone", "email", "checkin_time_preference", "checkout_time_preference"].forEach(function(name) {
                         var input = step.querySelector('[name="' + name + '"]');
                         if (input) loginFd.append(name, input.value);
@@ -1305,12 +1281,6 @@
                         if (idwFrontRequired && !frontBlur.classList.contains("hidden")) { alert("Front ID photo is blurry. Please retake."); return; }
                         if (!isPassport && idwBackRequired && !backBlur.classList.contains("hidden")) { alert("Back ID photo is blurry. Please retake."); return; }
                     }
-                    var contractCheckbox = document.getElementById("contract-accepted-checkbox");
-                    if (contractCheckbox && !contractCheckbox.checked) {
-                        alert("Please agree to the terms and rental contract to continue.");
-                        return;
-                    }
-
                     function b64toBlob(b64) {
                         var arr = b64.split(","), mime = arr[0].match(/:(.*?);/)[1];
                         var bstr = atob(arr[1]), n = bstr.length, u8 = new Uint8Array(n);
@@ -1320,9 +1290,6 @@
                     var form = document.getElementById("guest-booking-form");
                     var fd = new FormData();
                     fd.append("_token", document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : "");
-                    if (contractCheckbox) {
-                        fd.append("contract_accepted", contractCheckbox.checked ? "1" : "0");
-                    }
                     if (photoIdRequired) {
                         if (idwFrontRequired) {
                             fd.set("photo_id", b64toBlob(document.getElementById("photo-id-data").value), "front.jpg");
@@ -1413,7 +1380,7 @@
                                 <x-icon name="calendar" class="h-5 w-5" />
                             </div>
                             <p class="guest-stay-tile-label">Check-Out</p>
-                            <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }} {{ $booking->nightsLabel() }}</p>
+                            <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }}</p>
                             <p class="guest-stay-tile-time">{{ $booking->effectiveCheckoutTimeFormatted() }}</p>
                         </div>
                     </div>
@@ -1463,7 +1430,7 @@
                             <x-icon name="calendar" class="h-5 w-5" />
                         </div>
                         <p class="guest-stay-tile-label">Check-Out</p>
-                        <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }} {{ $booking->nightsLabel() }}</p>
+                        <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }}</p>
                         <p class="guest-stay-tile-time">{{ $booking->effectiveCheckoutTimeFormatted() }}</p>
                     </div>
                 </div>
@@ -2041,7 +2008,7 @@
                             <x-icon name="calendar" class="h-5 w-5" />
                         </div>
                         <p class="guest-stay-tile-label">Check-Out</p>
-                        <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }} &middot; {{ $booking->effectiveCheckoutTimeFormatted() }} {{ $booking->nightsLabel() }}</p>
+                        <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }} &middot; {{ $booking->effectiveCheckoutTimeFormatted() }}</p>
                     </div>
                 </div>
             </div>
