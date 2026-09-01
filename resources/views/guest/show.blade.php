@@ -55,8 +55,12 @@
                 </div>
                 <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="w-full block rounded-xl mt-4">
                 <div class="p-6 md:p-10 text-center">
+                    <div class="flex items-center justify-center mb-4">
+                        <x-icon name="alert-triangle" class="h-6 w-6" style="color:#92400e;" />
+                    </div>
                     <h1 class="guest-status-title">{{ $backgroundCheckStepName }}</h1>
                     <p class="mt-2 text-sm leading-6 text-slate-600">{!! nl2br(e(strip_tags($backgroundCheckStepInstructions))) !!}</p>
+                    <p class="mt-4 text-xs text-slate-500 italic">This is all for now — your details are processing.</p>
                 </div>
             </div>
         @elseif($state === 'identity')
@@ -1562,6 +1566,9 @@
                     </span>
                 </div>
                 <div class="px-6 pt-5">
+                    <div class="flex items-center justify-center mb-4">
+                        <x-icon name="alert-triangle" class="h-6 w-6" style="color:#92400e;" />
+                    </div>
                     <h1 class="guest-status-title">Almost there</h1>
                 </div>
                 <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="w-full block rounded-xl mt-4">
