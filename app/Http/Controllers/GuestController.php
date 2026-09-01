@@ -51,6 +51,10 @@ class GuestController extends Controller
             'parkingSteps'  => ($state === 'guide' && ! $booking->instructionsCompleted()) ? $this->parkingSteps($booking) : [],
             'checkinTimeOptions' => $this->checkinTimeOptions(),
             'checkoutTimeOptions' => $this->checkoutTimeOptions(),
+            // task: vehicle info is never required at Step 1 -- prompt for
+            // it later in-flow instead, once it's actually needed (~1 day
+            // out, or later in-flow for same-day bookings).
+            'needsVehicleInfoPrompt' => $booking->needsVehicleInfoPrompt(),
         ]);
     }
 
@@ -126,14 +130,12 @@ class GuestController extends Controller
             'parking_needed' => [is_null($booking->parking_needed) ? 'required' : 'nullable'],
             'checkin_time_preference' => ['required', 'string'],
             'checkout_time_preference' => ['nullable', 'string'],
-            'vehicle_make_model' => [
-                $parkingAnswer && ! $booking->vehicle_make_model ? 'required' : 'nullable',
-                'string', 'max:255',
-            ],
-            'license_plate_photo' => [
-                $parkingAnswer && ! $booking->license_plate_photo_path ? 'required' : 'nullable',
-                'image', 'max:8192',
-            ],
+            // Never required at Step 1 -- task: don't block the initial guest
+            // flow on vehicle info. Actually prompted later, in the waiting
+            // area, via Booking::needsVehicleInfoPrompt() (~1 day before
+            // arrival, or later in-flow for same-day bookings).
+            'vehicle_make_model' => ['nullable', 'string', 'max:255'],
+            'license_plate_photo' => ['nullable', 'image', 'max:8192'],
             'terms_accepted' => [$requiresTermsAcceptance ? 'accepted' : 'nullable'],
             'sms_consent' => ['nullable', 'boolean'],
         ]);

@@ -59,14 +59,14 @@ Recovered from client conversation export (Google AI chat, dated in export). Gro
 
 - [ ] Guest search bar — typing should show a **live dropdown** of matching results instantly (not just filter a table below)
 
-## 8. Admin — Dashboard "This Week" Card
+## 8. Admin — guest list "This Week" Card
 
 - [ ] Column 1: **Guest First/Last Name** (bold, larger) → Property (lightweight italics) → Dates → # of Nights
 - [ ] Column 2: Status
 - [ ] Column 3: Compact **3-dot (⋯)** actions menu
 - [ ] Sort order: (1) Checked-in / checking in today — show dynamic text like *"Checks out in 2 days"* instead of total stay length → (2) Recently checked out → (3) Upcoming stays
 
-## 9. Admin — Dashboard "Next Week" Card
+## 9. Admin — guest list "Next Week" Card
 
 - [ ] Same column layout as "This Week"
 - [ ] Highlight countdown to arrival, e.g. *"Arriving in 5 days"*
@@ -74,13 +74,13 @@ Recovered from client conversation export (Google AI chat, dated in export). Gro
 
 ## 10. Data / ID Mapping (Cross-cutting)
 
-- [ ] Hide **Booking ID** completely from every admin view
-- [ ] **ReservationID** field should be remapped to pull the actual **Airbnb Booking ID** (currently importing something else)
+- [x] Hide **Booking ID** completely from every admin view
+- [x] **ReservationID** field remapped — now pulls `ota_reservation_code` (the real Airbnb/OTA reservation code) from Channex, falling back to Channex's own `booking_id` for non-OTA/offline bookings
 - [ ] Guest greetings anywhere on the guest-facing site use **first name only** (full name still captured/stored)
-- [ ] **Phone & Email** — hidden on the "Create Record" (new booking) screen; visible only when editing an existing guest
-- [ ] **Property dropdown** (admin, when creating a record) — must **never** have a default/pre-selected option
-- [ ] All other guest-entered fields — stay hidden on admin's initial view until the guest actually fills them in via pre-checkin
-- [ ] **Photo ID Received** field — leave visible for now (testing purposes, per client)
+- [x] **Phone & Email** — hidden on the "Create Record" (new booking) screen; visible only when editing an existing guest
+- [x] **Property dropdown** (admin, when creating a record) — must **never** have a default/pre-selected option
+- [x] All other guest-entered fields — stay hidden on admin's initial view until the guest actually fills them in via pre-checkin
+- [x] **Photo ID Received** field — leave visible for now (testing purposes, per client)
 
 ---
 

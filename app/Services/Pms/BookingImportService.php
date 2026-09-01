@@ -96,7 +96,7 @@ class BookingImportService
 
         if (! $booking) {
             $attributes['booking_id'] = 'CX-' . Str::upper(Str::random(8));
-            $attributes['reservation_id'] = $pmsBooking->externalBookingId;
+            $attributes['reservation_id'] = $pmsBooking->otaReservationCode ?: $pmsBooking->externalBookingId;
             $attributes['token'] = (string) Str::uuid();
 
             // Normally a fresh PMS-sourced booking starts 'pending' for staff

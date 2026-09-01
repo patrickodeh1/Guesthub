@@ -522,6 +522,35 @@ class Booking extends Model
         return $date->toDateString() >= $this->check_in_date->toDateString();
     }
 
+    public function daysUntilCheckIn(?CarbonInterface $date = null): int
+    {
+        $date ??= now();
+
+        return (int) $date->copy()->startOfDay()->diffInDays($this->check_in_date->copy()->startOfDay(), false);
+    }
+
+    public function isSameDayBooking(): bool
+    {
+        return $this->created_at->toDateString() === $this->check_in_date->toDateString();
+    }
+
+    public function needsVehicleInfoPrompt(): bool
+    {
+        if (! $this->parking_needed) {
+            return false;
+        }
+
+        if ($this->vehicle_make_model && $this->license_plate_photo_path) {
+            return false;
+        }
+
+        if ($this->isSameDayBooking()) {
+            return true;
+        }
+
+        return $this->daysUntilCheckIn() <= 1;
+    }
+
     /**
      * The property's standard check-in time. Falls back to '16:00' in code
      * only (no DB default, no global Setting) when the property doesn't

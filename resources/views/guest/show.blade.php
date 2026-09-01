@@ -255,22 +255,6 @@
                         </div>
                         @endif
 
-                        {{-- Vehicle info, task 34: collected when parking is (or becomes) "yes" --}}
-                        <div id="vehicle-info-block" class="mt-5" style="{{ $booking->parking_needed ? '' : 'display:none' }}">
-                            <label class="block text-sm font-bold">
-                                Vehicle make and model
-                                <input name="vehicle_make_model" value="{{ old('vehicle_make_model', $booking->vehicle_make_model) }}" placeholder="e.g. Toyota Camry" class="guest-input mt-2">
-                            </label>
-                            <label class="mt-4 block text-sm font-bold">
-                                Photo of your license plate
-                                @if($booking->license_plate_photo_path)
-                                    <span class="mt-2 block text-xs font-semibold text-emerald-700">A license plate photo is already on file. Choose a new one below to replace it.</span>
-                                @endif
-                                <input type="file" name="license_plate_photo" accept="image/*" capture="environment" class="guest-input mt-2">
-                            </label>
-                            <span id="vehicle-error" class="guest-field-error" style="display:none">Please add your vehicle's make/model and a photo of your license plate.</span>
-                        </div>
-
                         {{-- Check-in time --}}
                         <div class="mt-5">
                             <label class="text-sm font-bold">What time are you planning to check in? <span class="text-red-600">*</span>
@@ -1246,24 +1230,10 @@
                         }
                     }
 
-                    // Task 34: vehicle info required once parking is (or already is) "yes"
+                    // Vehicle info is no longer collected/validated at Step 1 --
+                    // it's prompted later in-flow (waiting/arrival state) once
+                    // Booking::needsVehicleInfoPrompt() is true.
                     var parkingIsYes = parkingChecked2 ? parkingChecked2.value === "1" : {{ $booking->parking_needed ? 'true' : 'false' }};
-                    if (parkingIsYes) {
-                        var makeModelInput = step.querySelector('input[name="vehicle_make_model"]');
-                        var plateFileInput = step.querySelector('input[name="license_plate_photo"]');
-                        var hasExistingPlatePhoto = {{ $booking->license_plate_photo_path ? 'true' : 'false' }};
-                        var vehicleError = document.getElementById("vehicle-error");
-                        var missingMakeModel = makeModelInput && !makeModelInput.value.trim();
-                        var missingPlatePhoto = plateFileInput && !(plateFileInput.files && plateFileInput.files.length) && !hasExistingPlatePhoto;
-                        if (missingMakeModel || missingPlatePhoto) {
-                            if (vehicleError) vehicleError.style.display = "block";
-                            var vehicleBlock = document.getElementById("vehicle-info-block");
-                            if (vehicleBlock) vehicleBlock.scrollIntoView({ behavior: "smooth", block: "center" });
-                            return;
-                        } else if (vehicleError) {
-                            vehicleError.style.display = "none";
-                        }
-                    }
                     var timeSelect = step.querySelector('#checkin_time_preference_select');
                     if (timeSelect && !timeSelect.value) {
                         timeSelect.classList.add("border-red-400");
@@ -1302,12 +1272,6 @@
                     var step1PhoneCountryCode = document.getElementById("guest-phone-country-code");
                     if (step1PhoneCountryCode) loginFd.append("phone_country_code", step1PhoneCountryCode.value);
                     if (parkingChecked2) loginFd.append("parking_needed", parkingChecked2.value);
-                    if (parkingIsYes) {
-                        if (makeModelInput) loginFd.append("vehicle_make_model", makeModelInput.value);
-                        if (plateFileInput && plateFileInput.files && plateFileInput.files.length) {
-                            loginFd.append("license_plate_photo", plateFileInput.files[0]);
-                        }
-                    }
                     if (step1TermsCheckbox) {
                         loginFd.append("terms_accepted", step1TermsCheckbox.checked ? "1" : "0");
                     }

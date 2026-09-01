@@ -25,6 +25,11 @@ class PmsBooking
         // there hits the wrong endpoint/resource. Null for providers (e.g.
         // NextPax) with no revision concept.
         public readonly ?string $revisionId = null,
+        // The guest-facing reservation code from the OTA itself (e.g. Airbnb's
+        // confirmation code). Distinct from externalBookingId, which is
+        // Channex's own internal booking ID. Null for offline/non-OTA bookings.
+        public readonly ?string $otaReservationCode = null,
+        public readonly ?string $otaName = null,
     ) {
     }
 }

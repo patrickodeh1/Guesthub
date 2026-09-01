@@ -237,6 +237,8 @@ class ChannexProvider implements PmsProviderInterface
             status: $attributes['status'] ?? null,
             raw: $attributes,
             revisionId: null,
+            otaReservationCode: $attributes['ota_reservation_code'] ?? null,
+            otaName: $attributes['ota_name'] ?? null,
         );
     }
 
@@ -269,6 +271,8 @@ class ChannexProvider implements PmsProviderInterface
             status: $attributes['status'] ?? null,
             raw: $attributes,
             revisionId: isset($attributes['id']) ? (string) $attributes['id'] : null,
+            otaReservationCode: $attributes['ota_reservation_code'] ?? null,
+            otaName: $attributes['ota_name'] ?? null,
         );
     }
 }
