@@ -32,7 +32,7 @@ Recovered from client conversation export (Google AI chat, dated in export). Gro
 
 - [ ] Property addresses — truncate display **at zip code** (drop redundant "USA", city/state suffix)
 - [ ] Remove phone numbers from checkout cards — rely solely on the **Quick Contact button**
-- [ ] Ensure Quick Contact button is visible on **every page** of registration and pre-checkin (currently missing on at least one page)
+- [x] Ensure Quick Contact button is visible on **every guest page** of registration and pre-checkin (reused the existing phone-style contact FAB globally in the guest layout)
 - [ ] Property images — should fill their allotted container space (currently showing gaps/cutoff — check `object-fit`/container sizing)
 
 ## 4. Admin — Guest Details Page, First Card

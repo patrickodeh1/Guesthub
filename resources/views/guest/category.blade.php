@@ -170,12 +170,6 @@
         </article>
         @endif
 
-        @if($booking->property->contact_phone)
-            <a href="tel:{{ $booking->property->contact_phone }}" class="guest-contact-fab">
-                <span class="guest-contact-fab-icon"><x-icon name="contact-guest-services" class="h-5 w-5" /></span>
-                <span class="guest-contact-fab-label">Contact Guest Services</span>
-            </a>
-        @endif
     </div>
     <a href="{{ route('guest.show', [$booking->booking_id, $booking->token]) }}"
        class="mt-6 flex w-full items-center justify-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-bold text-amber-800 shadow-sm transition hover:-translate-y-px hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-300">
