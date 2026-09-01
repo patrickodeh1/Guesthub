@@ -9,7 +9,7 @@ Recovered from client conversation export (Google AI chat, dated in export). Gro
 - [x] Show **Check-In / Check-Out Dates only** initially; times appear only once approved/selected
 - [x] Remove **"# Nights"** from guest view entirely
 - [x] **Guest Name** field — read-only / non-editable by guest
-- [ ] Phone input — default country code **USA (+1)**, auto-format as guest types: `(000) 123-4567`
+- [x] Phone input — default country code **USA (+1)**, include a broad country dropdown with flags and dialing codes, and auto-format as guest types: `(000) 123-4567`
 - [ ] Vehicle info (Make/Model + license plate photo) — do **not** block initial flow. Prompt guest ~1 day before arrival instead (unless same-day booking, then prompt later in-flow)
 - [x] Add **Terms of Service**, **Privacy Policy**, and a **Rental Agreement signature step** to the guest flow
 - [ ] On any "hard stop" screen (e.g. waiting on background check) — add a subtle exclamation/alert icon + short copy (e.g. *"This is all for now — your details are processing!"*) so the pause reads as intentional, not broken
