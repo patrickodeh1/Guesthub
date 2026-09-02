@@ -12,7 +12,6 @@
                 <h1 class="page-title !mt-0.5 text-2xl font-bold">{{ $booking->guest_name }}</h1>
                 <p class="page-subtitle !mt-1">{{ $booking->property->name }}</p>
                 <p class="page-subtitle !mt-1">{{ $booking->stayRangeLabel() }}</p>
-                <p class="mt-1 text-xs text-slate-500">{{ $booking->nightsLabel() }} &middot; admin only</p>
             </div>
             <div class="flex flex-wrap items-center gap-3">
                 <span class="badge badge-{{ $booking->effectiveStatus() }} px-3 py-1 text-sm">{{ $booking->statusLabel() }}</span>
@@ -32,19 +31,15 @@
                     <a href="{{ route('admin.guests.edit', $booking) }}" class="text-sm font-semibold text-teal-800">Edit Details</a>
                 </div>
                 @php
-                    // Item 5: a requested time only shows here (and only needs one-click
-                    // approval) when it falls outside normal operating hours, i.e. it
-                    // would actually incur a fee. Anything already approved/denied, or
-                    // that matches the standard time, is not shown.
-                    $checkinNeedsReview = $booking->checkin_time_status === 'pending' && $booking->early_checkin_tier;
-                    $checkoutNeedsReview = $booking->checkout_time_status === 'pending' && $booking->late_checkout_type;
+                    $checkinNeedsReview = $booking->checkin_time_status === 'pending';
+                    $checkoutNeedsReview = $booking->checkout_time_status === 'pending';
                 @endphp
-                <dl class="mt-4 columns-1 gap-x-10 text-sm sm:columns-2 sm:[column-rule:1px_solid_theme(colors.slate.200)]">
+                <dl class="mt-4 grid gap-x-10 text-sm sm:grid-cols-2">
                     @foreach([
-                        ['info', 'Incidentals Charge', $booking->incidentals_charge !== null ? '$'.number_format($booking->incidentals_charge, 2) : 'Not set'],
+                        ['receipt', 'Incidentals Charge', $booking->incidentals_charge !== null ? '$'.number_format($booking->incidentals_charge, 2) : 'Not set'],
                         ...($booking->early_checkin_tier ? [['calendar', 'Early Check-in Charge', '$'.number_format($booking->earlyCheckinCharge() ?? 0, 2).' ('.(match($booking->early_checkin_tier) { '8am_12pm', '8am' => '8:00 AM - 12:00 PM', '12pm_2pm', '12pm' => '12:00 PM - 2:00 PM', '2pm_4pm' => '2:00 PM - 4:00 PM', default => $booking->early_checkin_tier }).' window)']] : []),
                         ...($booking->late_checkout_type ? [['clock', 'Late Checkout Charge', '$'.number_format($booking->lateCheckoutCharge() ?? 0, 2).' ('.ucfirst($booking->late_checkout_type).', billed per half-hour)']] : []),
-                        ['info', 'Total Pre-checkin Charge:', '$'.number_format($booking->calculatePreCheckinChargeCents() / 100, 2).' ('.$booking->preCheckinChargeBreakdown().')'],
+                        ['calculator', 'Total Pre-checkin Charge:', '$'.number_format($booking->calculatePreCheckinChargeCents() / 100, 2)],
                     ] as [$icon, $label, $value])
                         <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3 break-inside-avoid last:border-0">
                             <span class="flex items-center gap-2.5 text-slate-500"><x-icon :name="$icon" class="h-4 w-4 shrink-0 text-slate-400" />{{ $label }}</span>
@@ -52,7 +47,7 @@
                         </div>
                     @endforeach
 
-                    <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3 break-inside-avoid last:border-0">
+                    <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3 sm:col-start-2">
                         <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="parking" class="h-4 w-4 shrink-0 text-slate-400" />Parking</span>
                         <span class="font-semibold text-right">
                             @if($booking->parking_needed)
@@ -62,40 +57,60 @@
                             @endif
                         </span>
                     </div>
+                    @if($checkinNeedsReview || $checkoutNeedsReview)
+                    <div class="border-b border-slate-100 py-3 sm:col-start-2">
+                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Requested times</p>
+                        @if($checkinNeedsReview)
+                        <div class="mt-3 flex items-center justify-between gap-3">
+                            <div>
+                                <p class="text-sm text-slate-500">Check-in</p>
+                                <p class="font-semibold text-slate-950">{{ $booking->checkinTimePreferenceFormatted() }}</p>
+                            </div>
+                            <div class="flex shrink-0 gap-2">
+                                <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkin']) }}">
+                                    @csrf
+                                    <input type="hidden" name="decision" value="approved">
+                                    <button type="submit" title="Approve check-in time" aria-label="Approve check-in time" class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2">
+                                        <x-icon name="check-circle" class="h-4 w-4" />
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkin']) }}">
+                                    @csrf
+                                    <input type="hidden" name="decision" value="denied">
+                                    <button type="submit" title="Reject check-in time" aria-label="Reject check-in time" class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-300 focus:ring-offset-2">
+                                        <x-icon name="x-circle" class="h-4 w-4" />
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        @endif
+                        @if($checkoutNeedsReview)
+                        <div class="mt-3 flex items-center justify-between gap-3 {{ $checkinNeedsReview ? 'border-t border-slate-100 pt-3' : '' }}">
+                            <div>
+                                <p class="text-sm text-slate-500">Check-out</p>
+                                <p class="font-semibold text-slate-950">{{ $booking->checkoutTimePreferenceFormatted() }}</p>
+                            </div>
+                            <div class="flex shrink-0 gap-2">
+                                <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkout']) }}">
+                                    @csrf
+                                    <input type="hidden" name="decision" value="approved">
+                                    <button type="submit" title="Approve check-out time" aria-label="Approve check-out time" class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2">
+                                        <x-icon name="check-circle" class="h-4 w-4" />
+                                    </button>
+                                </form>
+                                <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkout']) }}">
+                                    @csrf
+                                    <input type="hidden" name="decision" value="denied">
+                                    <button type="submit" title="Reject check-out time" aria-label="Reject check-out time" class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-300 focus:ring-offset-2">
+                                        <x-icon name="x-circle" class="h-4 w-4" />
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                        @endif
+                    </div>
+                    @endif
                 </dl>
-
-                @if($checkinNeedsReview || $checkoutNeedsReview)
-                <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
-                    <p class="text-xs font-semibold uppercase tracking-wide text-amber-800">Requested time outside normal hours &middot; incurs a fee</p>
-                    @if($checkinNeedsReview)
-                    <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <p class="text-sm text-slate-500">Requested Check-in Time</p>
-                            <p class="font-semibold text-slate-950">{{ $booking->checkinTimePreferenceFormatted() }} <span class="text-slate-500 font-normal">(standard: {{ $booking->standardCheckinTimeFormatted() }})</span></p>
-                        </div>
-                        <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkin']) }}">
-                            @csrf
-                            <input type="hidden" name="decision" value="approved">
-                            <button type="submit" class="btn-primary gap-2"><x-icon name="check" class="h-4 w-4" />Approve</button>
-                        </form>
-                    </div>
-                    @endif
-                    @if($checkoutNeedsReview)
-                    <div class="mt-3 flex flex-wrap items-center justify-between gap-3 {{ $checkinNeedsReview ? 'border-t border-amber-200 pt-3' : '' }}">
-                        <div>
-                            <p class="text-sm text-slate-500">Requested Check-out Time</p>
-                            <p class="font-semibold text-slate-950">{{ $booking->checkoutTimePreferenceFormatted() }} <span class="text-slate-500 font-normal">(standard: {{ $booking->standardCheckoutTimeFormatted() }})</span></p>
-                        </div>
-                        <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkout']) }}">
-                            @csrf
-                            <input type="hidden" name="decision" value="approved">
-                            <button type="submit" class="btn-primary gap-2"><x-icon name="check" class="h-4 w-4" />Approve</button>
-                        </form>
-                    </div>
-                    @endif
-                    <p class="mt-2 text-xs text-amber-700">Approving commits the time and recalculates the pre-checkin charge shown above, before the guest reaches the incidentals payment screen.</p>
-                </div>
-                @endif
                 @if($booking->photo_id_front_declined_reason)
                     <div class="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800"><span class="font-semibold">Front ID decline reason:</span> {{ $booking->photo_id_front_declined_reason }}</div>
                 @endif
@@ -188,56 +203,6 @@
                         <div class="mt-5 rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">All ID photos approved{{ $booking->approved_at ? ' on '.$booking->approved_at->format('M j, Y g:i A') : '' }}</div>
                     @endif
                 </section>
-
-                @if($booking->checkin_time_status === 'pending' || $booking->checkout_time_status === 'pending')
-                {{-- Task 0: guest-requested non-standard time needs admin review before it applies; may carry a charge (see task 26 billing). Manual review only, no auto-notification. --}}
-                <section class="card card-pad lg:col-span-2">
-                    <h2 class="section-title">Time Preference Review</h2>
-                    <p class="section-copy">The guest requested a non-standard time below. It will not take effect until approved — the system will keep using the property's standard time in the meantime. Approving does not automatically apply a charge; set the early check-in / late checkout billing fields separately if one applies. No automatic notification is sent to the guest.</p>
-
-                    @if($booking->checkin_time_status === 'pending')
-                    <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-                        <div>
-                            <p class="text-sm text-slate-500">Requested Check-in Time</p>
-                            <p class="font-semibold text-slate-950">{{ $booking->checkinTimePreferenceFormatted() }} <span class="text-slate-500 font-normal">(standard: {{ $booking->standardCheckinTimeFormatted() }})</span></p>
-                        </div>
-                        <div class="flex gap-2">
-                            <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkin']) }}">
-                                @csrf
-                                <input type="hidden" name="decision" value="approved">
-                                <button type="submit" class="btn-primary">Approve</button>
-                            </form>
-                            <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkin']) }}">
-                                @csrf
-                                <input type="hidden" name="decision" value="denied">
-                                <button type="submit" class="btn-secondary">Deny</button>
-                            </form>
-                        </div>
-                    </div>
-                    @endif
-
-                    @if($booking->checkout_time_status === 'pending')
-                    <div class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4">
-                        <div>
-                            <p class="text-sm text-slate-500">Requested Check-out Time</p>
-                            <p class="font-semibold text-slate-950">{{ $booking->checkoutTimePreferenceFormatted() }} <span class="text-slate-500 font-normal">(standard: {{ $booking->standardCheckoutTimeFormatted() }})</span></p>
-                        </div>
-                        <div class="flex gap-2">
-                            <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkout']) }}">
-                                @csrf
-                                <input type="hidden" name="decision" value="approved">
-                                <button type="submit" class="btn-primary">Approve</button>
-                            </form>
-                            <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkout']) }}">
-                                @csrf
-                                <input type="hidden" name="decision" value="denied">
-                                <button type="submit" class="btn-secondary">Deny</button>
-                            </form>
-                        </div>
-                    </div>
-                    @endif
-                </section>
-                @endif
 
                 @if($booking->parking_needed)
                 {{-- Vehicle / license plate photo, task 34 --}}
