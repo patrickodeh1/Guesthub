@@ -26,7 +26,7 @@
                                 <textarea name="alerts[{{ $key }}][staff_message]" rows="3" class="input">{{ old("alerts.$key.staff_message", $row['staff_message']) }}</textarea>
                             </label>
                         </div>
-                        <p class="field-help">Available tokens: {guest_name}, {property_name}, {check_in_date}, {check_in_time}, {check_out_date}, {check_out_time}, {parking_status}, {step_name}@if($key === 'photo_id_declined'), {id_side}, {decline_reason}@endif</p>
+                        <p class="field-help">Available tokens: {guest_name}, {guest_first_name}, {property_name}, {check_in_date}, {check_in_time}, {check_out_date}, {check_out_time}, {parking_status}, {step_name}@if($key === 'photo_id_declined'), {id_side}, {decline_reason}@endif</p>
 
                         <div class="overflow-x-auto">
                             <table class="w-full text-sm">

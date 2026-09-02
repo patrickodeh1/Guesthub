@@ -245,10 +245,10 @@
 
                     <div class="rounded-xl border border-[#eadfc8] bg-[#fffaf1] p-4">
                         <p class="text-sm font-semibold text-slate-800">Guest message templates</p>
-                        <textarea id="guest-message" readonly class="textarea min-h-24">Hi {{ $booking->guest_name }}, your secure check-in page is ready: {{ $booking->publicUrl() }}</textarea>
+                        <textarea id="guest-message" readonly class="textarea min-h-24">Hi {{ (explode(' ', trim($booking->guest_name))[0]) }}, your secure check-in page is ready: {{ $booking->publicUrl() }}</textarea>
                         <div class="mt-3 flex flex-wrap gap-2">
                             <button type="button" data-copy="#guest-message" class="btn-secondary gap-2"><x-icon name="copy" class="h-4 w-4" />Copy Full Message</button>
-                            <a class="btn-secondary gap-2" href="https://wa.me/?text={{ urlencode('Hi '.$booking->guest_name.', your secure check-in page is ready: '.$booking->publicUrl()) }}" target="_blank"><x-icon name="contact-guest-services" class="h-4 w-4" />WhatsApp</a>
+                            <a class="btn-secondary gap-2" href="https://wa.me/?text={{ urlencode('Hi '.(explode(' ', trim($booking->guest_name))[0]).', your secure check-in page is ready: '.$booking->publicUrl()) }}" target="_blank"><x-icon name="contact-guest-services" class="h-4 w-4" />WhatsApp</a>
                         </div>
 
                         <div class="mt-5 border-t border-[#eadfc8] pt-4">

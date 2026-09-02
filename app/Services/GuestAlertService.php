@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Mail;
  * over which channel(s).
  *
  * Each event has a separate "guest" wording and "staff" wording, since the
- * guest-facing copy ("Hi {guest_name}, you're checked in!") reads wrong when
+ * guest-facing copy ("Hi {guest_first_name}, you're checked in!") reads wrong when
  * forwarded to staff, who need it phrased as a notice about the guest
  * instead. Recipients are: the guest themselves, the Contact desk (Settings
  * > General contact_phone/contact_email), and each staff role (owner,
@@ -33,47 +33,47 @@ class GuestAlertService
     public const EVENTS = [
         'registration_received' => [
             'label' => 'Registration received',
-            'default_guest_message' => "GuestHub: Hi {guest_name}, thanks for registering for {property_name}! We're reviewing your details now and will let you know as soon as the next step is ready.",
+            'default_guest_message' => "GuestHub: Hi {guest_first_name}, thanks for registering for {property_name}! We're reviewing your details now and will let you know as soon as the next step is ready.",
             'default_staff_message' => 'GuestHub alert: New registration submitted for {property_name} by {guest_name}. Review it in the admin panel.',
         ],
         'background_check_complete' => [
             'label' => 'Background check complete',
-            'default_guest_message' => "GuestHub: Hi {guest_name}, good news! Your {step_name} for {property_name} is complete. We'll follow up with next steps shortly.",
+            'default_guest_message' => "GuestHub: Hi {guest_first_name}, good news! Your {step_name} for {property_name} is complete. We'll follow up with next steps shortly.",
             'default_staff_message' => "GuestHub alert: {guest_name}'s {step_name} for {property_name} came back complete.",
         ],
         'fully_approved' => [
             'label' => 'Fully approved',
-            'default_guest_message' => "GuestHub: Hi {guest_name}, you're fully approved for {property_name}! Check-in: {check_in_time} on {check_in_date}. Check-out: {check_out_time} on {check_out_date}. Parking: {parking_status}.",
+            'default_guest_message' => "GuestHub: Hi {guest_first_name}, you're fully approved for {property_name}! Check-in: {check_in_time} on {check_in_date}. Check-out: {check_out_time} on {check_out_date}. Parking: {parking_status}.",
             'default_staff_message' => 'GuestHub alert: {guest_name} was just marked fully approved for {property_name}. Check-in {check_in_date} at {check_in_time}, check-out {check_out_date} at {check_out_time}. Parking: {parking_status}.',
         ],
         'time_to_check_in' => [
             'label' => 'Time to check in',
-            'default_guest_message' => "GuestHub: Hi {guest_name}, today's the day! Check-in at {property_name} opens at {check_in_time}.",
+            'default_guest_message' => "GuestHub: Hi {guest_first_name}, today's the day! Check-in at {property_name} opens at {check_in_time}.",
             'default_staff_message' => 'GuestHub alert: {guest_name} is due to check in today at {property_name}, opening at {check_in_time}. Make sure the unit is ready.',
         ],
         'checkin_completed' => [
             'label' => 'Check-in completed',
-            'default_guest_message' => "GuestHub: Hi {guest_name}, you're checked in at {property_name}. Enjoy your stay!",
+            'default_guest_message' => "GuestHub: Hi {guest_first_name}, you're checked in at {property_name}. Enjoy your stay!",
             'default_staff_message' => 'GuestHub alert: {guest_name} has just checked in at {property_name}.',
         ],
         'checkout_completed' => [
             'label' => 'Check-out completed',
-            'default_guest_message' => 'GuestHub: Hi {guest_name}, thanks for staying at {property_name}. You are now checked out. Safe travels!',
+            'default_guest_message' => 'GuestHub: Hi {guest_first_name}, thanks for staying at {property_name}. You are now checked out. Safe travels!',
             'default_staff_message' => 'GuestHub alert: {guest_name} has just checked out of {property_name}. The unit is ready for turnover.',
         ],
         'deposit_paid' => [
             'label' => 'Deposit paid',
-            'default_guest_message' => 'GuestHub: Hi {guest_name}, your incidentals deposit for {property_name} has been received. Thanks!',
+            'default_guest_message' => 'GuestHub: Hi {guest_first_name}, your incidentals deposit for {property_name} has been received. Thanks!',
             'default_staff_message' => 'GuestHub alert: {guest_name} paid their incidentals deposit online for {property_name}.',
         ],
         'early_checkin_granted' => [
             'label' => 'Early check-in granted',
-            'default_guest_message' => 'GuestHub: Hi {guest_name}, your early check-in request for {property_name} has been approved. Please visit your check-in link to complete payment.',
+            'default_guest_message' => 'GuestHub: Hi {guest_first_name}, your early check-in request for {property_name} has been approved. Please visit your check-in link to complete payment.',
             'default_staff_message' => 'GuestHub alert: Early check-in was granted for {guest_name} at {property_name}.',
         ],
         'post_checkout_balance_due' => [
             'label' => 'Post-checkout balance due',
-            'default_guest_message' => 'GuestHub: Hi {guest_name}, an additional balance is due for your stay at {property_name}. Please visit your check-in link to complete payment.',
+            'default_guest_message' => 'GuestHub: Hi {guest_first_name}, an additional balance is due for your stay at {property_name}. Please visit your check-in link to complete payment.',
             'default_staff_message' => 'GuestHub alert: A post-checkout balance (late checkout / incidentals) is now due for {guest_name} at {property_name}.',
         ],
         'pms_booking_received' => [
@@ -93,12 +93,12 @@ class GuestAlertService
         ],
         'photo_id_uploaded' => [
             'label' => 'Photo ID uploaded',
-            'default_guest_message' => 'GuestHub: Hi {guest_name}, your photo ID for {property_name} was received and is being reviewed. No action needed for now.',
+            'default_guest_message' => 'GuestHub: Hi {guest_first_name}, your photo ID for {property_name} was received and is being reviewed. No action needed for now.',
             'default_staff_message' => 'GuestHub alert: {guest_name} uploaded a photo ID for {property_name}. Please log in and review it.',
         ],
         'photo_id_declined' => [
             'label' => 'Photo ID declined',
-            'default_guest_message' => 'GuestHub: Hi {guest_name}, the {id_side} of your ID for {property_name} was not approved. Reason: {decline_reason}. Please log back in to re-upload it.',
+            'default_guest_message' => 'GuestHub: Hi {guest_first_name}, the {id_side} of your ID for {property_name} was not approved. Reason: {decline_reason}. Please log back in to re-upload it.',
             'default_staff_message' => 'GuestHub alert: The {id_side} of {guest_name}\'s ID for {property_name} was declined. Reason: {decline_reason}. Guest has been asked to re-upload.',
         ],
     ];
@@ -420,6 +420,7 @@ class GuestAlertService
 
         $tokens = [
             '{guest_name}' => $booking->guest_name,
+            '{guest_first_name}' => trim(explode(' ', trim($booking->guest_name))[0] ?? '') ?: $booking->guest_name,
             '{property_name}' => $booking->property?->name ?? 'your property',
             '{check_in_date}' => $booking->check_in_date?->format('M j, Y') ?? '',
             '{check_out_date}' => $booking->check_out_date?->format('M j, Y') ?? '',

@@ -97,7 +97,7 @@
                     {{-- ══════════════════ STEP 1 — Welcome + Booking details (read-only) ══════════════════ --}}
                     <div class="idw-step" data-step="0">
                         <div class="px-0 pb-2">
-                            <h2 class="text-xl font-extrabold text-slate-950">Welcome, {{ $booking->guest_first_name ?: explode(' ', trim($booking->guest_name))[0] }}!</h2>
+                            <h2 class="text-xl font-extrabold text-slate-950">Welcome, {{ explode(' ', trim($booking->guest_name))[0] }}!</h2>
                         </div>
                         <div class="guest-stay-grid mt-5">
                             <div class="guest-stay-tile">
