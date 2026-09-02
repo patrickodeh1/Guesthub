@@ -9,16 +9,16 @@
     <section class="card card-pad mb-6">
         <div class="flex flex-wrap items-center justify-between gap-4">
             <div>
-                <p class="eyebrow">Booking {{ $booking->booking_id }} &middot; RID: {{ $booking->reservation_id ?: 'Not set' }}</p>
-                <h1 class="page-title !mt-0.5">{{ $booking->guest_name }}</h1>
-                <p class="page-subtitle !mt-1">{{ $booking->property->name }} · {{ $booking->stayRangeLabel() }}</p>
+                <h1 class="page-title !mt-0.5 text-2xl font-bold">{{ $booking->guest_name }}</h1>
+                <p class="page-subtitle !mt-1">{{ $booking->property->name }}</p>
+                <p class="page-subtitle !mt-1">{{ $booking->stayRangeLabel() }}</p>
+                <p class="mt-1 text-xs text-slate-500">{{ $booking->nightsLabel() }} &middot; admin only</p>
             </div>
             <div class="flex flex-wrap items-center gap-3">
-                <div class="text-right">
-                    <p class="text-xs text-slate-500">Current Status</p>
-                    <span class="badge badge-{{ $booking->effectiveStatus() }} mt-1 px-3 py-1 text-sm">{{ $booking->statusLabel() }}</span>
-                </div>
-                <a href="{{ route('admin.guests.edit', $booking) }}" class="btn-primary">Edit Guest</a>
+                <span class="badge badge-{{ $booking->effectiveStatus() }} px-3 py-1 text-sm">{{ $booking->statusLabel() }}</span>
+                <a href="{{ route('admin.guests.edit', $booking) }}" title="Edit Guest" aria-label="Edit Guest" class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-800">
+                    <x-icon name="edit" class="h-4 w-4" />
+                </a>
             </div>
         </div>
     </section>
@@ -31,33 +31,71 @@
                     <h2 class="section-title">Guest Details</h2>
                     <a href="{{ route('admin.guests.edit', $booking) }}" class="text-sm font-semibold text-teal-800">Edit Details</a>
                 </div>
+                @php
+                    // Item 5: a requested time only shows here (and only needs one-click
+                    // approval) when it falls outside normal operating hours, i.e. it
+                    // would actually incur a fee. Anything already approved/denied, or
+                    // that matches the standard time, is not shown.
+                    $checkinNeedsReview = $booking->checkin_time_status === 'pending' && $booking->early_checkin_tier;
+                    $checkoutNeedsReview = $booking->checkout_time_status === 'pending' && $booking->late_checkout_type;
+                @endphp
                 <dl class="mt-4 columns-1 gap-x-10 text-sm sm:columns-2 sm:[column-rule:1px_solid_theme(colors.slate.200)]">
                     @foreach([
-                        ['calendar', 'Check-in Date', $booking->check_in_date ? $booking->check_in_date->format('M j, Y') : 'Not set'],
-                        ['calendar', 'Check-out Date', $booking->check_out_date ? $booking->check_out_date->format('M j, Y').' '.$booking->nightsLabel() : 'Not set'],
-                        ['mail', 'Email', $booking->email ?: 'No email yet'],
-                        ['contact-guest-services', 'Phone', $booking->formatted_phone ?: 'No phone on file'],
-                        ['security', 'ID Type', $booking->id_type === 'passport' ? 'Passport' : 'State-issued ID'],
-                        ['parking', 'Parking', is_null($booking->parking_needed) ? 'Unknown' : ($booking->parking_needed ? 'Needed' : 'Not needed')],
-                        ...($booking->parking_needed ? [['parking', 'Parking Charge', '$'.number_format($booking->effectiveParkingCharge() ?? 0, 2).($booking->parking_charge_override !== null ? ' (manual override)' : ' (auto-calculated)')]] : []),
-                        ...($booking->parking_needed ? [['parking', 'Vehicle', $booking->vehicle_make_model ?: 'Not provided']] : []),
                         ['info', 'Incidentals Charge', $booking->incidentals_charge !== null ? '$'.number_format($booking->incidentals_charge, 2) : 'Not set'],
                         ...($booking->early_checkin_tier ? [['calendar', 'Early Check-in Charge', '$'.number_format($booking->earlyCheckinCharge() ?? 0, 2).' ('.(match($booking->early_checkin_tier) { '8am_12pm', '8am' => '8:00 AM - 12:00 PM', '12pm_2pm', '12pm' => '12:00 PM - 2:00 PM', '2pm_4pm' => '2:00 PM - 4:00 PM', default => $booking->early_checkin_tier }).' window)']] : []),
                         ...($booking->late_checkout_type ? [['clock', 'Late Checkout Charge', '$'.number_format($booking->lateCheckoutCharge() ?? 0, 2).' ('.ucfirst($booking->late_checkout_type).', billed per half-hour)']] : []),
                         ['info', 'Total Pre-checkin Charge:', '$'.number_format($booking->calculatePreCheckinChargeCents() / 100, 2).' ('.$booking->preCheckinChargeBreakdown().')'],
-                        ['clock', 'Requested Check-in Time', ($booking->checkinTimePreferenceFormatted() ?: 'Not specified').($booking->checkin_time_status ? ' ('.ucfirst($booking->checkin_time_status).')' : '')],
-                        ['clock', 'Requested Check-out Time', ($booking->checkoutTimePreferenceFormatted() ?: 'Not specified').($booking->checkout_time_status ? ' ('.ucfirst($booking->checkout_time_status).')' : '')],
-                        ['upload', 'Photo ID Already Received', $booking->photo_id_received ? 'Yes' : 'No'],
-                        ['map', 'GPS', $booking->gps_verified ? 'Verified' : 'Not verified'],
-                        ['contact-guest-services', 'Checked In At', $booking->checked_in_at ? $booking->checked_in_at->format('M j, Y g:i A') : 'Not yet'],
-                        ['contact-guest-services', 'Checked Out At', $booking->checked_out_at ? $booking->checked_out_at->format('M j, Y g:i A') : 'Not yet'],
                     ] as [$icon, $label, $value])
                         <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3 break-inside-avoid last:border-0">
                             <span class="flex items-center gap-2.5 text-slate-500"><x-icon :name="$icon" class="h-4 w-4 shrink-0 text-slate-400" />{{ $label }}</span>
                             <span class="font-semibold text-slate-950 text-right">{{ $value }}</span>
                         </div>
                     @endforeach
+
+                    <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3 break-inside-avoid last:border-0">
+                        <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="parking" class="h-4 w-4 shrink-0 text-slate-400" />Parking</span>
+                        <span class="font-semibold text-right">
+                            @if($booking->parking_needed)
+                                <x-icon name="check" class="inline h-4 w-4 text-emerald-600" />
+                            @else
+                                <x-icon name="x" class="inline h-4 w-4 text-red-600" />
+                            @endif
+                        </span>
+                    </div>
                 </dl>
+
+                @if($checkinNeedsReview || $checkoutNeedsReview)
+                <div class="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-amber-800">Requested time outside normal hours &middot; incurs a fee</p>
+                    @if($checkinNeedsReview)
+                    <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <p class="text-sm text-slate-500">Requested Check-in Time</p>
+                            <p class="font-semibold text-slate-950">{{ $booking->checkinTimePreferenceFormatted() }} <span class="text-slate-500 font-normal">(standard: {{ $booking->standardCheckinTimeFormatted() }})</span></p>
+                        </div>
+                        <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkin']) }}">
+                            @csrf
+                            <input type="hidden" name="decision" value="approved">
+                            <button type="submit" class="btn-primary gap-2"><x-icon name="check" class="h-4 w-4" />Approve</button>
+                        </form>
+                    </div>
+                    @endif
+                    @if($checkoutNeedsReview)
+                    <div class="mt-3 flex flex-wrap items-center justify-between gap-3 {{ $checkinNeedsReview ? 'border-t border-amber-200 pt-3' : '' }}">
+                        <div>
+                            <p class="text-sm text-slate-500">Requested Check-out Time</p>
+                            <p class="font-semibold text-slate-950">{{ $booking->checkoutTimePreferenceFormatted() }} <span class="text-slate-500 font-normal">(standard: {{ $booking->standardCheckoutTimeFormatted() }})</span></p>
+                        </div>
+                        <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkout']) }}">
+                            @csrf
+                            <input type="hidden" name="decision" value="approved">
+                            <button type="submit" class="btn-primary gap-2"><x-icon name="check" class="h-4 w-4" />Approve</button>
+                        </form>
+                    </div>
+                    @endif
+                    <p class="mt-2 text-xs text-amber-700">Approving commits the time and recalculates the pre-checkin charge shown above, before the guest reaches the incidentals payment screen.</p>
+                </div>
+                @endif
                 @if($booking->photo_id_front_declined_reason)
                     <div class="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800"><span class="font-semibold">Front ID decline reason:</span> {{ $booking->photo_id_front_declined_reason }}</div>
                 @endif
@@ -226,7 +264,7 @@
                 <button type="button" onclick="toggleCommunicationSection()" class="flex w-full items-center justify-between text-left">
                     <div>
                         <h2 class="section-title">Communication</h2>
-                        <p class="section-copy">Share secure link, send messages and customize welcome message.</p>
+                        <p class="section-copy">Share the guest's secure link.</p>
                     </div>
                     <span id="communication-chevron" class="transition-transform duration-150">
                         <x-icon name="chevron-right" class="h-5 w-5 text-slate-400" />
@@ -240,26 +278,6 @@
                         <div class="mt-3 flex flex-col gap-2 sm:flex-row">
                             <input id="guest-url" readonly value="{{ $booking->publicUrl() }}" class="input mt-0 min-w-0 flex-1">
                             <button type="button" data-copy="#guest-url" class="btn-primary gap-2"><x-icon name="copy" class="h-4 w-4" />Copy URL</button>
-                        </div>
-                    </div>
-
-                    <div class="rounded-xl border border-[#eadfc8] bg-[#fffaf1] p-4">
-                        <p class="text-sm font-semibold text-slate-800">Guest message templates</p>
-                        <textarea id="guest-message" readonly class="textarea min-h-24">Hi {{ (explode(' ', trim($booking->guest_name))[0]) }}, your secure check-in page is ready: {{ $booking->publicUrl() }}</textarea>
-                        <div class="mt-3 flex flex-wrap gap-2">
-                            <button type="button" data-copy="#guest-message" class="btn-secondary gap-2"><x-icon name="copy" class="h-4 w-4" />Copy Full Message</button>
-                            <a class="btn-secondary gap-2" href="https://wa.me/?text={{ urlencode('Hi '.(explode(' ', trim($booking->guest_name))[0]).', your secure check-in page is ready: '.$booking->publicUrl()) }}" target="_blank"><x-icon name="contact-guest-services" class="h-4 w-4" />WhatsApp</a>
-                        </div>
-
-                        <div class="mt-5 border-t border-[#eadfc8] pt-4">
-                            <p class="text-sm font-semibold text-slate-800">Custom welcome message for this guest</p>
-                            <p class="mt-1 text-xs text-slate-500">Optional. If left blank, the global default intro from Settings is used instead.</p>
-                            <form method="post" action="{{ route('admin.guests.welcome-message', $booking) }}" class="mt-3">
-                                @csrf
-                                @method('put')
-                                <textarea id="welcome-message-editor" name="welcome_message" rows="5" class="textarea">{{ old('welcome_message', $booking->welcome_message) }}</textarea>
-                                <button class="btn-primary mt-3">Save Welcome Message</button>
-                            </form>
                         </div>
                     </div>
                     </div>
@@ -276,42 +294,57 @@
 
 
                 <div class="mt-5 grid gap-2.5">
-                    @if($booking->isApproved())
-                        @if($booking->isBackgroundCheckComplete())
-                            <div class="rounded-lg bg-indigo-50 border border-indigo-200 p-3 text-sm text-indigo-800 font-semibold">{{ \App\Models\Setting::getValue('background_check_step_name', 'Background Check') }} completed {{ $booking->background_check_completed_at->format('M j, Y g:i A') }}</div>
-                        @else
-                            <form method="post" action="{{ route('admin.guests.background-check', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="shield-alert" class="h-4 w-4" />Mark {{ \App\Models\Setting::getValue('background_check_step_name', 'Background Check') }} Complete</button></form>
-                        @endif
+                    {{-- Item 6: exactly 3, in order: Background Passed -> Deposit Verified -> Override GPS --}}
+                    @if(! $booking->isApproved())
+                        <div class="rounded-lg bg-slate-50 border border-slate-200 p-3 text-sm text-slate-500">Waiting on Photo ID approval before {{ \App\Models\Setting::getValue('background_check_step_name', 'Background Check') }} can be marked.</div>
+                    @elseif($booking->isBackgroundCheckComplete())
+                        <div class="rounded-lg bg-indigo-50 border border-indigo-200 p-3 text-sm text-indigo-800 font-semibold">{{ \App\Models\Setting::getValue('background_check_step_name', 'Background Check') }} completed {{ $booking->background_check_completed_at->format('M j, Y g:i A') }}</div>
+                    @else
+                        <form method="post" action="{{ route('admin.guests.background-check', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="shield-alert" class="h-4 w-4" />Background Passed</button></form>
                     @endif
+
                     @if($booking->isBackgroundCheckComplete())
                         @if($booking->isDepositVerified())
                             <div class="rounded-lg bg-teal-50 border border-teal-200 p-3 text-sm text-teal-800 font-semibold">Deposit verified {{ $booking->deposit_verified_at->format('M j, Y g:i A') }}</div>
                         @else
-                            <form method="post" action="{{ route('admin.guests.deposit-verified', $booking) }}" data-confirm-title="Mark Deposit Verified?" data-confirm="This will fully approve the guest. Before continuing, verify the guest has actually paid everything owed on / outside the platform: incidentals, parking, and early check-in (if applicable). This action does not check or record any of those payments itself.">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="lock" class="h-4 w-4" />Mark Deposit Verified</button></form>
+                            <form method="post" action="{{ route('admin.guests.deposit-verified', $booking) }}" data-confirm-title="Mark Deposit Verified?" data-confirm="This will fully approve the guest. Before continuing, verify the guest has actually paid everything owed on / outside the platform: incidentals, parking, and early check-in (if applicable). This action does not check or record any of those payments itself.">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="lock" class="h-4 w-4" />Deposit Verified</button></form>
                         @endif
                     @endif
-                    <form method="post" action="{{ route('admin.guests.override-gps', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="map" class="h-4 w-4" />Override GPS Verification</button></form>
-                    <form method="post" action="{{ route('admin.guests.override', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="contact-guest-services" class="h-4 w-4" />Manually Mark Checked In</button></form>
-                    <form method="post" action="{{ route('admin.guests.override-checkout', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="contact-guest-services" class="h-4 w-4" />Manually Mark Checked Out</button></form>
-                    <form method="post" action="{{ route('admin.guests.mark-id', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="upload" class="h-4 w-4" />Mark Photo ID Received</button></form>
-                    <form method="post" action="{{ route('admin.guests.bypass-vehicle-info', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="car" class="h-4 w-4" />Bypass Vehicle Info</button></form>
+
+                    <form method="post" action="{{ route('admin.guests.override-gps', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="map" class="h-4 w-4" />Override GPS</button></form>
 
                     @if($booking->access_blocked_at)
                         <div class="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-800">
                             <span class="font-semibold">Access blocked</span> since {{ $booking->access_blocked_at->format('M j, Y g:i A') }}
                             <p class="mt-1">{{ $booking->access_blocked_reason }}</p>
                         </div>
-                        <form method="post" action="{{ route('admin.guests.unblock-access', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="unlock" class="h-4 w-4" />Restore Access</button></form>
-                    @else
-                        <button type="button" class="btn-danger w-full gap-2" onclick="document.getElementById('block-form-{{ $booking->id }}').classList.toggle('hidden')">
-                            <x-icon name="alert-triangle" class="h-4 w-4" />Block Access
-                        </button>
-                        <form id="block-form-{{ $booking->id }}" method="post" action="{{ route('admin.guests.block-access', $booking) }}" class="hidden grid gap-2">
-                            @csrf
-                            <textarea name="access_blocked_reason" class="input" rows="3" placeholder="Reason (shown to guest)" required>{{ old('access_blocked_reason') }}</textarea>
-                            <button class="btn-secondary w-full">Submit Block</button>
-                        </form>
                     @endif
+
+                    {{-- Item 6: Manual Check-In/Out, Photo ID review, and Block Access move to a sub-menu --}}
+                    <div class="relative mt-1">
+                        <button type="button" onclick="document.getElementById('quick-actions-more-{{ $booking->id }}').classList.toggle('hidden')" class="btn-secondary w-full gap-2">
+                            <x-icon name="more-vertical" class="h-4 w-4" />More actions
+                        </button>
+                        <div id="quick-actions-more-{{ $booking->id }}" class="hidden mt-2 grid gap-2.5 rounded-lg border border-slate-200 p-3">
+                            <form method="post" action="{{ route('admin.guests.override', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="contact-guest-services" class="h-4 w-4" />Manually Mark Checked In</button></form>
+                            <form method="post" action="{{ route('admin.guests.override-checkout', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="contact-guest-services" class="h-4 w-4" />Manually Mark Checked Out</button></form>
+                            <form method="post" action="{{ route('admin.guests.mark-id', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="upload" class="h-4 w-4" />Mark Photo ID Received</button></form>
+                            <form method="post" action="{{ route('admin.guests.bypass-vehicle-info', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="car" class="h-4 w-4" />Bypass Vehicle Info</button></form>
+
+                            @if($booking->access_blocked_at)
+                                <form method="post" action="{{ route('admin.guests.unblock-access', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="unlock" class="h-4 w-4" />Restore Access</button></form>
+                            @else
+                                <button type="button" class="btn-danger w-full gap-2" onclick="document.getElementById('block-form-{{ $booking->id }}').classList.toggle('hidden')">
+                                    <x-icon name="alert-triangle" class="h-4 w-4" />Block Access
+                                </button>
+                                <form id="block-form-{{ $booking->id }}" method="post" action="{{ route('admin.guests.block-access', $booking) }}" class="hidden grid gap-2">
+                                    @csrf
+                                    <textarea name="access_blocked_reason" class="input" rows="3" placeholder="Reason (shown to guest)" required>{{ old('access_blocked_reason') }}</textarea>
+                                    <button class="btn-secondary w-full">Submit Block</button>
+                                </form>
+                            @endif
+                        </div>
+                    </div>
                 </div>
             </section>
 
