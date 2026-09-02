@@ -91,8 +91,6 @@ class BookingController extends Controller
         $this->enforcePreCheckinCap($data);
         $data['booking_id'] = ($data['booking_id'] ?? null) ?: 'BK-'.strtoupper(Str::random(8));
         $data['token']      = Str::random(40);
-        $data['early_checkin'] = $request->boolean('early_checkin');
-        $data['pay_by_cc'] = $request->boolean('pay_by_cc');
         $data['photo_id_received'] = $request->boolean('photo_id_received');
         if (($data['status'] ?? null) === 'pre_checkin_complete') {
             $data['photo_id_received'] = true;
@@ -206,8 +204,6 @@ class BookingController extends Controller
         $oldIncidentalsCharge = (float) ($booking->incidentals_charge ?? 0);
         $data = $this->validated($request, $booking);
         $this->enforcePreCheckinCap($data);
-        $data['early_checkin'] = $request->boolean('early_checkin');
-        $data['pay_by_cc'] = $request->boolean('pay_by_cc');
         $data['photo_id_received'] = $request->boolean('photo_id_received');
         if (($data['status'] ?? null) === 'pre_checkin_complete') {
             $data['photo_id_received'] = true;
@@ -370,6 +366,21 @@ class BookingController extends Controller
         ]);
 
         return back()->with('success', 'Photo ID marked as received.');
+    }
+
+    public function bypassVehicleInfo(Booking $booking)
+    {
+        $booking->update([
+            'vehicle_info_bypassed_at' => now(),
+        ]);
+        ActivityLogService::admin('vehicle_info_bypassed', auth()->user()->name." bypassed vehicle info for {$booking->guest_name}.", 'vehicle_info', [
+            'subject_type' => Booking::class,
+            'subject_id'   => $booking->id,
+            'booking_id'   => $booking->id,
+            'property_id'  => $booking->property_id,
+            'severity'     => 'success',
+        ]);
+        return back()->with('success', 'Vehicle info requirement bypassed.');
     }
 
     public function approveBooking(Booking $booking)
@@ -714,7 +725,6 @@ class BookingController extends Controller
             'parking_needed' => ['nullable', 'boolean'],
             'parking_charge_override' => ['nullable', 'numeric', 'min:0'],
             'incidentals_charge' => ['nullable', 'numeric', 'min:0'],
-            'early_checkin'  => ['nullable', 'boolean'],
             'early_checkin_tier' => ['nullable', 'in:8am_12pm,12pm_2pm,2pm_4pm,8am,12pm'],
             'late_checkout_type' => ['nullable', 'in:authorized,unauthorized'],
             'late_checkout_hours' => ['nullable', 'numeric', 'min:0'],

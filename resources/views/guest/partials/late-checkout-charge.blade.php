@@ -7,8 +7,7 @@
         ->where('type', \App\Models\Charge::TYPE_LATE_CHECKOUT)
         ->where('status', \App\Models\Charge::STATUS_SUCCESS)
         ->exists();
-    $showLateCheckoutCharge = $booking->pay_by_cc
-        && $lateCheckoutAmountCents > 0
+    $showLateCheckoutCharge = $lateCheckoutAmountCents > 0
         && ! $lateCheckoutPaid
         && $stripeConfiguredForCharges;
 @endphp

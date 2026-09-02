@@ -39,6 +39,7 @@ class SettingsController extends Controller
             'gps_verify_message' => ['nullable', 'string', 'max:500'],
             'lock_message' => ['nullable', 'string', 'max:500'],
             'background_check_step_instructions' => ['nullable', 'string', 'max:1000'],
+            'airbnb_payment_instructions' => ['nullable', 'string', 'max:1000'],
             'default_deposit_cap_dollars' => ['nullable', 'numeric', 'min:0', 'max:100000'],
             'processing_fee_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
         ]);
@@ -147,6 +148,7 @@ class SettingsController extends Controller
             'lock_message' => Setting::getValue('lock_message', "If you'd like quicker access to the unit, you can download the August Home app."),
             'background_check_step_name' => Setting::getValue('background_check_step_name', 'Background Check'),
             'background_check_step_instructions' => Setting::getValue('background_check_step_instructions', 'Please be on the lookout for an email from Airbnb so that you can submit the required hold for incidentals. This hold is refunded after checkout.'),
+            'airbnb_payment_instructions' => Setting::getValue('airbnb_payment_instructions', 'Please submit this payment through the Airbnb app or website. Once received, we will confirm and send your check-in details.'),
             'default_deposit_cap_dollars' => Setting::getValue('default_deposit_cap_cents', 0) / 100,
             'processing_fee_percent' => Setting::getValue('processing_fee_percent', 0),
         ];

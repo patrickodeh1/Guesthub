@@ -48,20 +48,10 @@
                     <span class="text-slate-500">$</span>
                     <input type="number" step="0.01" min="0" name="incidentals_charge" value="{{ old('incidentals_charge', $booking->incidentals_charge) }}" placeholder="0.00" class="input">
                 </div>
-                <span class="field-help">Any incidentals charge for this guest. Not visible to the guest.</span>
+                <span class="field-help">Any incidentals charge for this guest.</span>
             </label>
             @endif
-            <label class="field-label mt-5 flex items-center gap-2">
-                <input type="checkbox" name="pay_by_cc" value="1" @checked(old('pay_by_cc', $booking->pay_by_cc))>
-                <span>Guest pays by credit card on our site</span>
-            </label>
-            <p class="field-help">If checked, the guest sees the online card payment step for their parking/incidentals charge. If unchecked, they instead see instructions to pay through the booking platform directly.</p>
 @if($booking->exists)
-            <label class="field-label mt-5 flex items-center gap-2">
-                <input type="checkbox" name="early_checkin" value="1" @checked(old('early_checkin', $booking->early_checkin))>
-                <span>Early Check-in Exception</span>
-            </label>
-            <p class="field-help">If enabled, the property address is shown to the guest immediately, bypassing the check-in day / 3:00 PM rule.</p>
             <label class="field-label mt-5">
                 Early check-in billing window (admin only)
                 <select name="early_checkin_tier" class="input">
@@ -73,7 +63,7 @@
                 @if($booking->early_checkin_tier)
                     <span class="field-help">Charge: ${{ number_format($booking->earlyCheckinCharge() ?? 0, 2) }} (from the property's rate for this window).</span>
                 @else
-                    <span class="field-help">Independent of the exception checkbox above; set this if the early check-in should be billed.</span>
+                    <span class="field-help">Set this if the early check-in should be billed.</span>
                 @endif
             </label>
             <div class="field-label mt-5">

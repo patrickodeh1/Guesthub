@@ -37,6 +37,7 @@ Route::post('/checkin/verify', [GuestController::class, 'verifyReservationLogin'
 Route::prefix('guest/{booking_id}/{token}')->name('guest.')->group(function () {
     Route::get('/', [GuestController::class, 'show'])->name('show');
     Route::post('/identity', [GuestController::class, 'submitIdentity'])->name('identity');
+    Route::post('/vehicle-info', [GuestController::class, 'submitVehicleInfo'])->name('vehicle-info');
     Route::post('/login', [GuestController::class, 'login'])->name('login');
     Route::post('/parking', [GuestController::class, 'parking'])->name('parking');
     Route::post('/verify-gps', [GuestController::class, 'verifyGps'])->name('gps');
@@ -103,6 +104,7 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     Route::post('guests/{booking}/archive', [BookingController::class, 'archive'])->name('guests.archive');
     Route::post('guests/{booking}/unarchive', [BookingController::class, 'unarchive'])->name('guests.unarchive');
     Route::post('guests/{booking}/mark-id', [BookingController::class, 'markIdReceived'])->name('guests.mark-id');
+    Route::post('guests/{booking}/bypass-vehicle-info', [BookingController::class, 'bypassVehicleInfo'])->name('guests.bypass-vehicle-info');
     Route::post('guests/{booking}/approve', [BookingController::class, 'approveBooking'])->name('guests.approve');
     Route::post('guests/{booking}/background-check', [BookingController::class, 'markBackgroundCheckComplete'])->name('guests.background-check');
     Route::post('guests/{booking}/deposit-verified', [BookingController::class, 'markDepositVerified'])->name('guests.deposit-verified');

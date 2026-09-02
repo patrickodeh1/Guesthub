@@ -44,8 +44,7 @@
                         ['info', 'Incidentals Charge', $booking->incidentals_charge !== null ? '$'.number_format($booking->incidentals_charge, 2) : 'Not set'],
                         ...($booking->early_checkin_tier ? [['calendar', 'Early Check-in Charge', '$'.number_format($booking->earlyCheckinCharge() ?? 0, 2).' ('.(match($booking->early_checkin_tier) { '8am_12pm', '8am' => '8:00 AM - 12:00 PM', '12pm_2pm', '12pm' => '12:00 PM - 2:00 PM', '2pm_4pm' => '2:00 PM - 4:00 PM', default => $booking->early_checkin_tier }).' window)']] : []),
                         ...($booking->late_checkout_type ? [['clock', 'Late Checkout Charge', '$'.number_format($booking->lateCheckoutCharge() ?? 0, 2).' ('.ucfirst($booking->late_checkout_type).', billed per half-hour)']] : []),
-                        ['info', 'Total Pre-checkin Charge:', '$'.number_format($booking->calculatePreCheckinChargeCents() / 100, 2).' ('.$booking->preCheckinChargeBreakdown().')'.($booking->pay_by_cc ? '' : ' (guest is not paying by card; collect this via the platform)')],
-                        ['calendar', 'Early Check-in', $booking->early_checkin ? 'Enabled' : 'Disabled'],
+                        ['info', 'Total Pre-checkin Charge:', '$'.number_format($booking->calculatePreCheckinChargeCents() / 100, 2).' ('.$booking->preCheckinChargeBreakdown().')'],
                         ['clock', 'Requested Check-in Time', ($booking->checkinTimePreferenceFormatted() ?: 'Not specified').($booking->checkin_time_status ? ' ('.ucfirst($booking->checkin_time_status).')' : '')],
                         ['clock', 'Requested Check-out Time', ($booking->checkoutTimePreferenceFormatted() ?: 'Not specified').($booking->checkout_time_status ? ' ('.ucfirst($booking->checkout_time_status).')' : '')],
                         ['upload', 'Photo ID Already Received', $booking->photo_id_received ? 'Yes' : 'No'],
@@ -295,6 +294,7 @@
                     <form method="post" action="{{ route('admin.guests.override', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="contact-guest-services" class="h-4 w-4" />Manually Mark Checked In</button></form>
                     <form method="post" action="{{ route('admin.guests.override-checkout', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="contact-guest-services" class="h-4 w-4" />Manually Mark Checked Out</button></form>
                     <form method="post" action="{{ route('admin.guests.mark-id', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="upload" class="h-4 w-4" />Mark Photo ID Received</button></form>
+                    <form method="post" action="{{ route('admin.guests.bypass-vehicle-info', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="car" class="h-4 w-4" />Bypass Vehicle Info</button></form>
 
                     @if($booking->access_blocked_at)
                         <div class="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-800">

@@ -63,7 +63,7 @@ class PaymentService
         $intent = $this->client()->paymentIntents->create([
             'amount' => $amountCents,
             'currency' => 'usd',
-            'automatic_payment_methods' => ['enabled' => true],
+            'payment_method_types' => ['card'],
             'description' => $description ?: "{$type} charge for booking {$booking->booking_id}",
             'metadata' => ['booking_id' => $booking->id, 'type' => $type],
         ]);
@@ -134,6 +134,10 @@ class PaymentService
                 'deposit_stripe_payment_intent_id' => $paymentIntentId,
                 'deposit_amount_cents' => $charge->amount_cents,
             ]);
+
+            if ($charge->status === Charge::STATUS_SUCCESS && $charge->booking->status === 'awaiting_deposit') {
+                $charge->booking->update(['status' => 'deposit_paid']);
+            }
         }
 
         return $charge;
@@ -174,6 +178,10 @@ class PaymentService
                 'deposit_stripe_payment_intent_id' => $intent->id,
                 'deposit_amount_cents' => $amountCents,
             ]);
+
+            if ($charge->status === Charge::STATUS_SUCCESS && $booking->status === 'awaiting_deposit') {
+                $booking->update(['status' => 'deposit_paid']);
+            }
         }
 
         return $charge;

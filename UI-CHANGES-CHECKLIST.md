@@ -20,9 +20,8 @@ Recovered from client conversation export (Google AI chat, dated in export). Gro
 
 ## 2. Stripe / Payment Flow (Guest-Facing)
 
-- [ ] Replace default Stripe Elements layout with a **single, minimalist sliding card input**:
-  - Card number → slides to show only card logo + last 4 digits → Expiration Date → slides → CVV → slides → Billing Zip
-- [ ] Remove Link autofill, Cash App, Amazon Pay, Bank payment buttons, and "save my info" — card only
+- [x] Replace default Stripe Elements layout with a **single-card, minimalist stacked input** that hides the default Payment Element and uses dedicated card number/expiry/CVV fields only
+- [x] Remove Link autofill, Cash App, Amazon Pay, Bank payment buttons, and "save my info" — card only
 - [ ] Show incidentals total + breakdown to guest **regardless of payment path**
 - [ ] After showing total, present explicit choice: **[Pay Here with Card]** or **[Pay on Airbnb]**
   - Pay Here → loads sliding card input

@@ -1444,6 +1444,64 @@
                     <button class="guest-primary-btn mt-5 w-full" disabled>Check In</button>
                 </div>
             </div>
+        @elseif($state === 'vehicle_info')
+            <div class="guest-portal-card">
+                <div data-poll-id-status="{{ route('guest.id-status', [$booking->booking_id, $booking->token]) }}" data-poll-fields="vehicle_info_bypassed"></div>
+                <div class="guest-status-bar">
+                    <div>
+                        @if($siteLogo)
+                            <img src="{{ url('/img/'.$siteLogo) }}" alt="" class="h-8 max-w-[140px] w-auto object-contain">
+                        @endif
+                    </div>
+                    <span class="guest-status-pill is-ready">
+                        <x-icon name="calendar" class="h-4 w-4" />
+                        Almost there
+                    </span>
+                </div>
+                <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="w-full block mt-4" style="height:auto">
+                <div class="px-6 pt-8 pb-2 text-center">
+                    <div class="guest-big-check">
+                        <x-icon name="car" class="h-8 w-8" />
+                    </div>
+                    <h2 class="mt-4 text-xl font-extrabold text-slate-950">Vehicle Information</h2>
+                    <p class="mt-2 text-sm text-slate-600">We just need a few details about your vehicle before check-in.</p>
+                </div>
+                <div class="px-6 pb-6">
+                    <form method="post" enctype="multipart/form-data" action="{{ route('guest.vehicle-info', [$booking->booking_id, $booking->token]) }}" class="space-y-4">
+                        @csrf
+                        <div>
+                            <label for="vehicle_make_model" class="guest-stay-tile-label block mb-1">Vehicle Make & Model</label>
+                            <input type="text" name="vehicle_make_model" id="vehicle_make_model"
+                                   value="{{ old('vehicle_make_model', $booking->vehicle_make_model) }}"
+                                   class="guest-input w-full" placeholder="e.g. Toyota Camry" required>
+                            @error('vehicle_make_model')
+                                <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <div>
+                            <label for="license_plate_photo" class="guest-stay-tile-label block mb-1">License Plate Photo</label>
+                            <input type="file" name="license_plate_photo" id="license_plate_photo"
+                                   accept="image/*" class="guest-input w-full" required>
+                            @error('license_plate_photo')
+                                <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
+                            @enderror
+                        </div>
+                        <button type="submit" class="guest-primary-btn mt-2 w-full">Submit</button>
+                    </form>
+                    <div class="guest-detail-banner mt-4">
+                        <span class="guest-detail-banner-icon">
+                            <x-icon name="phone" class="h-5 w-5" />
+                        </span>
+                        <div>
+                            <p class="guest-detail-banner-title">Can't provide this right now?</p>
+                            <p class="guest-detail-banner-sub">Call Guest Services and we'll take care of it for you.</p>
+                        </div>
+                    </div>
+                    <a href="tel:{{ $property->contact_phone }}" class="guest-primary-btn mt-3 w-full block text-center" style="background:transparent;border:1px solid #e2e8f0;color:#0f172a;" aria-label="Contact Guest Services">
+                        Call Guest Services
+                    </a>
+                </div>
+            </div>
         @elseif($state === 'arrival')
             <div data-poll-gps-status="{{ route('guest.gps-status', [$booking->booking_id, $booking->token]) }}"></div>
             <div class="guest-portal-card">
@@ -1560,15 +1618,12 @@
                             <img src="{{ url('/img/'.$siteLogo) }}" alt="" class="h-8 max-w-[140px] w-auto object-contain">
                         @endif
                     </div>
-                    <span class="guest-status-pill">
-                        <x-icon name="clock" class="h-4 w-4" />
-                        Awaiting deposit
+                    <span class="guest-status-pill{{ $booking->isDepositCaptured() ? ' is-ready' : '' }}">
+                        <x-icon name="{{ $booking->isDepositCaptured() ? 'check' : 'clock' }}" class="h-4 w-4" />
+                        {{ $booking->isDepositCaptured() ? 'Deposit paid' : 'Awaiting deposit' }}
                     </span>
                 </div>
                 <div class="px-6 pt-5">
-                    <div class="flex items-center justify-center mb-4">
-                        <x-icon name="alert-triangle" class="h-6 w-6" style="color:#92400e;" />
-                    </div>
                     <h1 class="guest-status-title">Almost there</h1>
                 </div>
                 <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="w-full block rounded-xl mt-4">
@@ -1585,10 +1640,10 @@
                             <h2 class="mt-4 text-xl font-extrabold text-slate-950">Payment received</h2>
                             <p class="mt-3 text-sm leading-6 text-slate-600">Thank you. Your payment has been received. We are confirming your deposit now, and you will receive a message with your check-in details once it has been verified.</p>
                         </div>
-                    @elseif($booking->pay_by_cc && $stripeConfigured && $depositAmountCents > 0)
+                    @elseif($stripeConfigured && $depositAmountCents > 0)
                         <div class="text-center">
                             <h2 class="text-xl font-extrabold text-slate-950">Incidentals payment</h2>
-                            <p class="mt-3 text-sm leading-6 text-slate-600">A payment of <strong>${{ number_format($depositAmountCents / 100, 2) }}</strong> is required before check-in. Enter your card below. Payment details stay on our site and are not shared with a third party.</p>
+                            <p class="mt-3 text-sm leading-6 text-slate-600">A payment of <strong>${{ number_format($depositAmountCents / 100, 2) }}</strong> is required before check-in.</p>
                             @php
                                 $capCents = $property->deposit_cap_cents !== null
                                     ? $property->deposit_cap_cents
@@ -1619,19 +1674,58 @@
                                 <div class="mt-1 flex justify-between border-t border-slate-200 pt-2 font-semibold text-slate-950"><span>Total</span><span>${{ number_format($depositAmountCents / 100, 2) }}</span></div>
                             </div>
                         </div>
+
+                        <div id="deposit-payment-choice" class="mt-5">
+                            <button type="button" id="deposit-pay-here-btn" class="guest-primary-btn w-full">Pay Here with Card</button>
+                            <button type="button" id="deposit-pay-airbnb-btn" class="guest-outline-btn w-full mt-3">Pay on Airbnb</button>
+                        </div>
+
+                        <div id="deposit-airbnb-instructions" class="mt-5 hidden text-left text-sm leading-6 text-slate-600 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            {!! \App\Models\Setting::getValue('airbnb_payment_instructions', '<p>Please submit this payment through the Airbnb app or website. Once received, we will confirm and send your check-in details.</p>') !!}
+                            <button type="button" id="deposit-airbnb-back-btn" class="mt-4 text-xs font-semibold text-blue-600 underline">Back</button>
+                        </div>
+
+                        <div id="deposit-card-section" class="hidden">
                         <div id="deposit-payment-error" class="mt-4 hidden rounded-lg bg-red-50 p-3 text-center text-sm text-red-700"></div>
                         <form id="deposit-payment-form" class="mt-5" data-intent-url="{{ route('guest.deposit.intent', [$booking->booking_id, $booking->token]) }}" data-confirm-url="{{ route('guest.deposit.confirm', [$booking->booking_id, $booking->token]) }}">
-                            <div id="deposit-payment-element" class="rounded-xl border border-slate-200 p-4"></div>
+                            <div class="guest-card-wizard" id="deposit-card-wizard">
+                                <div class="guest-card-summary-list" id="deposit-summary-list"></div>
+                                <div class="guest-card-step" data-step="number" id="deposit-step-number">
+                                    <label class="guest-card-label" for="deposit-payment-card-number">Card number</label>
+                                    <div id="deposit-payment-card-number" class="guest-card-field"></div>
+                                </div>
+                                <div class="guest-card-step hidden" data-step="expiry" id="deposit-step-expiry">
+                                    <label class="guest-card-label" for="deposit-payment-card-expiry">Expiry date</label>
+                                    <div id="deposit-payment-card-expiry" class="guest-card-field"></div>
+                                </div>
+                                <div class="guest-card-step hidden" data-step="cvc" id="deposit-step-cvc">
+                                    <label class="guest-card-label" for="deposit-payment-card-cvc">Security code (CVC)</label>
+                                    <div id="deposit-payment-card-cvc" class="guest-card-field"></div>
+                                </div>
+                                <div class="guest-card-step hidden" data-step="postal" id="deposit-step-postal">
+                                    <label class="guest-card-label" for="deposit-payment-card-postal">Billing ZIP code</label>
+                                    <input id="deposit-payment-card-postal" type="text" inputmode="numeric" maxlength="10" placeholder="Billing ZIP" class="guest-card-postal" aria-label="Billing ZIP code">
+                                </div>
+                            </div>
                             <button type="submit" id="deposit-pay-btn" class="guest-primary-btn mt-4 w-full" disabled>Pay ${{ number_format($depositAmountCents / 100, 2) }}</button>
                         </form>
+                        </div>
                         <script src="https://js.stripe.com/v3/"></script>
                         <script>
                         (function() {
+                            var choiceBlock = document.getElementById("deposit-payment-choice");
+                            var airbnbBlock = document.getElementById("deposit-airbnb-instructions");
+                            var cardSection = document.getElementById("deposit-card-section");
+                            var payHereBtn = document.getElementById("deposit-pay-here-btn");
+                            var airbnbBtn = document.getElementById("deposit-pay-airbnb-btn");
+                            var airbnbBackBtn = document.getElementById("deposit-airbnb-back-btn");
+                            var stripeInitStarted = false;
+
                             var form = document.getElementById("deposit-payment-form");
-                            if (!form) return;
                             var payBtn = document.getElementById("deposit-pay-btn");
                             var errorBox = document.getElementById("deposit-payment-error");
-                            var stripe, elements;
+                            var stripe, elements, cardNumber, cardExpiry, cardCvc, clientSecret = null;
+                            var postalField = document.getElementById("deposit-payment-card-postal");
 
                             function showError(msg) {
                                 errorBox.textContent = msg;
@@ -1639,7 +1733,7 @@
                             }
 
                             function showSuccess(msg) {
-                                var container = form.parentElement;
+                                var container = form.closest(".p-6, .p-10, [class*='p-6']") || form.parentElement;
                                 container.innerHTML = "";
                                 var check = document.createElement("div");
                                 check.className = "guest-big-check mx-auto";
@@ -1656,67 +1750,200 @@
                                 container.appendChild(success);
                             }
 
-                            fetch(form.dataset.intentUrl, {
-                                method: "POST",
-                                headers: {
-                                    "Accept": "application/json",
-                                    "Content-Type": "application/json",
-                                    "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : ""
-                                }
-                            })
-                                .then(function(r) { return r.json(); })
-                                .then(function(data) {
-                                    if (!data.ok) {
-                                        showError(data.error || "Unable to start payment. Please contact us.");
+                            function makeStripeFieldAccessible(fieldId, label) {
+                                var attempts = 0;
+                                var timer = window.setInterval(function() {
+                                    var field = document.querySelector('#' + fieldId + ' .__PrivateStripeElement-input');
+                                    if (field) {
+                                        field.setAttribute('aria-hidden', 'false');
+                                        field.setAttribute('aria-label', label);
+                                        field.setAttribute('autocomplete', 'off');
+                                        window.clearInterval(timer);
                                         return;
                                     }
-                                    stripe = Stripe(data.publishable_key);
-                                    elements = stripe.elements({ clientSecret: data.client_secret });
-                                    var paymentElement = elements.create("payment");
-                                    paymentElement.mount("#deposit-payment-element");
-                                    payBtn.disabled = false;
+                                    attempts += 1;
+                                    if (attempts >= 25) {
+                                        window.clearInterval(timer);
+                                    }
+                                }, 100);
+                            }
+
+                            function initStripeCardForm() {
+                                if (stripeInitStarted || !form) return;
+                                stripeInitStarted = true;
+
+                                fetch(form.dataset.intentUrl, {
+                                    method: "POST",
+                                    headers: {
+                                        "Accept": "application/json",
+                                        "Content-Type": "application/json",
+                                        "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : ""
+                                    }
                                 })
-                                .catch(function() { showError("Network error. Please try again."); });
-
-                            form.addEventListener("submit", function(e) {
-                                e.preventDefault();
-                                if (!stripe || !elements) return;
-                                payBtn.disabled = true;
-                                payBtn.textContent = "Processing…";
-                                errorBox.classList.add("hidden");
-
-                                stripe.confirmPayment({ elements: elements, redirect: "if_required" })
-                                    .then(function(result) {
-                                        if (result.error) {
-                                            showError(result.error.message || "Payment failed. Please try again.");
-                                            payBtn.disabled = false;
-                                            payBtn.textContent = "Pay {{ '$' . number_format($depositAmountCents / 100, 2) }}";
+                                    .then(function(r) { return r.json(); })
+                                    .then(function(data) {
+                                        if (!data.ok) {
+                                            showError(data.error || "Unable to start payment. Please contact us.");
                                             return;
                                         }
-                                        return fetch(form.dataset.confirmUrl, {
-                                            method: "POST",
-                                            headers: {
-                                                "Accept": "application/json",
-                                                "Content-Type": "application/json",
-                                                "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : ""
+                                        clientSecret = data.client_secret;
+                                        stripe = Stripe(data.publishable_key);
+                                        elements = stripe.elements({ clientSecret: clientSecret });
+                                        var stripeElementStyle = {
+                                            base: {
+                                                color: "#0f172a",
+                                                fontSize: "16px",
+                                                fontFamily: "inherit",
+                                                lineHeight: "24px",
+                                "::placeholder": { color: "#94a3b8" }
                                             },
-                                            body: JSON.stringify({ payment_intent_id: result.paymentIntent.id })
-                                        })
-                                            .then(function(r) { return r.json(); })
-                                            .then(function(confirmData) {
-                                                if (confirmData.ok) {
-                                                    showSuccess(confirmData.message);
-                                                } else {
-                                                    showError(confirmData.error || "Payment could not be confirmed. Please contact us.");
-                                                    payBtn.disabled = false;
-                                                }
-                                            });
+                                            invalid: { color: "#dc2626" }
+                                        };
+                                        cardNumber = elements.create("cardNumber", {
+                                            showIcon: true,
+                                            disableLink: true,
+                                            placeholder: "1234 5678 9012 3456",
+                                            classes: { base: "guest-card-field-inner" },
+                                            style: stripeElementStyle
+                                        });
+                                        cardExpiry = elements.create("cardExpiry", {
+                                            placeholder: "MM / YY",
+                                            classes: { base: "guest-card-field-inner" },
+                                            style: stripeElementStyle
+                                        });
+                                        cardCvc = elements.create("cardCvc", {
+                                            placeholder: "CVV",
+                                            classes: { base: "guest-card-field-inner" },
+                                            style: stripeElementStyle
+                                        });
+                                        cardNumber.mount("#deposit-payment-card-number");
+                                        cardExpiry.mount("#deposit-payment-card-expiry");
+                                        cardCvc.mount("#deposit-payment-card-cvc");
+                                        makeStripeFieldAccessible("deposit-payment-card-number", "Card number");
+                                        makeStripeFieldAccessible("deposit-payment-card-expiry", "Card expiry");
+                                        makeStripeFieldAccessible("deposit-payment-card-cvc", "Card security code");
+
+                                        var summaryList = document.getElementById("deposit-summary-list");
+                                        var stepNumber = document.getElementById("deposit-step-number");
+                                        var stepExpiry = document.getElementById("deposit-step-expiry");
+                                        var stepCvc = document.getElementById("deposit-step-cvc");
+                                        var stepPostal = document.getElementById("deposit-step-postal");
+                                        var numberDone = false, expiryDone = false, cvcDone = false;
+
+                                        function addSummaryRow(label, brand) {
+                                            var row = document.createElement("div");
+                                            row.className = "flex items-center gap-2 text-xs font-semibold text-slate-500 mb-2";
+                                            var icon = document.createElement("span");
+                                            icon.textContent = "✓";
+                                            icon.className = "text-emerald-600";
+                                            var text = document.createElement("span");
+                                            text.textContent = brand ? (label + " (" + brand + ")") : label;
+                                            row.append(icon, text);
+                                            summaryList.appendChild(row);
+                                        }
+
+                                        cardNumber.on("change", function(event) {
+                                            if (event.error) { showError(event.error.message); return; }
+                                            errorBox.classList.add("hidden");
+                                            if (event.complete && !numberDone) {
+                                                numberDone = true;
+                                                                                                                            stepExpiry.classList.remove("hidden");
+                                                cardExpiry.focus();
+                                            }
+                                        });
+                                        cardExpiry.on("change", function(event) {
+                                            if (event.error) { showError(event.error.message); return; }
+                                            errorBox.classList.add("hidden");
+                                            if (event.complete && !expiryDone) {
+                                                expiryDone = true;
+                                                                                                                            stepCvc.classList.remove("hidden");
+                                                cardCvc.focus();
+                                            }
+                                        });
+                                        cardCvc.on("change", function(event) {
+                                            if (event.error) { showError(event.error.message); return; }
+                                            errorBox.classList.add("hidden");
+                                            if (event.complete && !cvcDone) {
+                                                cvcDone = true;
+                                                                                                                            stepPostal.classList.remove("hidden");
+                                                payBtn.disabled = false;
+                                                postalField.focus();
+                                            }
+                                        });
                                     })
-                                    .catch(function() {
-                                        showError("Network error confirming payment. Please try again.");
-                                        payBtn.disabled = false;
-                                    });
-                            });
+                                    .catch(function() { showError("Network error. Please try again."); });
+                            }
+
+                            if (payHereBtn) {
+                                payHereBtn.addEventListener("click", function() {
+                                    choiceBlock.classList.add("hidden");
+                                    cardSection.classList.remove("hidden");
+                                    initStripeCardForm();
+                                });
+                            }
+                            if (airbnbBtn) {
+                                airbnbBtn.addEventListener("click", function() {
+                                    choiceBlock.classList.add("hidden");
+                                    airbnbBlock.classList.remove("hidden");
+                                });
+                            }
+                            if (airbnbBackBtn) {
+                                airbnbBackBtn.addEventListener("click", function() {
+                                    airbnbBlock.classList.add("hidden");
+                                    choiceBlock.classList.remove("hidden");
+                                });
+                            }
+
+                            if (form) {
+                                form.addEventListener("submit", function(e) {
+                                    e.preventDefault();
+                                    if (!stripe || !elements || !clientSecret || !cardNumber) return;
+                                    payBtn.disabled = true;
+                                    payBtn.textContent = "Processing…";
+                                    errorBox.classList.add("hidden");
+
+                                    stripe.confirmCardPayment(clientSecret, {
+                                        payment_method: {
+                                            card: cardNumber,
+                                            billing_details: {
+                                                address: {
+                                                    postal_code: (postalField.value || '').trim()
+                                                }
+                                            }
+                                        }
+                                    })
+                                        .then(function(result) {
+                                            if (result.error) {
+                                                showError(result.error.message || "Payment failed. Please try again.");
+                                                payBtn.disabled = false;
+                                                payBtn.textContent = "Pay {{ '$' . number_format($depositAmountCents / 100, 2) }}";
+                                                return;
+                                            }
+                                            return fetch(form.dataset.confirmUrl, {
+                                                method: "POST",
+                                                headers: {
+                                                    "Accept": "application/json",
+                                                    "Content-Type": "application/json",
+                                                    "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : ""
+                                                },
+                                                body: JSON.stringify({ payment_intent_id: result.paymentIntent.id })
+                                            })
+                                                .then(function(r) { return r.json(); })
+                                                .then(function(confirmData) {
+                                                    if (confirmData.ok) {
+                                                        showSuccess(confirmData.message);
+                                                    } else {
+                                                        showError(confirmData.error || "Payment could not be confirmed. Please contact us.");
+                                                        payBtn.disabled = false;
+                                                    }
+                                                });
+                                        })
+                                        .catch(function() {
+                                            showError("Network error confirming payment. Please try again.");
+                                            payBtn.disabled = false;
+                                        });
+                                });
+                            }
                         })();
                         </script>
                     @elseif($booking->status === 'pre_checkin_complete')
@@ -1868,7 +2095,7 @@
 
                 $incidentalsAmountCents = $booking->unbilledIncidentalsCents();
                 $incidentalsPaid = $booking->charges()->where('type', \App\Models\Charge::TYPE_INCIDENTALS)->where('status', \App\Models\Charge::STATUS_SUCCESS)->exists();
-                $showIncidentalsCharge = $booking->pay_by_cc && $incidentalsAmountCents > 0 && ! $incidentalsPaid && $stripeConfiguredForCharges;
+                $showIncidentalsCharge = $incidentalsAmountCents > 0 && ! $incidentalsPaid && $stripeConfiguredForCharges;
             @endphp
             @if($showIncidentalsCharge)
                     <x-guest-charge-card type="incidentals" label="Incidentals" description="Additional charges from your stay." :amount-cents="$incidentalsAmountCents" :booking="$booking" />

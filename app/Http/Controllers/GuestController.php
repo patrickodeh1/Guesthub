@@ -297,10 +297,6 @@ class GuestController extends Controller
             return response()->json(['ok' => false, 'error' => 'Payments are not available right now. Please contact us.'], 503);
         }
 
-        if (! $booking->pay_by_cc) {
-            return response()->json(['ok' => false, 'error' => 'Online card payment is not enabled for this booking.'], 403);
-        }
-
         if ($booking->isDepositCaptured() || $booking->deposit_verified_at) {
             return response()->json(['ok' => false, 'error' => 'Deposit already paid.'], 422);
         }
@@ -384,10 +380,6 @@ class GuestController extends Controller
 
         if (! $service->isConfigured()) {
             return response()->json(['ok' => false, 'error' => 'Payments are not available right now. Please contact us.'], 503);
-        }
-
-        if (! $booking->pay_by_cc) {
-            return response()->json(['ok' => false, 'error' => 'Online card payment is not enabled for this booking.'], 403);
         }
 
         $type = $request->validate(['type' => ['required', 'string', 'in:parking,early_checkin,late_checkout,incidentals']])['type'];
@@ -545,6 +537,37 @@ class GuestController extends Controller
             ->with('success', 'All complete. Your arrival information has been received securely.');
     }
 
+    public function submitVehicleInfo(Request $request, string $bookingId, string $token)
+    {
+        $booking = $this->booking($bookingId, $token);
+
+        $data = $request->validate([
+            'vehicle_make_model' => ['required', 'string', 'max:255'],
+            'license_plate_photo' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
+        ]);
+
+        $updates = [
+            'vehicle_make_model' => $data['vehicle_make_model'],
+        ];
+
+        if ($request->hasFile('license_plate_photo')) {
+            $updates['license_plate_photo_path'] = $request->file('license_plate_photo')->store('license-plates');
+        }
+
+        $booking->update($updates);
+
+        ActivityLogService::guest('vehicle_info_submitted', "Guest {$booking->guest_name} submitted vehicle information.", 'vehicle_info', [
+            'booking_id'  => $booking->id,
+            'property_id' => $booking->property_id,
+            'actor_name'  => $booking->guest_name,
+            'actor_email' => $booking->email,
+            'severity'    => 'success',
+            'metadata'    => ['email' => $booking->email, 'booking_ref' => $booking->booking_id],
+        ]);
+
+        return back()->with('success', 'Thanks — your vehicle information has been received.');
+    }
+
     public function parking(Request $request, string $bookingId, string $token)
     {
         $booking = $this->booking($bookingId, $token);
@@ -651,6 +674,7 @@ class GuestController extends Controller
             'id_approved' => (bool) ($booking->photo_id_received && $booking->isApproved()),
             'background_check_complete' => $booking->isBackgroundCheckComplete(),
             'deposit_verified' => $booking->isDepositVerified(),
+            'vehicle_info_bypassed' => (bool) $booking->vehicle_info_bypassed_at,
         ]);
     }
     public function category(string $bookingId, string $token, Category $category)
@@ -943,7 +967,7 @@ class GuestController extends Controller
         }
         }
 
-        if (in_array($booking->status, ['pre_checkin_complete', 'awaiting_deposit'], true) && ! $booking->deposit_verified_at) {
+        if (in_array($booking->status, ['pre_checkin_complete', 'awaiting_deposit', 'deposit_paid'], true) && ! $booking->deposit_verified_at) {
             return 'awaiting_deposit';
         }
 
@@ -955,8 +979,15 @@ class GuestController extends Controller
             return 'post_checkout';
         }
 
+        if (! $booking->isCheckinDay() && $booking->needsVehicleInfoPrompt()) {
+            return 'vehicle_info';
+        }
         if (! $booking->isCheckinDay()) {
             return 'waiting';
+        }
+
+        if ($booking->needsVehicleInfoPrompt()) {
+            return 'vehicle_info';
         }
 
         if (! $booking->gps_verified) {

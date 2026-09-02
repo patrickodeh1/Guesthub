@@ -153,6 +153,9 @@
     .badge-waiting_checkin {
         @apply border-amber-200 bg-amber-50 text-amber-800;
     }
+    .badge-deposit_paid {
+        @apply border-teal-200 bg-teal-50 text-teal-700;
+    }
     .badge-pre_checkin_complete {
         @apply border-red-200 bg-red-50 text-red-700;
     }
@@ -343,6 +346,101 @@
         border-radius: 10px;
         background: #fff;
         box-shadow: 0 18px 42px rgb(15 23 42 / .08);
+    }
+
+    .guest-card-stack {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-top: 0.5rem;
+    }
+
+    .guest-card-row {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .guest-card-label {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        color: #64748b;
+        margin-bottom: 4px;
+    }
+    .guest-card-field {
+        min-height: 30px;
+        border: 1px solid #000000;
+        border-radius: 12px;
+        background: #ffffff;
+        padding: 0 12px;
+        align-items: center;
+        position: relative;
+        overflow: visible;
+        transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+
+    .guest-card-field:focus-within {
+        border-color: #0f172a;
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgb(15 23 42 / .08);
+    }
+
+    .guest-card-field-inner,
+    .guest-card-field .StripeElement {
+        display: block;
+        width: 100%;
+        font-size: 15px;
+        line-height: 1.3;
+    }
+
+    .guest-card-field iframe,
+    .guest-card-field .StripeElement iframe {
+        display: block !important;
+        width: 100% !important;
+        height: 24px !important;
+        border: 0 !important;
+    }
+
+    .guest-card-field .__PrivateStripeElement-input {
+        color: #0f172a !important;
+        font-size: 15px !important;
+        opacity: 1 !important;
+    }
+
+    .guest-card-postal {
+        width: 100%;
+        min-height: 30px;
+        border: 1px solid #000000;
+        border-radius: 12px;
+        background: #ffffff;
+        padding: 0 12px;
+        font-size: 15px;
+        color: #0f172a;
+        transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+    .guest-card-postal:focus {
+        outline: none;
+        border-color: #000000;
+        background: #fff;
+        box-shadow: 0 0 0 3px rgb(0 0 0 / .08);
+    }
+    .guest-card-wizard {
+        position: relative;
+    }
+    .guest-card-summary-list {
+        margin-bottom: 8px;
+    }
+    .guest-card-step {
+        animation: guestCardStepIn .25s ease;
+        margin-bottom: 12px;
+    }
+    .guest-card-step:last-child {
+        margin-bottom: 0;
+    }
+    @keyframes guestCardStepIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
     }
 
     .guest-portal-card--wizard {

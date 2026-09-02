@@ -40,6 +40,7 @@
         'eye' => '<path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/>',
         'shield-alert' => '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
         'info' => '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+        'car' => '<path d="M14 16.5V19a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-.5"/><path d="M5 16.5V19a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1v-2.5"/><path d="M1 13.5 3 7a2 2 0 0 1 2-1.5h10A2 2 0 0 1 19 7l2 6.5"/><path d="M1 13.5h20v3a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1v-3Z"/><circle cx="6" cy="14.5" r="1.5"/><circle cx="16" cy="14.5" r="1.5"/>',
         'alert-triangle' => '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
         'plus' => '<path d="M5 12h14"/><path d="M12 5v14"/>',
         'filter' => '<polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>',

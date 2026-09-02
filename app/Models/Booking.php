@@ -16,7 +16,7 @@ class Booking extends Model
 
     protected $fillable = [
         'booking_id', 'reservation_id', 'source', 'channex_booking_id', 'guest_name', 'phone', 'email', 'check_in_date', 'check_out_date',
-        'property_id', 'id_type', 'token', 'photo_id_path', 'photo_id_back_path', 'photo_id_received', 'parking_needed', 'early_checkin', 'early_checkin_tier', 'checkin_time_preference', 'checkout_time_preference', 'checkin_time_status', 'checkout_time_status', 'gps_verified', 'guest_authenticated_at',
+        'property_id', 'id_type', 'token', 'photo_id_path', 'photo_id_back_path', 'photo_id_received', 'parking_needed', 'early_checkin_tier', 'checkin_time_preference', 'checkout_time_preference', 'checkin_time_status', 'checkout_time_status', 'gps_verified', 'guest_authenticated_at',
         'manually_checked_in', 'checked_in_at', 'checked_out_at', 'late_checkout_type', 'late_checkout_hours', 'late_checkout_actual_time', 'gps_overridden', 'status', 'cancelled_at', 'notes', 'welcome_message', 'identity_confirmed_at',
         'approved_at', 'decline_reason', 'archived_at', 'background_check_completed_at', 'deposit_verified_at',
         'contract_version', 'contract_accepted_at',
@@ -24,12 +24,11 @@ class Booking extends Model
         'terms_accepted_at', 'terms_accepted_version',
         'deposit_payment_status', 'deposit_stripe_payment_intent_id', 'deposit_amount_cents',
         'incidentals_billed_cents', 'parking_billed_cents', 'early_checkin_billed_cents',
-        'pay_by_cc',
         'access_blocked_at', 'access_blocked_reason',
         'photo_id_front_approved_at', 'photo_id_front_declined_reason',
         'photo_id_back_approved_at', 'photo_id_back_declined_reason',
         'parking_charge', 'parking_charge_override', 'incidentals_charge', 'checkin_reminder_sent_at',
-        'vehicle_make_model', 'license_plate_photo_path',
+        'vehicle_make_model', 'license_plate_photo_path', 'vehicle_info_bypassed_at',
     ];
 
     protected function casts(): array
@@ -60,7 +59,6 @@ class Booking extends Model
             'incidentals_billed_cents' => 'integer',
             'parking_billed_cents' => 'integer',
             'early_checkin_billed_cents' => 'integer',
-            'pay_by_cc' => 'boolean',
             'access_blocked_at' => 'datetime',
             'photo_id_front_approved_at' => 'datetime',
             'photo_id_back_approved_at' => 'datetime',
@@ -68,6 +66,7 @@ class Booking extends Model
             'parking_charge_override' => 'decimal:2',
             'incidentals_charge' => 'decimal:2',
             'checkin_reminder_sent_at' => 'datetime',
+            'vehicle_info_bypassed_at' => 'datetime',
                     ];
     }
 
@@ -540,6 +539,10 @@ class Booking extends Model
             return false;
         }
 
+        if ($this->vehicle_info_bypassed_at) {
+            return false;
+        }
+
         if ($this->vehicle_make_model && $this->license_plate_photo_path) {
             return false;
         }
@@ -654,8 +657,6 @@ class Booking extends Model
     {
         $timezone = $this->property?->timezone ?? 'America/New_York';
         $now = ($now ?? now())->setTimezone($timezone);
-
-        if ($this->early_checkin) return true;
 
         $checkinDate = $this->check_in_date->toDateString();
 
