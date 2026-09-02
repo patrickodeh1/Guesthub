@@ -22,17 +22,17 @@ Recovered from client conversation export (Google AI chat, dated in export). Gro
 
 - [x] Replace default Stripe Elements layout with a **single-card, minimalist stacked input** that hides the default Payment Element and uses dedicated card number/expiry/CVV fields only
 - [x] Remove Link autofill, Cash App, Amazon Pay, Bank payment buttons, and "save my info" — card only
-- [ ] Show incidentals total + breakdown to guest **regardless of payment path**
-- [ ] After showing total, present explicit choice: **[Pay Here with Card]** or **[Pay on Airbnb]**
+- [x] Show incidentals total + breakdown to guest **regardless of payment path**
+- [x] After showing total, present explicit choice: **[Pay Here with Card]** or **[Pay on Airbnb]**
   - Pay Here → loads sliding card input
   - Pay on Airbnb → shows custom instructions screen (text configurable by admin on backend)
 
 ## 3. Property & Contact Info (Guest-Facing)
 
-- [ ] Property addresses — truncate display **at zip code** (drop redundant "USA", city/state suffix)
-- [ ] Remove phone numbers from checkout cards — rely solely on the **Quick Contact button**
+- [x] Property addresses — truncate display **at zip code** (drop redundant "USA", city/state suffix)
+- [x] Remove phone numbers from checkout cards — rely solely on the **Quick Contact button**
 - [x] Ensure Quick Contact button is visible on **every guest page** of registration and pre-checkin (reused the existing phone-style contact FAB globally in the guest layout)
-- [ ] Property images — should fill their allotted container space (currently showing gaps/cutoff — check `object-fit`/container sizing)
+- [x] Property images — should fill their allotted container space (currently showing gaps/cutoff — check `object-fit`/container sizing)
 
 ## 4. Admin — Guest Details Page, First Card
 

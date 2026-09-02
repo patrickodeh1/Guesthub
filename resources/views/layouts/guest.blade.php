@@ -51,8 +51,11 @@
     </div>
 @endif
 
-@if($property && $property->contact_phone)
-    <a href="tel:{{ $property->contact_phone }}" class="guest-contact-fab" aria-label="Contact Guest Services">
+@php
+    $quickContactPhone = ($property?->contact_phone) ?: \App\Models\Setting::getValue('contact_phone');
+@endphp
+@if($quickContactPhone)
+    <a href="tel:{{ $quickContactPhone }}" class="guest-contact-fab" aria-label="Contact Guest Services">
         <span class="guest-contact-fab-icon"><x-icon name="contact-guest-services" class="h-5 w-5" /></span>
         <span class="guest-contact-fab-label">Contact Guest Services</span>
     </a>

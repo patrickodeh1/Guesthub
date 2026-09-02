@@ -53,7 +53,7 @@
                         @endif
                     </div>
                 </div>
-                <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="w-full block rounded-xl mt-4">
+                <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="guest-hero-img w-full rounded-xl mt-4">
                 <div class="p-6 md:p-10 text-center">
                     <div class="flex items-center justify-center mb-4">
                         <x-icon name="alert-triangle" class="h-6 w-6" style="color:#92400e;" />
@@ -87,7 +87,7 @@
             </div>
 
             <div class="guest-portal-card mt-4">
-                <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="w-full block rounded-xl">
+                <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="guest-hero-img w-full rounded-xl">
             </div>
 
             <div class="guest-portal-card mt-4">
@@ -1403,7 +1403,7 @@
                         Not checked in
                     </span>
                 </div>
-                <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="w-full block mt-4" style="height:auto">
+                <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="guest-hero-img w-full mt-4">
                 <div class="px-6 pt-8 pb-2 text-center">
                     <div class="guest-big-check">
                         <x-icon name="check" class="h-8 w-8" />
@@ -1458,7 +1458,7 @@
                         Almost there
                     </span>
                 </div>
-                <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="w-full block mt-4" style="height:auto">
+                <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="guest-hero-img w-full mt-4">
                 <div class="px-6 pt-8 pb-2 text-center">
                     <div class="guest-big-check">
                         <x-icon name="car" class="h-8 w-8" />
@@ -1494,12 +1494,9 @@
                         </span>
                         <div>
                             <p class="guest-detail-banner-title">Can't provide this right now?</p>
-                            <p class="guest-detail-banner-sub">Call Guest Services and we'll take care of it for you.</p>
+                            <p class="guest-detail-banner-sub">Use the Contact Guest Services button and we'll take care of it for you.</p>
                         </div>
                     </div>
-                    <a href="tel:{{ $property->contact_phone }}" class="guest-primary-btn mt-3 w-full block text-center" style="background:transparent;border:1px solid #e2e8f0;color:#0f172a;" aria-label="Contact Guest Services">
-                        Call Guest Services
-                    </a>
                 </div>
             </div>
         @elseif($state === 'arrival')
@@ -1516,7 +1513,7 @@
                         Not checked in
                     </span>
                 </div>
-                <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="w-full block rounded-xl mt-4">
+                <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="guest-hero-img w-full rounded-xl mt-4">
             <div class="p-6 md:p-10">
                 <h1 class="guest-status-title">We Can't Wait To See You!</h1>
                 <div class="guest-stay-grid">
@@ -1541,7 +1538,7 @@
                 @if($booking->canViewAddress())
                     <div class="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-sm">
                         <p class="font-semibold text-slate-800 mb-2">Property Address</p>
-                        <p class="text-slate-600">{{ $property->address }}<br>{{ $property->city }}@if($property->state), {{ $property->state }}@endif {{ $property->zip }}</p>
+                        <p class="text-slate-600">{{ $property->shortAddress() }}</p>
                         @if($property->latitude && $property->longitude)
                             <div class="-mx-4 mt-3 overflow-hidden border-y border-slate-200 md:mx-0 md:rounded-lg md:border">
                                 <iframe title="Map"
@@ -1581,9 +1578,7 @@
                         <div>
                             <p class="text-base font-bold text-slate-950">Navigate To:</p>
                             <p class="mt-2 text-sm leading-6 text-slate-600">
-                                {{ $property->address }}<br>
-                                {{ $property->city }}@if($property->state), {{ $property->state }}@endif {{ $property->zip }}<br>
-                                {{ $property->contact_phone ?: \App\Models\Setting::getValue('contact_phone') }}
+                                {{ $property->shortAddress() }}
                             </p>
                         </div>
                         @if($property->latitude && $property->longitude)
@@ -1626,7 +1621,7 @@
                 <div class="px-6 pt-5">
                     <h1 class="guest-status-title">Almost there</h1>
                 </div>
-                <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="w-full block rounded-xl mt-4">
+                <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="guest-hero-img w-full rounded-xl mt-4">
                 <div class="p-6 md:p-10">
                     @php
                         $depositAmountCents = $booking->calculatePreCheckinChargeCents();

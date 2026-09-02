@@ -9,6 +9,32 @@ use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Property extends Model
 {
+
+    /**
+     * Guest-facing short address: full street/city/state/zip in one line,
+     * truncated immediately after the zip code (drops any trailing
+     * country text like ", USA" and avoids re-printing city/state/zip
+     * separately since $address already contains them).
+     */
+    public function shortAddress(): string
+    {
+        $addr = trim((string) $this->address);
+
+        if ($addr === '') {
+            return '';
+        }
+
+        // Strip a trailing country suffix such as ", USA" or " USA".
+        $addr = preg_replace('/,?\s*USA$/i', '', $addr);
+
+        // Truncate everything after the first ZIP code (5 digit, or ZIP+4).
+        if (preg_match('/^.*?\d{5}(-\d{4})?/', $addr, $m)) {
+            $addr = $m[0];
+        }
+
+        return rtrim(trim($addr), ", ");
+    }
+
     use HasFactory;
 
     protected $fillable = [
