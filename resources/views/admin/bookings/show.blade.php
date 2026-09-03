@@ -28,7 +28,6 @@
             <section class="card card-pad">
                 <div class="flex items-center justify-between">
                     <h2 class="section-title">Guest Details</h2>
-                    <a href="{{ route('admin.guests.edit', $booking) }}" class="text-sm font-semibold text-teal-800">Edit Details</a>
                 </div>
                 @php
                     $checkinNeedsReview = $booking->checkin_time_status === 'pending';
@@ -37,6 +36,7 @@
                 <dl class="mt-4 grid gap-x-10 text-sm sm:grid-cols-2">
                     @foreach([
                         ['receipt', 'Incidentals Charge', $booking->incidentals_charge !== null ? '$'.number_format($booking->incidentals_charge, 2) : 'Not set'],
+                        ['parking', 'Parking Charge', $booking->effectiveParkingCharge() !== null ? '$'.number_format($booking->effectiveParkingCharge(), 2) : 'Not set'],
                         ...($booking->early_checkin_tier ? [['calendar', 'Early Check-in Charge', '$'.number_format($booking->earlyCheckinCharge() ?? 0, 2).' ('.(match($booking->early_checkin_tier) { '8am_12pm', '8am' => '8:00 AM - 12:00 PM', '12pm_2pm', '12pm' => '12:00 PM - 2:00 PM', '2pm_4pm' => '2:00 PM - 4:00 PM', default => $booking->early_checkin_tier }).' window)']] : []),
                         ...($booking->late_checkout_type ? [['clock', 'Late Checkout Charge', '$'.number_format($booking->lateCheckoutCharge() ?? 0, 2).' ('.ucfirst($booking->late_checkout_type).', billed per half-hour)']] : []),
                         ['calculator', 'Total Pre-checkin Charge:', '$'.number_format($booking->calculatePreCheckinChargeCents() / 100, 2)],
@@ -56,6 +56,14 @@
                                 <x-icon name="x" class="inline h-4 w-4 text-red-600" />
                             @endif
                         </span>
+                    </div>
+                    <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3">
+                        <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="contact-guest-services" class="h-4 w-4 shrink-0 text-slate-400" />Checked In At</span>
+                        <span class="font-semibold text-right">{{ $booking->localTimestamp($booking->checked_in_at)?->format('M j, Y g:i A') ?? 'Not yet' }}</span>
+                    </div>
+                    <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3">
+                        <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="contact-guest-services" class="h-4 w-4 shrink-0 text-slate-400" />Checked Out At</span>
+                        <span class="font-semibold text-right">{{ $booking->localTimestamp($booking->checked_out_at)?->format('M j, Y g:i A') ?? 'Not yet' }}</span>
                     </div>
                     @if($checkinNeedsReview || $checkoutNeedsReview)
                     <div class="border-b border-slate-100 py-3 sm:col-start-2">
@@ -153,7 +161,7 @@
                                     </div>
                                     <div class="mt-4 border-t border-slate-100 pt-4">
                                         @if($booking->isFrontIdApproved())
-                                            <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">Front approved {{ $booking->photo_id_front_approved_at->format('M j, Y g:i A') }}</div>
+                                            <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">Front approved {{ $booking->localTimestamp($booking->photo_id_front_approved_at)->format('M j, Y g:i A') }}</div>
                                         @else
                                             <div class="flex gap-2">
                                                 <form method="post" action="{{ route('admin.guests.id.approve', [$booking, 'front']) }}" class="flex-1">@csrf<button class="btn-primary w-full gap-2"><x-icon name="check" class="h-4 w-4" />Approve Front</button></form>
@@ -179,7 +187,7 @@
                                     </div>
                                     <div class="mt-4 border-t border-slate-100 pt-4">
                                         @if($booking->isBackIdApproved())
-                                            <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">Back approved {{ $booking->photo_id_back_approved_at->format('M j, Y g:i A') }}</div>
+                                            <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">Back approved {{ $booking->localTimestamp($booking->photo_id_back_approved_at)->format('M j, Y g:i A') }}</div>
                                         @else
                                             <div class="flex gap-2">
                                                 <form method="post" action="{{ route('admin.guests.id.approve', [$booking, 'back']) }}" class="flex-1">@csrf<button class="btn-primary w-full gap-2"><x-icon name="check" class="h-4 w-4" />Approve Back</button></form>
@@ -200,7 +208,7 @@
                     @endif
 
                     @if($booking->isIdFullyApproved())
-                        <div class="mt-5 rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">All ID photos approved{{ $booking->approved_at ? ' on '.$booking->approved_at->format('M j, Y g:i A') : '' }}</div>
+                        <div class="mt-5 rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">All ID photos approved{{ $booking->approved_at ? ' on '.$booking->localTimestamp($booking->approved_at)->format('M j, Y g:i A') : '' }}</div>
                     @endif
                 </section>
 
@@ -260,14 +268,14 @@
                     @if(! $booking->isApproved())
                         <div class="rounded-lg bg-slate-50 border border-slate-200 p-3 text-sm text-slate-500">Waiting on Photo ID approval before {{ \App\Models\Setting::getValue('background_check_step_name', 'Background Check') }} can be marked.</div>
                     @elseif($booking->isBackgroundCheckComplete())
-                        <div class="rounded-lg bg-indigo-50 border border-indigo-200 p-3 text-sm text-indigo-800 font-semibold">{{ \App\Models\Setting::getValue('background_check_step_name', 'Background Check') }} completed {{ $booking->background_check_completed_at->format('M j, Y g:i A') }}</div>
+                        <div class="rounded-lg bg-indigo-50 border border-indigo-200 p-3 text-sm text-indigo-800 font-semibold">{{ \App\Models\Setting::getValue('background_check_step_name', 'Background Check') }} completed {{ $booking->localTimestamp($booking->background_check_completed_at)->format('M j, Y g:i A') }}</div>
                     @else
                         <form method="post" action="{{ route('admin.guests.background-check', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="shield-alert" class="h-4 w-4" />Background Passed</button></form>
                     @endif
 
                     @if($booking->isBackgroundCheckComplete())
                         @if($booking->isDepositVerified())
-                            <div class="rounded-lg bg-teal-50 border border-teal-200 p-3 text-sm text-teal-800 font-semibold">Deposit verified {{ $booking->deposit_verified_at->format('M j, Y g:i A') }}</div>
+                            <div class="rounded-lg bg-teal-50 border border-teal-200 p-3 text-sm text-teal-800 font-semibold">Deposit verified {{ $booking->localTimestamp($booking->deposit_verified_at)->format('M j, Y g:i A') }}</div>
                         @else
                             <form method="post" action="{{ route('admin.guests.deposit-verified', $booking) }}" data-confirm-title="Mark Deposit Verified?" data-confirm="This will fully approve the guest. Before continuing, verify the guest has actually paid everything owed on / outside the platform: incidentals, parking, and early check-in (if applicable). This action does not check or record any of those payments itself.">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="lock" class="h-4 w-4" />Deposit Verified</button></form>
                         @endif
@@ -277,7 +285,7 @@
 
                     @if($booking->access_blocked_at)
                         <div class="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-800">
-                            <span class="font-semibold">Access blocked</span> since {{ $booking->access_blocked_at->format('M j, Y g:i A') }}
+                            <span class="font-semibold">Access blocked</span> since {{ $booking->localTimestamp($booking->access_blocked_at)->format('M j, Y g:i A') }}
                             <p class="mt-1">{{ $booking->access_blocked_reason }}</p>
                         </div>
                     @endif
@@ -375,7 +383,7 @@
                         <x-icon :name="$icon" class="h-5 w-5" />
                     </span>
                     <p class="mt-3 text-sm font-semibold text-slate-950">{{ $label }}</p>
-                    <p class="mt-1 text-xs text-slate-500">{{ $done ? ($time ? $time->format('M j, Y g:i A') : 'Completed') : 'Pending' }}</p>
+                    <p class="mt-1 text-xs text-slate-500">{{ $done ? ($time ? $booking->localTimestamp($time)->format('M j, Y g:i A') : 'Completed') : 'Pending' }}</p>
                     <span class="mt-2 badge {{ $done ? 'badge-active' : 'badge-pending' }}">{{ $done ? 'Done' : 'Open' }}</span>
                 </div>
             @endforeach

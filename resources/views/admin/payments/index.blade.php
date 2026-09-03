@@ -126,7 +126,7 @@
                             <span class="badge {{ $statusBadge }}">{{ $statuses[$charge->status] ?? $charge->status }}</span>
                         </td>
                         <td class="text-sm text-slate-500">{{ $charge->billing_moment ? str($charge->billing_moment)->replace('_', ' ')->title() : '—' }}</td>
-                        <td class="text-sm text-slate-500">{{ $charge->created_at->format('M j, Y g:ia') }}</td>
+                        <td class="text-sm text-slate-500">{{ $charge->created_at->copy()->setTimezone(config('app.display_timezone'))->format('M j, Y g:ia') }}</td>
                     </tr>
                 @empty
                     <tr>

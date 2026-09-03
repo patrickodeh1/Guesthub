@@ -3,7 +3,7 @@
         <div>
             <p class="eyebrow">Activity Logs</p>
             <h2 class="page-title">Log Entry #{{ $log->id }}</h2>
-            <p class="page-subtitle">{{ $log->created_at->format('l, d F Y \a\t H:i:s') }}</p>
+            <p class="page-subtitle">{{ $log->created_at->copy()->setTimezone(config('app.display_timezone'))->format('l, d F Y \a\t H:i:s') }}</p>
         </div>
         <a href="{{ route('admin.logs.index') }}" class="btn-secondary">← Back to Logs</a>
     </div>
@@ -99,8 +99,8 @@
                 <dl class="mt-4 grid gap-3 text-sm">
                     <div>
                         <dt class="field-label text-xs">Timestamp</dt>
-                        <dd class="mt-1 text-slate-700">{{ $log->created_at->format('d M Y H:i:s') }}</dd>
-                        <dd class="text-xs text-slate-500">{{ $log->created_at->diffForHumans() }}</dd>
+                        <dd class="mt-1 text-slate-700">{{ $log->created_at->copy()->setTimezone(config('app.display_timezone'))->format('d M Y H:i:s') }}</dd>
+                        <dd class="text-xs text-slate-500">{{ $log->created_at->copy()->setTimezone(config('app.display_timezone'))->diffForHumans() }}</dd>
                     </div>
                     @if($log->subject_type && $log->subject_id)
                         <div>

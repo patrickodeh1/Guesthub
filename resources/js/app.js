@@ -855,7 +855,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 cache: 'no-store',
             });
 
-            if (!response.ok) return;
+            if (!response.ok || response.redirected) return;
 
             const html = await response.text();
             const match = html.match(/<meta name="csrf-token" content="([^"]+)"/i);

@@ -74,7 +74,7 @@
                     <option value="unauthorized" @selected(old('late_checkout_type', $booking->late_checkout_type)==='unauthorized')>Unauthorized</option>
                 </select>
                 <label class="field-label mt-3">Hours late (authorized only)<input type="number" step="0.25" min="0" name="late_checkout_hours" value="{{ old('late_checkout_hours', $booking->late_checkout_hours) }}" placeholder="e.g. 2" class="input"></label>
-                <label class="field-label mt-3">Actual checkout time (unauthorized only)<input type="datetime-local" name="late_checkout_actual_time" value="{{ old('late_checkout_actual_time', optional($booking->late_checkout_actual_time)->format('Y-m-d\TH:i')) }}" class="input"></label>
+                <label class="field-label mt-3">Actual checkout time (unauthorized only)<input type="datetime-local" name="late_checkout_actual_time" value="{{ old('late_checkout_actual_time', optional($booking->localTimestamp($booking->late_checkout_actual_time))->format('Y-m-d\TH:i')) }}" class="input"></label>
                 <span class="field-help">Separate from the system's automatic checkout timestamp; enter what time the guest actually left for an unauthorized late checkout, so hours can be calculated.</span>
                 @if($booking->late_checkout_type)
                     <span class="field-help font-semibold">Charge: ${{ number_format($booking->lateCheckoutCharge() ?? 0, 2) }}</span>

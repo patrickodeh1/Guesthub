@@ -125,11 +125,11 @@
                         </div>
                         <div>
                             <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Last login</dt>
-                            <dd class="mt-1 text-slate-700">{{ $user->last_login_at?->format('d M Y H:i') ?? 'Never' }}</dd>
+                            <dd class="mt-1 text-slate-700">{{ $user->last_login_at?->copy()->setTimezone(config('app.display_timezone'))->format('d M Y H:i') ?? 'Never' }}</dd>
                         </div>
                         <div>
                             <dt class="text-xs font-semibold uppercase tracking-wide text-slate-500">Member since</dt>
-                            <dd class="mt-1 text-slate-700">{{ $user->created_at->format('d M Y') }}</dd>
+                            <dd class="mt-1 text-slate-700">{{ $user->created_at->copy()->setTimezone(config('app.display_timezone'))->format('d M Y') }}</dd>
                         </div>
                     </dl>
                     @if($user->id !== auth()->id())

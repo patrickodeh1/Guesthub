@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Support\PhoneFormatter;
 
+use Carbon\Carbon;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -222,6 +223,11 @@ class Booking extends Model
     public function isArchived(): bool
     {
         return filled($this->archived_at);
+    }
+
+    public function localTimestamp(?CarbonInterface $timestamp): ?Carbon
+    {
+        return $timestamp?->copy()->setTimezone($this->property?->timezone ?? config('app.display_timezone'));
     }
 
     public function isIdentityComplete(): bool

@@ -85,7 +85,7 @@
                     <div class="flex justify-between">
                         <dt class="font-semibold text-slate-600">Last login</dt>
                         <dd class="text-right text-slate-700">
-                            {{ $user->last_login_at?->format('d M Y H:i') ?? 'Never' }}
+                            {{ $user->last_login_at?->copy()->setTimezone(config('app.display_timezone'))->format('d M Y H:i') ?? 'Never' }}
                         </dd>
                     </div>
                     @if($user->last_login_ip)
@@ -96,12 +96,12 @@
                     @endif
                     <div class="flex justify-between">
                         <dt class="font-semibold text-slate-600">Member since</dt>
-                        <dd class="text-right text-slate-700">{{ $user->created_at->format('d M Y') }}</dd>
+                        <dd class="text-right text-slate-700">{{ $user->created_at->copy()->setTimezone(config('app.display_timezone'))->format('d M Y') }}</dd>
                     </div>
                     <div class="flex justify-between">
                         <dt class="font-semibold text-slate-600">Tour completed</dt>
                         <dd class="text-right text-slate-700">
-                            {{ $user->admin_tour_completed_at ? $user->admin_tour_completed_at->format('d M Y') : 'Not yet' }}
+                            {{ $user->admin_tour_completed_at ? $user->admin_tour_completed_at->copy()->setTimezone(config('app.display_timezone'))->format('d M Y') : 'Not yet' }}
                         </dd>
                     </div>
                 </dl>

@@ -90,14 +90,14 @@
                         </td>
                         <td class="text-sm text-slate-600">
                             @if($user->last_login_at)
-                                <span title="{{ $user->last_login_at->format('d M Y H:i') }}">
+                                <span title="{{ $user->last_login_at->copy()->setTimezone(config('app.display_timezone'))->format('d M Y H:i') }}">
                                     {{ $user->last_login_at->diffForHumans() }}
                                 </span>
                             @else
                                 <span class="text-slate-400">Never</span>
                             @endif
                         </td>
-                        <td class="text-sm text-slate-500">{{ $user->created_at->format('d M Y') }}</td>
+                        <td class="text-sm text-slate-500">{{ $user->created_at->copy()->setTimezone(config('app.display_timezone'))->format('d M Y') }}</td>
                         <td class="text-right">
                             <div class="flex items-center justify-end gap-2">
                                 <a href="{{ route('admin.users.show', $user) }}" class="btn-secondary px-3 py-1.5 text-xs">View</a>

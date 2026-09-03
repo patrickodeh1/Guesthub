@@ -140,7 +140,7 @@
                                             'url' => $file->url(),
                                             'name' => $file->original_name,
                                             'size' => $formatSize($file->size),
-                                            'date' => $file->created_at?->format('M j, Y g:i A') ?? '-',
+                                            'date' => $file->created_at?->copy()->setTimezone(config('app.display_timezone'))->format('M j, Y g:i A') ?? '-',
                                             'deleteUrl' => route('admin.media.files.destroy', $file),
                                         ]) }})"
                                         class="block w-full text-left focus:outline-none">
