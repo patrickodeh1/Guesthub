@@ -288,20 +288,25 @@ class Booking extends Model
         return filled($this->photo_id_front_declined_reason) || filled($this->photo_id_back_declined_reason);
     }
 
-    public function stayRangeLabel(): string
+    public function dateRangeOnly(): string
     {
         $in = $this->check_in_date;
         $out = $this->check_out_date;
 
         if ($in->format('Y-m') === $out->format('Y-m')) {
-            $range = $in->format('M j').'-'.$out->format('j');
-        } elseif ($in->format('Y') === $out->format('Y')) {
-            $range = $in->format('M j').' - '.$out->format('M j');
-        } else {
-            $range = $in->format('M j, Y').' - '.$out->format('M j, Y');
+            return $in->format('M j').'-'.$out->format('j');
         }
 
-        return $range.' '.$this->nightsLabel();
+        if ($in->format('Y') === $out->format('Y')) {
+            return $in->format('M j').' - '.$out->format('M j');
+        }
+
+        return $in->format('M j, Y').' - '.$out->format('M j, Y');
+    }
+
+    public function stayRangeLabel(): string
+    {
+        return $this->dateRangeOnly().' '.$this->nightsLabel();
     }
 
     /**

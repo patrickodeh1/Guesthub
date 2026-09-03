@@ -97,7 +97,8 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
 
     // ─── Guests / Bookings ────────────────────────────────────────────────────
     Route::get('guests/search', [BookingController::class, 'searchLive'])->name('guests.search');
-    Route::get('guests/next-week', [BookingController::class, 'nextWeekMore'])->name('guests.next-week');
+    Route::get('guests/this-week', [BookingController::class, 'thisWeekMore'])->name('guests.this-week');
+    Route::get('guests/upcoming', [BookingController::class, 'upcomingMore'])->name('guests.upcoming');
     Route::resource('guests', BookingController::class)->parameters(['guests' => 'booking']);
     Route::get('guests/{booking}/preview/{state}', [BookingController::class, 'preview'])->name('guests.preview');
     Route::post('guests/{booking}/override-checkin', [BookingController::class, 'overrideCheckin'])->name('guests.override');

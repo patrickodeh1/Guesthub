@@ -20,58 +20,69 @@
                 <a href="{{ route('admin.guests.index') }}" class="btn-secondary gap-2"><x-icon name="refresh" class="h-4 w-4" />Clear</a>
             @endif
         </form>
-        <label class="mt-3 flex w-fit items-center gap-2 text-sm text-slate-600"><input type="checkbox" name="archived" value="1" form="guest-filter-form" @checked(request()->boolean('archived')) onchange="this.form.requestSubmit ? document.getElementById('guest-filter-form').requestSubmit() : document.getElementById('guest-filter-form').submit()"> Show archived</label>
+        <label class="mt-3 flex w-fit items-center gap-2 text-sm text-slate-600"><input type="checkbox" name="archived" value="1" form="guest-filter-form" @checked($showArchived) onchange="this.form.requestSubmit ? document.getElementById('guest-filter-form').requestSubmit() : document.getElementById('guest-filter-form').submit()"> Show archived</label>
     </div>
 
     @if($thisWeek->isNotEmpty())
     <div class="mb-3 flex items-center justify-between">
         <h2 class="text-lg font-semibold text-slate-950">This Week</h2>
-        <span class="text-sm text-slate-500">{{ $thisWeek->count() }} guest{{ $thisWeek->count() === 1 ? '' : 's' }}</span>
+        <span class="text-sm text-slate-500">{{ $thisWeekTotal }} guest{{ $thisWeekTotal === 1 ? '' : 's' }}</span>
     </div>
-    <div class="card mb-8 divide-y divide-slate-100">
+    <div id="this-week-card" class="card mb-4 divide-y divide-slate-100" data-offset="{{ $thisWeek->count() }}">
         @foreach($thisWeek as $booking)
             @include('admin.bookings.partials.week-guest-row', ['booking' => $booking, 'context' => 'this-week'])
         @endforeach
     </div>
-    @endif
-
-    @if($nextWeekTotal > 0)
-    <div class="mb-3 flex items-center justify-between">
-        <h2 class="text-lg font-semibold text-slate-950">Next Week</h2>
-        <span class="text-sm text-slate-500">{{ $nextWeekTotal }} guest{{ $nextWeekTotal === 1 ? '' : 's' }}</span>
-    </div>
-    <div id="next-week-card" class="card mb-4 divide-y divide-slate-100" data-offset="{{ $nextWeek->count() }}" data-has-more="{{ $nextWeek->count() < $nextWeekTotal ? '1' : '0' }}">
-        @foreach($nextWeek as $booking)
-            @include('admin.bookings.partials.week-guest-row', ['booking' => $booking, 'context' => 'next-week'])
-        @endforeach
-    </div>
-    @if($nextWeek->count() < $nextWeekTotal)
+    @if($thisWeek->count() < $thisWeekTotal)
         <div class="mb-8 text-center">
-            <button type="button" id="next-week-show-more" class="btn-secondary">Show More</button>
+            <button type="button" id="this-week-show-more" class="btn-secondary">Show More</button>
         </div>
     @else
         <div class="mb-8"></div>
     @endif
     @endif
 
+    @if($upcomingTotal > 0)
     <div class="mb-3 flex items-center justify-between">
-        <h2 class="text-lg font-semibold text-slate-950">All Guests</h2>
+        <h2 class="text-lg font-semibold text-slate-950">Upcoming</h2>
+        <span class="text-sm text-slate-500">{{ $upcomingTotal }} guest{{ $upcomingTotal === 1 ? '' : 's' }}</span>
     </div>
-    <div class="table-wrap">
-        <div class="overflow-x-auto">
-            <table class="data-table">
-                <thead><tr><th>Guest</th><th>Property</th><th>Stay</th><th>Status</th><th></th></tr></thead>
-                <tbody>
-                    @forelse($bookings as $booking)
-                        @include('admin.bookings.partials.guest-row', ['booking' => $booking])
-                    @empty
-                        <tr><td colspan="5" class="py-12 text-center text-slate-500">No guests found. Add a guest to generate the first secure URL.</td></tr>
-                    @endforelse
-                </tbody>
-            </table>
+    <div id="upcoming-card" class="card mb-4 divide-y divide-slate-100" data-offset="{{ $upcoming->count() }}" data-has-more="{{ $upcoming->count() < $upcomingTotal ? '1' : '0' }}">
+        @foreach($upcoming as $booking)
+            @include('admin.bookings.partials.week-guest-row', ['booking' => $booking, 'context' => 'upcoming'])
+        @endforeach
+    </div>
+    @if($upcoming->count() < $upcomingTotal)
+        <div class="mb-8 text-center">
+            <button type="button" id="upcoming-show-more" class="btn-secondary">Show More</button>
         </div>
-    </div>
-    <div class="mt-5">{{ $bookings->links() }}</div>
+    @endif
+    @endif
+
+    @if($showArchived)
+        <div class="mb-3 flex items-center justify-between">
+            <h2 class="text-lg font-semibold text-slate-950">Archived Guests</h2>
+        </div>
+        <div class="table-wrap">
+            <div class="overflow-x-auto">
+                <table class="data-table">
+                    <thead><tr><th>Guest</th><th>Property</th><th>Stay</th><th>Status</th><th></th></tr></thead>
+                    <tbody>
+                        @forelse($bookings as $booking)
+                            @include('admin.bookings.partials.guest-row', ['booking' => $booking])
+                        @empty
+                            <tr><td colspan="5" class="py-12 text-center text-slate-500">No archived guests found.</td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="mt-5">{{ $bookings->links() }}</div>
+    @endif
+
+    @if($thisWeek->isEmpty() && $upcomingTotal === 0)
+        <div class="card card-pad text-center text-slate-500">No guests checking in or out this week or coming up.</div>
+    @endif
 
     <script>
     (function () {
@@ -133,37 +144,65 @@
             }
         });
 
-        // "Show More" batch loading for the Next Week card (task 9): loads
-        // a few more rows at a time with no full page reload.
-        const nextWeekCard = document.getElementById('next-week-card');
-        const showMoreBtn  = document.getElementById('next-week-show-more');
-        const nextWeekMoreUrl = @json(route('admin.guests.next-week'));
+        // "Show More" batch loading for the Upcoming card: loads 5 more
+        // rows at a time with no full page reload.
+        const upcomingCard = document.getElementById('upcoming-card');
+        const upcomingShowMoreBtn = document.getElementById('upcoming-show-more');
+        const upcomingMoreUrl = @json(route('admin.guests.upcoming'));
 
-        showMoreBtn?.addEventListener('click', function () {
-            const offset = parseInt(nextWeekCard.dataset.offset || '0', 10);
+        upcomingShowMoreBtn?.addEventListener('click', function () {
+            const offset = parseInt(upcomingCard.dataset.offset || '0', 10);
 
-            showMoreBtn.disabled = true;
-            showMoreBtn.textContent = 'Loading...';
+            upcomingShowMoreBtn.disabled = true;
+            upcomingShowMoreBtn.textContent = 'Loading...';
 
-            fetch(nextWeekMoreUrl + '?offset=' + offset, { headers: { 'Accept': 'application/json' } })
+            fetch(upcomingMoreUrl + '?offset=' + offset + '&limit=5', { headers: { 'Accept': 'application/json' } })
                 .then(r => r.json())
                 .then(function (data) {
-                    nextWeekCard.insertAdjacentHTML('beforeend', data.html);
-                    nextWeekCard.dataset.offset = data.next_offset;
+                    upcomingCard.insertAdjacentHTML('beforeend', data.html);
+                    upcomingCard.dataset.offset = data.next_offset;
 
                     if (!data.has_more) {
-                        showMoreBtn.remove();
+                        upcomingShowMoreBtn.remove();
                     } else {
-                        showMoreBtn.disabled = false;
-                        showMoreBtn.textContent = 'Show More';
+                        upcomingShowMoreBtn.disabled = false;
+                        upcomingShowMoreBtn.textContent = 'Show More';
                     }
                 })
                 .catch(function () {
-                    showMoreBtn.disabled = false;
-                    showMoreBtn.textContent = 'Show More';
+                    upcomingShowMoreBtn.disabled = false;
+                    upcomingShowMoreBtn.textContent = 'Show More';
+                });
+        });
+
+        const thisWeekCard = document.getElementById('this-week-card');
+        const thisWeekShowMoreBtn = document.getElementById('this-week-show-more');
+        const thisWeekMoreUrl = @json(route('admin.guests.this-week'));
+
+        thisWeekShowMoreBtn?.addEventListener('click', function () {
+            const offset = parseInt(thisWeekCard.dataset.offset || '0', 10);
+
+            thisWeekShowMoreBtn.disabled = true;
+            thisWeekShowMoreBtn.textContent = 'Loading...';
+
+            fetch(thisWeekMoreUrl + '?offset=' + offset + '&limit=5', { headers: { 'Accept': 'application/json' } })
+                .then(r => r.json())
+                .then(function (data) {
+                    thisWeekCard.insertAdjacentHTML('beforeend', data.html);
+                    thisWeekCard.dataset.offset = data.next_offset;
+
+                    if (!data.has_more) {
+                        thisWeekShowMoreBtn.remove();
+                    } else {
+                        thisWeekShowMoreBtn.disabled = false;
+                        thisWeekShowMoreBtn.textContent = 'Show More';
+                    }
+                })
+                .catch(function () {
+                    thisWeekShowMoreBtn.disabled = false;
+                    thisWeekShowMoreBtn.textContent = 'Show More';
                 });
         });
     })();
     </script>
 </x-admin-layout>
-
