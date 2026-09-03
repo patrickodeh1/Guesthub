@@ -21,7 +21,10 @@ class AuthController extends Controller
             'password' => ['required'],
         ]);
 
-        if (Auth::attempt($credentials, $request->boolean('remember'))) {
+        if (Auth::attempt($credentials, true)) {
+            // Always remember the user so a stale/backgrounded mobile tab
+            // doesn't get logged out; the checkbox on the login form is
+            // now cosmetic only.
             $request->session()->regenerate();
 
             /** @var User $user */

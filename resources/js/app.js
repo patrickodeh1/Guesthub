@@ -839,3 +839,59 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
+
+// --- session-keepalive: refresh CSRF token on tab return ---
+// When a tab has been backgrounded (phone locked, app switched away, etc.)
+// its CSRF token / page state can go stale. Rather than let the next tap
+// fail with a 419 and dead-end the user, quietly re-sync the token as soon
+// as the tab becomes visible again.
+(function () {
+    async function refreshCsrfToken() {
+        try {
+            const response = await fetch(window.location.pathname + window.location.search, {
+                method: 'GET',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                credentials: 'same-origin',
+                cache: 'no-store',
+            });
+
+            if (!response.ok) return;
+
+            const html = await response.text();
+            const match = html.match(/<meta name="csrf-token" content="([^"]+)"/i);
+            if (!match) return;
+
+            const freshToken = match[1];
+
+            const metaTag = document.querySelector('meta[name="csrf-token"]');
+            if (metaTag) metaTag.setAttribute('content', freshToken);
+
+            document.querySelectorAll('input[name="_token"]').forEach((input) => {
+                input.value = freshToken;
+            });
+
+            if (window.axios) {
+                window.axios.defaults.headers.common['X-CSRF-TOKEN'] = freshToken;
+            }
+        } catch (e) {
+            // Silently ignore — worst case, the user's next action still
+            // shows the friendly 419 page instead of a dead end.
+        }
+    }
+
+    // Fires when the tab regains focus/visibility (phone unlocked, app
+    // switched back to, etc.)
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            refreshCsrfToken();
+        }
+    });
+
+    // Fires specifically when a page is restored from the browser's
+    // back-forward cache (bfcache) — common on mobile Safari/Chrome.
+    window.addEventListener('pageshow', (event) => {
+        if (event.persisted) {
+            refreshCsrfToken();
+        }
+    });
+})();
