@@ -528,6 +528,60 @@ class Booking extends Model
         return (int) $date->copy()->startOfDay()->diffInDays($this->check_in_date->copy()->startOfDay(), false);
     }
 
+    public function daysUntilCheckOut(?CarbonInterface $date = null): int
+    {
+        $date ??= now();
+
+        return (int) $date->copy()->startOfDay()->diffInDays($this->check_out_date->copy()->startOfDay(), false);
+    }
+
+    /**
+     * Dynamic status line for the admin "This Week" guest card (task 8):
+     * checked-in/checking-in-today guests show a countdown to checkout,
+     * recently checked-out guests show how long ago they left, everyone
+     * else falls back to the plain nights-of-stay label.
+     */
+    public function weekCardDynamicLabel(): string
+    {
+        if (! $this->checked_out_at && ($this->isCheckedIn() || $this->manually_checked_in || $this->status === 'currently_hosting' || $this->isCheckinDay())) {
+            $daysLeft = $this->daysUntilCheckOut();
+
+            return $daysLeft <= 0 ? 'Checks out today' : 'Checks out in '.$daysLeft.' '.Str::plural('day', $daysLeft);
+        }
+
+        return $this->nightsLabel();
+    }
+
+    /**
+     * Countdown label for the admin "Next Week" guest card (task 9),
+     * e.g. "Arriving in 5 days".
+     */
+    public function arrivalCountdownLabel(): string
+    {
+        $daysUntil = $this->daysUntilCheckIn();
+
+        return $daysUntil <= 0 ? 'Arriving today' : 'Arriving in '.$daysUntil.' '.Str::plural('day', $daysUntil);
+    }
+
+    /**
+     * Which "week card" bucket this booking currently falls into, per the
+     * client's requested sort order (task 8):
+     * 1 = currently checked in / checking in today, 2 = recently checked out,
+     * 3 = upcoming stay.
+     */
+    public function weekCardSortTier(): int
+    {
+        if (! $this->checked_out_at && ($this->isCheckedIn() || $this->manually_checked_in || $this->status === 'currently_hosting' || $this->isCheckinDay())) {
+            return 1;
+        }
+
+        if ($this->checked_out_at) {
+            return 2;
+        }
+
+        return 3;
+    }
+
     public function isSameDayBooking(): bool
     {
         return $this->created_at->toDateString() === $this->check_in_date->toDateString();

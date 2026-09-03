@@ -35,24 +35,37 @@ class BookingController extends Controller
             ->when($request->property_id, fn ($query, $pid) => $query->where('property_id', $pid))
             ->when(! $hasSearch, fn ($query) => $showArchived ? $query->archived() : $query->notArchived());
 
-        $currentlyHosting = ($baseQuery)()
-            ->where(fn ($q) => $q->where('manually_checked_in', true)->orWhere('status', 'currently_hosting'))
-            ->whereNull('checked_out_at')
-            ->orderBy('check_in_date')
-            ->get();
-
-        $currentlyHostingIds = $currentlyHosting->pluck('id');
-
-        $needsAttention = Booking::with('property')
+        // "This Week" card (task 8): anyone currently hosting / checking in
+        // today, anyone who checked out recently, or anyone arriving within
+        // the next 6 days. Sorted client-side into the 3 requested tiers.
+        $thisWeek = Booking::with('property')
             ->notArchived()
-            ->whereNotNull('photo_id_path')
-            ->whereNull('approved_at')
-            ->orderBy('check_in_date')
-            ->limit(10)
-            ->get();
+            ->where(fn ($q) => $q
+                ->whereNull('checked_out_at')
+                ->orWhere('checked_out_at', '>=', now()->subDays(7)))
+            ->where(fn ($q) => $q
+                ->whereNotNull('checked_out_at')
+                ->orWhereDate('check_in_date', '<=', today()->addDays(6)))
+            ->get()
+            ->sortBy(fn ($b) => sprintf('%d-%010d', $b->weekCardSortTier(), ($b->checked_out_at ?? $b->check_in_date)->timestamp))
+            ->values();
+
+        $thisWeekIds = $thisWeek->pluck('id');
+
+        // "Next Week" card (task 9): upcoming stays after this week's window,
+        // capped to an initial batch with a "Show More" AJAX endpoint for the rest.
+        $nextWeekLimit = 6;
+        $nextWeekBaseQuery = fn () => Booking::with('property')
+            ->notArchived()
+            ->whereNull('checked_out_at')
+            ->whereDate('check_in_date', '>', today()->addDays(6))
+            ->whereDate('check_in_date', '<=', today()->addDays(13));
+
+        $nextWeek      = ($nextWeekBaseQuery)()->orderBy('check_in_date')->limit($nextWeekLimit)->get();
+        $nextWeekTotal = ($nextWeekBaseQuery)()->count();
 
         $bookings = ($baseQuery)()
-            ->when($currentlyHostingIds->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $currentlyHostingIds))
+            ->when($thisWeekIds->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $thisWeekIds))
             // Archive view: most recently archived first. Everywhere else,
             // keep the existing check-in-date ordering.
             ->when($showArchived && ! $hasSearch,
@@ -73,7 +86,79 @@ class BookingController extends Controller
                 ->count(),
         ];
 
-        return view('admin.bookings.index', compact('bookings', 'currentlyHosting', 'needsAttention', 'properties', 'showArchived', 'stats'));
+        return view('admin.bookings.index', compact('bookings', 'thisWeek', 'nextWeek', 'nextWeekTotal', 'nextWeekLimit', 'properties', 'showArchived', 'stats'));
+    }
+
+    /**
+     * Live search dropdown for the guest search bar (task 7): returns a
+     * small JSON list of matches as the admin types, instead of requiring
+     * a form submit to filter the table below.
+     */
+    public function searchLive(Request $request)
+    {
+        $search = trim((string) $request->query('q', ''));
+
+        if ($search === '') {
+            return response()->json([]);
+        }
+
+        $results = Booking::with('property')
+            ->where(fn ($q) => $q
+                ->where('guest_name', 'like', "%{$search}%")
+                ->orWhere('booking_id', $search)
+                ->orWhere('reservation_id', $search)
+                ->orWhere('email', 'like', "%{$search}%"))
+            ->orderBy('check_in_date', 'desc')
+            ->limit(8)
+            ->get()
+            ->map(fn ($b) => [
+                'id'       => $b->id,
+                'name'     => $b->guest_name,
+                'property' => $b->property?->name,
+                'stay'     => $b->stayRangeLabel(),
+                'status'   => $b->statusLabel(),
+                'url'      => route('admin.guests.show', $b),
+            ]);
+
+        return response()->json($results);
+    }
+
+    /**
+     * Batch-loads additional "Next Week" rows for the Show More link
+     * (task 9), rendered server-side with the same row partial used on
+     * initial page load so the markup always matches.
+     */
+    public function nextWeekMore(Request $request)
+    {
+        $offset = max(0, (int) $request->query('offset', 0));
+        $limit  = min(12, max(1, (int) $request->query('limit', 6)));
+
+        $bookings = Booking::with('property')
+            ->notArchived()
+            ->whereNull('checked_out_at')
+            ->whereDate('check_in_date', '>', today()->addDays(6))
+            ->whereDate('check_in_date', '<=', today()->addDays(13))
+            ->orderBy('check_in_date')
+            ->skip($offset)
+            ->take($limit)
+            ->get();
+
+        $total = Booking::notArchived()
+            ->whereNull('checked_out_at')
+            ->whereDate('check_in_date', '>', today()->addDays(6))
+            ->whereDate('check_in_date', '<=', today()->addDays(13))
+            ->count();
+
+        $html = $bookings->map(fn ($booking) => view('admin.bookings.partials.week-guest-row', [
+            'booking' => $booking,
+            'context' => 'next-week',
+        ])->render())->implode('');
+
+        return response()->json([
+            'html'       => $html,
+            'next_offset' => $offset + $bookings->count(),
+            'has_more'   => ($offset + $bookings->count()) < $total,
+        ]);
     }
 
     public function create()

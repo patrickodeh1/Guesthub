@@ -186,6 +186,10 @@
         @apply border-red-200 bg-red-50 text-red-700;
     }
 
+    .badge-arrival-countdown {
+        @apply border-amber-300 bg-amber-100 text-amber-900 font-bold;
+    }
+
     .icon-chip {
         @apply grid h-10 w-10 shrink-0 place-items-center rounded-lg border border-slate-200 bg-slate-50 text-blue-700;
     }
