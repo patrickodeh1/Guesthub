@@ -831,14 +831,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const anchorSelector = scrollTarget.dataset.scrollTo;
         const anchor = anchorSelector ? document.querySelector(anchorSelector) : null;
         if (anchor) {
-            if (scrollTarget.dataset.expandCommunication === 'true') {
-                const body = document.getElementById('communication-body');
-                const chevron = document.getElementById('communication-chevron');
-                if (body && body.classList.contains('hidden')) {
-                    body.classList.remove('hidden');
-                    chevron?.classList.add('rotate-90');
-                }
-            }
             setTimeout(() => {
                 anchor.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 anchor.classList.add('scroll-highlight-pulse');

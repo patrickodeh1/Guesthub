@@ -224,27 +224,24 @@
                 @endif
             </div>
 
-            {{-- Communication (collapsible) --}}
+            {{-- Communication --}}
             <section class="card card-pad">
-                <button type="button" onclick="toggleCommunicationSection()" class="flex w-full items-center justify-between text-left">
+                <div>
                     <div>
                         <h2 class="section-title">Communication</h2>
                         <p class="section-copy">Share the guest's secure link.</p>
                     </div>
-                    <span id="communication-chevron" class="transition-transform duration-150">
-                        <x-icon name="chevron-right" class="h-5 w-5 text-slate-400" />
-                    </span>
-                </button>
+                </div>
 
-                <div id="communication-body" class="mt-5 hidden">
+                <div class="mt-5">
                     <div class="grid gap-6">
-                    <div id="guest-link-card" class="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <p class="text-sm font-semibold text-slate-700">Secure guest URL</p>
-                        <div class="mt-3 flex flex-col gap-2 sm:flex-row">
-                            <input id="guest-url" readonly value="{{ $booking->publicUrl() }}" class="input mt-0 min-w-0 flex-1">
-                            <button type="button" data-copy="#guest-url" class="btn-primary gap-2"><x-icon name="copy" class="h-4 w-4" />Copy URL</button>
+                        <div id="guest-link-card" class="rounded-xl border border-slate-200 bg-slate-50 p-4">
+                            <p class="text-sm font-semibold text-slate-700">Secure guest URL</p>
+                            <div class="mt-3 flex flex-col gap-2 sm:flex-row">
+                                <input id="guest-url" readonly value="{{ $booking->publicUrl() }}" class="input mt-0 min-w-0 flex-1">
+                                <button type="button" data-copy="#guest-url" class="btn-primary gap-2"><x-icon name="copy" class="h-4 w-4" />Copy URL</button>
+                            </div>
                         </div>
-                    </div>
                     </div>
                 </div>
             </section>
@@ -602,28 +599,6 @@
             if (backTab) backTab.classList.add(...activeClasses);
             if (frontTab) frontTab.classList.remove(...activeClasses);
         }
-    }
-
-    function setCommunicationDefaultState() {
-        const body = document.getElementById('communication-body');
-        const chevron = document.getElementById('communication-chevron');
-        if (!body || !chevron) return;
-        const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
-        if (isDesktop) {
-            body.classList.remove('hidden');
-            chevron.classList.add('rotate-90');
-        } else {
-            body.classList.add('hidden');
-            chevron.classList.remove('rotate-90');
-        }
-    }
-    document.addEventListener('DOMContentLoaded', setCommunicationDefaultState);
-
-    function toggleCommunicationSection() {
-        const body = document.getElementById('communication-body');
-        const chevron = document.getElementById('communication-chevron');
-        body.classList.toggle('hidden');
-        chevron.classList.toggle('rotate-90');
     }
 
     function closeMediaPickerForEditor() {
