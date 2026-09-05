@@ -6,6 +6,7 @@ use App\Mail\EarlyAccessAdminNotificationMail;
 use App\Mail\EarlyAccessConfirmationMail;
 use App\Models\EarlyAccessLead;
 use App\Models\Setting;
+use App\Services\SmsNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
 
@@ -33,6 +34,18 @@ class EarlyAccessController extends Controller
         $adminEmail = Setting::getValue('contact_email');
         if ($adminEmail) {
             Mail::to($adminEmail)->send(new EarlyAccessAdminNotificationMail($lead));
+        }
+
+        $adminPhone = config('services.twilio.admin_notify_number');
+        if ($adminPhone) {
+            SmsNotificationService::guestAlert(
+                $adminPhone,
+                "GuestHub early access: {$lead->name} ({$lead->email})\n"
+                .'Phone: '.($lead->phone ?: 'Not provided')."\n"
+                .'Role: '.($lead->role ?: 'Not provided')."\n"
+                .'Message: '.($lead->message ?: 'Not provided'),
+                false
+            );
         }
 
         Mail::to($lead->email)->send(new EarlyAccessConfirmationMail($lead));

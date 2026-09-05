@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\PrivacyRequest;
 use App\Models\Setting;
+use App\Services\SmsNotificationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
@@ -13,14 +14,7 @@ class PrivacyRequestController extends Controller
     public function index()
     {
         return view('public.privacy-request', [
-            'contactEmail' => Setting::getValue('contact_email', 'needhelp@guesthub.us'),
-        ]);
-    }
-
-    public function contact()
-    {
-        return view('public.contact', [
-            'contactEmail' => Setting::getValue('contact_email', 'needhelp@guesthub.us'),
+            'siteLogo' => Setting::getValue('site_logo'),
         ]);
     }
 
@@ -64,6 +58,17 @@ class PrivacyRequestController extends Controller
             } catch (\Throwable $e) {
                 Log::error('Privacy request admin notification email failed: '.$e->getMessage());
             }
+        }
+
+        $adminPhone = config('services.twilio.admin_notify_number');
+        if ($adminPhone) {
+            SmsNotificationService::guestAlert(
+                $adminPhone,
+                "GuestHub privacy request: {$privacyRequest->name} ({$privacyRequest->email})\n"
+                ."Type: {$privacyRequest->request_type}\n"
+                .'Details: '.($privacyRequest->details ?: 'Not provided'),
+                false
+            );
         }
 
         return redirect()->route('privacy-request')->with('success', 'Your privacy request has been received. We will review it and respond as soon as possible.');

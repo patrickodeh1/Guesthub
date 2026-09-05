@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Setting;
+use Illuminate\View\View;
 
 class LegalPageController extends Controller
 {
@@ -33,7 +34,7 @@ class LegalPageController extends Controller
         );
     }
 
-    protected function renderPage(string $title, string $content, string $pageType): \Illuminate\View\View
+    protected function renderPage(string $title, string $content, string $pageType): View
     {
         return view('public.legal-page', [
             'title' => $title,
@@ -41,7 +42,7 @@ class LegalPageController extends Controller
             'pageType' => $pageType,
             'effectiveDate' => Setting::getValue('legal_effective_date', date('F j, Y')),
             'siteCopyright' => Setting::getValue('site_copyright', '© Dreamzone Media LLC d/b/a Guest Hub'),
-            'contactEmail' => Setting::getValue('contact_email', 'needhelp@guesthub.us'),
+            'siteLogo' => Setting::getValue('site_logo'),
         ]);
     }
 }

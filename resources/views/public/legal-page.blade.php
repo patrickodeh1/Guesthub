@@ -11,8 +11,12 @@
         <header class="mb-8 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <p class="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Guest Hub</p>
-                    <h1 class="mt-2 text-3xl font-semibold tracking-tight text-slate-950">{{ $title }}</h1>
+                    @if($siteLogo)
+                        <img src="{{ url('/img/'.$siteLogo) }}" alt="GuestHub" class="h-8 w-auto object-contain">
+                    @else
+                        <span class="text-lg font-semibold tracking-tight">GuestHub</span>
+                    @endif
+                    <h1 class="mt-3 text-3xl font-semibold tracking-tight text-slate-950">{{ $title }}</h1>
                 </div>
                 <nav class="flex flex-wrap items-center gap-3 text-sm text-slate-600">
                     <a href="{{ route('legal.terms') }}" class="hover:text-slate-900 underline">Terms</a>
@@ -30,7 +34,7 @@
             </div>
 
             <div class="mt-8 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
-                <p>For help, email <a href="mailto:{{ $contactEmail }}" class="font-medium underline">{{ $contactEmail }}</a>.</p>
+                <p>For help, please use our <a href="{{ route('contact') }}" class="font-medium underline">contact form</a>.</p>
             </div>
         </main>
 
