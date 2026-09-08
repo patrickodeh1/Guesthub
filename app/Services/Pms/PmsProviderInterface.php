@@ -9,9 +9,14 @@ namespace App\Services\Pms;
  * switching providers is: write a new class implementing this interface,
  * then flip PMS_PROVIDER in config. No other code should need to change.
  *
- * Deliberately read-only / import-only: Guesthub never writes reservation
- * data back to the PMS. See project notes — Guesthub is a guest-management
- * tool, not a booking engine or rate/availability manager.
+ * Historically this interface was documented as strictly read-only/
+ * import-only. That changed with the addition of the availability/rates
+ * manager: Guesthub now pushes ARI (Availability, Rates, Inventory) data
+ * outward through this interface too, because Airbnb (once mapped through
+ * Channex as the property's channel manager) locks its own calendar for
+ * manual edits and expects updates to originate from the channel manager
+ * API instead. Reservation *booking* data itself is still never written
+ * back — only availability/rate/inventory data is now two-way.
  */
 interface PmsProviderInterface
 {
@@ -57,4 +62,29 @@ interface PmsProviderInterface
      * @return PmsBooking[]
      */
     public function getAllBookings(?array $dateRange = null): array;
+
+    /**
+     * Fetch the room types the channel manager already has on file for a
+     * given external property, so the admin availability page can offer
+     * them as a pick-list instead of requiring manual UUID entry. Returns
+     * a flat array of ['room_type_id' => string, 'room_type_title' =>
+     * string]. Returns [] on failure (never throws) -- the UI just shows
+     * "not mapped yet" in that case; there is no manual-entry fallback.
+     *
+     * Rate plans are deliberately not fetched/returned here: Guesthub never
+     * pushes rates (rate tools like PriceLabs push rates directly into
+     * Channex), so there is nothing on the rate side for Guesthub to map.
+     */
+    public function getRoomTypes(string $externalPropertyId): array;
+
+    /**
+     * Push availability (open/closed per date) for a given room type to the
+     * channel manager, which propagates it to every connected OTA (Airbnb
+     * included). $dates is a map of 'Y-m-d' => bool (true = open/bookable).
+     * $externalPropertyId is required alongside $roomTypeId -- Channex's
+     * Update Availability endpoint requires both property_id and
+     * room_type_id on every change object, not room_type_id alone.
+     * Returns true if the channel manager accepted the update.
+     */
+    public function pushAvailability(string $externalPropertyId, string $roomTypeId, array $dates): bool;
 }

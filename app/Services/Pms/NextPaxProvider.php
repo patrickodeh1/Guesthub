@@ -35,4 +35,14 @@ class NextPaxProvider implements PmsProviderInterface
     {
         throw new \RuntimeException('NextPaxProvider is not implemented yet.');
     }
+
+    public function getRoomTypes(string $externalPropertyId): array
+    {
+        throw new \RuntimeException('NextPaxProvider is not implemented yet.');
+    }
+
+    public function pushAvailability(string $externalPropertyId, string $roomTypeId, array $dates): bool
+    {
+        throw new \RuntimeException('NextPaxProvider is not implemented yet.');
+    }
 }

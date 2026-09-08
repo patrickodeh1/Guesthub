@@ -79,7 +79,7 @@
             <div id="nav-properties-submenu" class="ml-2 grid min-w-0 gap-1 border-l border-white/10 pl-2 {{ $propertiesActive ? '' : 'hidden' }}">
                 @foreach($navProperties as $navProperty)
                     @php
-                        $thisPropertyActive = request()->routeIs('admin.instructions.*') || request()->routeIs('admin.guest-guide.*');
+                        $thisPropertyActive = request()->routeIs('admin.instructions.*') || request()->routeIs('admin.guest-guide.*') || request()->routeIs('admin.properties.availability.*');
                         $thisPropertyActive = $thisPropertyActive && (request()->route('property')?->id === $navProperty->id);
                     @endphp
                     <div>
@@ -90,6 +90,7 @@
                         <div class="ml-1 grid min-w-0 gap-1 {{ $thisPropertyActive ? '' : 'hidden' }}">
                             <a href="{{ route('admin.instructions.show', $navProperty) }}" class="block rounded-sm px-2 py-1.5 text-xs leading-snug transition {{ request()->routeIs('admin.instructions.*') && request()->route('property')?->id === $navProperty->id ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white' }}">Check In/Out Details</a>
                             <a href="{{ route('admin.guest-guide.show', $navProperty) }}" class="block rounded-sm px-2 py-1.5 text-xs leading-snug transition {{ request()->routeIs('admin.guest-guide.*') && request()->route('property')?->id === $navProperty->id ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white' }}">Guest Guide</a>
+                            <a href="{{ route('admin.properties.availability.index', $navProperty) }}" class="block rounded-sm px-2 py-1.5 text-xs leading-snug transition {{ request()->routeIs('admin.properties.availability.*') && request()->route('property')?->id === $navProperty->id ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white' }}">Availability</a>
                         </div>
                     </div>
                 @endforeach

@@ -13,6 +13,7 @@ use App\Services\SeamService;
 use App\Services\SmsConsentService;
 use App\Services\SmsNotificationService;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 class GuestController extends Controller
 {
@@ -541,18 +542,34 @@ class GuestController extends Controller
     {
         $booking = $this->booking($bookingId, $token);
 
+        $upload = $request->file('license_plate_photo');
+        if (! $upload || ! $upload->isValid()) {
+            throw ValidationException::withMessages([
+                'license_plate_photo' => match ($upload?->getError()) {
+                    UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'The license plate photo is too large for this upload. Please choose a smaller image.',
+                    UPLOAD_ERR_PARTIAL => 'The license plate photo upload was interrupted. Please try again.',
+                    UPLOAD_ERR_NO_FILE => 'Please select a license plate photo.',
+                    default => 'The license plate photo could not be uploaded. Please try again.',
+                },
+            ]);
+        }
+
         $data = $request->validate([
             'vehicle_make_model' => ['required', 'string', 'max:255'],
-            'license_plate_photo' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
+            'license_plate_photo' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:20480'],
         ]);
 
         $updates = [
             'vehicle_make_model' => $data['vehicle_make_model'],
         ];
 
-        if ($request->hasFile('license_plate_photo')) {
-            $updates['license_plate_photo_path'] = $request->file('license_plate_photo')->store('license-plates');
+        $storedPath = $upload->store('license-plates');
+        if ($storedPath === false) {
+            throw ValidationException::withMessages([
+                'license_plate_photo' => 'The license plate photo could not be saved. Please try again.',
+            ]);
         }
+        $updates['license_plate_photo_path'] = $storedPath;
 
         $booking->update($updates);
 

@@ -1494,7 +1494,7 @@
                         </span>
                         <div>
                             <p class="guest-detail-banner-title">Can't provide this right now?</p>
-                            <p class="guest-detail-banner-sub">Use the Contact Guest Services button and we'll take care of it for you.</p>
+                            <p class="guest-detail-banner-sub">Use the Call Guest Services button and we'll take care of it for you.</p>
                         </div>
                     </div>
                 </div>

@@ -22,7 +22,14 @@ class CheckPostSize
                     ], 413);
                 }
 
-                return back()->withErrors([
+                $response = $request->routeIs('guest.vehicle-info')
+                    ? redirect()->route('guest.show', [
+                        $request->route('booking_id'),
+                        $request->route('token'),
+                    ])
+                    : back();
+
+                return $response->withErrors([
                     'file' => "The file you uploaded is too large. Please upload a file smaller than {$maxMb}MB.",
                 ]);
             }

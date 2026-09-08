@@ -6,8 +6,11 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
 /**
- * Channex implementation of PmsProviderInterface. Import-only: we never
- * write reservation data back to Channex.
+ * Channex implementation of PmsProviderInterface. Reservation *booking*
+ * data is still import-only -- we never write bookings back to Channex.
+ * Availability is two-way: see getRoomTypes() and pushAvailability()
+ * below. Rates are NOT pushed by Guesthub at all -- rate tools (e.g.
+ * PriceLabs) push rates directly into Channex.
  *
  * Verified against Channex's live API docs (docs.channex.io) as of
  * 2026-08-26. Channex's own PMS certification notes explicitly say not to
@@ -274,5 +277,92 @@ class ChannexProvider implements PmsProviderInterface
             otaReservationCode: $attributes['ota_reservation_code'] ?? null,
             otaName: $attributes['ota_name'] ?? null,
         );
+    }
+    /**
+     * Fetches room types Channex already has on file for a property, so
+     * the admin can pick from a list instead of typing UUIDs. Rate plans
+     * are deliberately not fetched -- Guesthub never pushes rates.
+     */
+    public function getRoomTypes(string $externalPropertyId): array
+    {
+        $response = $this->client()->get('/room_types', [
+            'filter[property_id]' => $externalPropertyId,
+        ]);
+
+        if (! $response->successful()) {
+            Log::warning('Channex getRoomTypes (room_types) failed', [
+                'property_id' => $externalPropertyId,
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+            return [];
+        }
+
+        $results = [];
+
+        foreach ($response->json('data', []) as $roomType) {
+            $rtAttributes = $roomType['attributes'] ?? [];
+            $roomTypeId = $roomType['id'] ?? null;
+
+            if (! $roomTypeId) {
+                continue;
+            }
+
+            $results[] = [
+                'room_type_id' => (string) $roomTypeId,
+                'room_type_title' => $rtAttributes['title'] ?? '(untitled room type)',
+            ];
+        }
+
+        return $results;
+    }
+
+    /**
+     * Pushes availability for a room type via Channex's dedicated Update
+     * Availability endpoint (POST /availability) -- NOT /restrictions,
+     * which is a separate, rate-plan-scoped endpoint for stop_sell/rate/
+     * min_stay and has no "availability" field at all. An earlier version
+     * of this method posted to /restrictions with an "availability" key,
+     * which Channex silently ignored as an unrecognized field, returning
+     * 200 OK while applying nothing -- this is why early pushes appeared
+     * to succeed but never showed up on Airbnb. Verified against Channex's
+     * live docs (docs.channex.io/api-v.1-documentation/ari) as of
+     * 2026-09-07: each change object requires property_id, room_type_id,
+     * date, and availability (non-negative integer -- 0 or 1 for a
+     * single-unit property).
+     */
+    public function pushAvailability(string $externalPropertyId, string $roomTypeId, array $dates): bool
+    {
+        $values = [];
+
+        foreach ($dates as $date => $isAvailable) {
+            $values[] = [
+                'property_id' => $externalPropertyId,
+                'room_type_id' => $roomTypeId,
+                'date' => $date,
+                'availability' => $isAvailable ? 1 : 0,
+            ];
+        }
+
+        if (empty($values)) {
+            return true;
+        }
+
+        $response = $this->client()->post('/availability', [
+            'values' => $values,
+        ]);
+
+        if (! $response->successful()) {
+            Log::warning('Channex pushAvailability (availability) failed', [
+                'property_id' => $externalPropertyId,
+                'room_type_id' => $roomTypeId,
+                'date_count' => count($values),
+                'status' => $response->status(),
+                'body' => $response->body(),
+            ]);
+            return false;
+        }
+
+        return true;
     }
 }

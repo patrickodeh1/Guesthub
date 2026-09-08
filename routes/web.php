@@ -12,6 +12,7 @@ use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\NotificationSettingsController;
 use App\Http\Controllers\Admin\PaymentController;
 use App\Http\Controllers\Admin\PropertyController;
+use App\Http\Controllers\Admin\PropertyAvailabilityController;
 use App\Http\Controllers\Admin\PropertyLockController;
 use App\Http\Controllers\Admin\SettingsController;
 use App\Http\Controllers\Admin\UserController;
@@ -184,6 +185,13 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     Route::post('properties/{property}/locks', [PropertyLockController::class, 'store'])->name('properties.locks.store');
     Route::put('properties/{property}/locks/{lock}', [PropertyLockController::class, 'update'])->name('properties.locks.update');
     Route::delete('properties/{property}/locks/{lock}', [PropertyLockController::class, 'destroy'])->name('properties.locks.destroy');
+
+    Route::get('properties/{property}/availability', [PropertyAvailabilityController::class, 'index'])->name('properties.availability.index');
+    Route::post('properties/{property}/availability/fetch-mapping', [PropertyAvailabilityController::class, 'fetchMapping'])->name('properties.availability.fetch-mapping');
+    Route::post('properties/{property}/availability/save-mapping', [PropertyAvailabilityController::class, 'saveMapping'])->name('properties.availability.save-mapping');
+    Route::post('properties/{property}/availability/save-ical-url', [PropertyAvailabilityController::class, 'saveIcalUrl'])->name('properties.availability.save-ical-url');
+    Route::post('properties/{property}/availability/import-ical', [PropertyAvailabilityController::class, 'importIcal'])->name('properties.availability.import-ical');
+    Route::post('properties/{property}/availability/push-to-channex', [PropertyAvailabilityController::class, 'pushToChannex'])->name('properties.availability.push-to-channex');
     Route::post('media/bulk-move', [MediaController::class, 'bulkMove'])->name('media.bulk-move');
     Route::delete('media/bulk-delete', [MediaController::class, 'bulkDelete'])->name('media.bulk-delete');
 

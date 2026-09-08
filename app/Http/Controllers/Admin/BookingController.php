@@ -350,6 +350,14 @@ class BookingController extends Controller
         if ($data['photo_id_received'] && empty($booking->approved_at) && empty($data['approved_at'])) {
             $data['approved_at'] = now();
         }
+        foreach ([
+            'checkin_time_preference' => 'checkin_time_status',
+            'checkout_time_preference' => 'checkout_time_status',
+        ] as $timeField => $statusField) {
+            if (array_key_exists($timeField, $data) && $data[$timeField] !== $booking->{$timeField}) {
+                $data[$statusField] = filled($data[$timeField]) ? 'approved' : null;
+            }
+        }
         $booking->update($data);
         $booking->recalculateParkingCharge();
 

@@ -660,34 +660,49 @@
         z-index: 40;
         display: flex;
         align-items: center;
-        gap: 10px;
-        height: 52px;
-        padding: 0 16px;
+        gap: 12px;
+        height: 76px;
+        padding: 0 17px;
         border-radius: 999px;
-        background: var(--color-slate-950, #0f172a);
-        color: #fff;
+        background: #a3e635;
+        color: #17320a;
         box-shadow: 0 8px 20px rgba(15, 23, 42, 0.25);
         text-decoration: none;
         overflow: hidden;
-        max-width: 52px;
+        max-width: 76px;
         transition: max-width 0.25s ease;
         white-space: nowrap;
     }
     .guest-contact-fab:hover,
     .guest-contact-fab:focus {
-        max-width: 260px;
+        background: #bef264;
+        color: #17320a;
+        max-width: 280px;
     }
     .guest-contact-fab-icon {
         display: flex;
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-        width: 20px;
-        height: 20px;
+        width: 52px;
+        height: 52px;
+    }
+    .guest-contact-fab-icon svg {
+        transform: scaleX(-1);
     }
     .guest-contact-fab-label {
-        font-size: 14px;
-        font-weight: 700;
+        display: block;
+        max-width: 0;
+        overflow: hidden;
+        opacity: 0;
+        font-size: 15px;
+        font-weight: 800;
+        transition: max-width 0.25s ease, opacity 0.15s ease;
+    }
+    .guest-contact-fab:hover .guest-contact-fab-label,
+    .guest-contact-fab:focus .guest-contact-fab-label {
+        max-width: 190px;
+        opacity: 1;
     }
 
     .guest-detail-card {

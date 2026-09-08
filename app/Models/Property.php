@@ -50,6 +50,8 @@ class Property extends Model
         'late_checkout_rate_authorized_hourly', 'late_checkout_rate_unauthorized_hourly',
         'late_checkout_rate_authorized_per_30min', 'late_checkout_rate_unauthorized_per_30min',
         'channex_property_id',
+        'channex_room_type_id',
+        'airbnb_ical_url',
         'deposit_cap_cents',
     ];
 
@@ -74,6 +76,11 @@ class Property extends Model
     public function bookings(): HasMany
     {
         return $this->hasMany(Booking::class);
+    }
+
+    public function availabilities(): HasMany
+    {
+        return $this->hasMany(PropertyAvailability::class);
     }
 
     public function categories(): BelongsToMany
