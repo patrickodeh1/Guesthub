@@ -1972,8 +1972,11 @@
                     <p class="mt-2 text-sm leading-6 text-slate-600">Your check-out time is {{ $booking->effectiveCheckoutTimeFormatted() }} tomorrow. You'll still have full access to the guide until then.</p>
                     <a href="#guide-grid" class="guest-primary-btn w-full mt-4">View Guide</a>
                 </div>
-                @include('guest.partials.late-checkout-charge', ['booking' => $booking])
-                @if($locks->isNotEmpty())
+                {{-- Late checkout is deducted from the incidentals hold at
+                     checkout, not billed to the guest separately here —
+                     billing it again on top of the hold double-charges
+                     the guest. See admin-side ledger for the actual
+                     charge amount. --}}
                     <div class="px-6 pb-2">
                         <div class="grid gap-6 {{ $locks->count() > 1 ? 'sm:grid-cols-2' : '' }}">
                             @foreach($locks as $entry)
@@ -2026,7 +2029,11 @@
                         Checked in
                     </span>
                 </div>
-                @include('guest.partials.late-checkout-charge', ['booking' => $booking])
+                {{-- Late checkout is deducted from the incidentals hold at
+                     checkout, not billed to the guest separately here —
+                     billing it again on top of the hold double-charges
+                     the guest. See admin-side ledger for the actual
+                     charge amount. --}}
                 <x-checkout-today-card :booking="$booking" :has-steps="count($checkoutSteps) > 0" class="p-6" />
                 <div class="guest-guide-body px-6 pb-6">
                     <x-weather-badge :property="$property" class="guest-weather-card" />
