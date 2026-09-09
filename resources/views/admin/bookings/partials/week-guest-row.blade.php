@@ -4,15 +4,15 @@
         <p class="break-words text-sm font-normal italic text-slate-500">{{ $booking->property->name }}</p>
         <p class="text-sm text-slate-600">
             {{ $booking->dateRangeOnly() }}
-            @if($context === 'today' && $booking->check_in_date->isToday() && ! $booking->isMarkedCheckedIn())
-                &middot; Checks in today
-            @elseif($context === 'today' && $booking->check_out_date->isToday())
-                &middot; Checks out today
-            @endif
             @if($booking->nightsLabel())
                 &middot; {{ $booking->nightsLabel() }}
             @endif
-            @if($booking->weekCardDynamicLabel() && $context === 'today' && ! ($booking->check_in_date->isToday() && ! $booking->isMarkedCheckedIn()) && ! $booking->check_out_date->isToday())
+            @if(! $booking->isMarkedCheckedIn() && ! $booking->checked_out_at)
+                {{-- Not yet checked in: always show "checks in" language,
+                     regardless of section -- never "checks out" until the
+                     guest is actually marked checked in. --}}
+                &middot; {{ $booking->weekCardArrivalLabel() }}
+            @else
                 &middot; {{ $booking->weekCardDynamicLabel() }}
             @endif
         </p>

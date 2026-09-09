@@ -17,24 +17,6 @@ class BookingController extends Controller
     use \App\Traits\BuildsGuestPortalData;
     // Re-verified 2026-08-02: parking_needed save logic confirmed correct on create + update
 
-    private function actionablePriorityIds()
-    {
-        return Booking::notArchived()
-            ->where(fn ($q) => $q
-                ->where('status', 'awaiting_deposit')
-                ->orWhere(fn ($q) => $q->where('status', 'pre_checkin_complete')->whereNull('approved_at'))
-                ->orWhere(fn ($q) => $q->whereNotNull('photo_id_path')->whereNull('approved_at'))
-                ->orWhere(fn ($q) => $q->whereNotNull('approved_at')->whereNull('background_check_completed_at'))
-                ->orWhere(fn ($q) => $q->whereNotNull('background_check_completed_at')->whereNull('deposit_verified_at'))
-                ->orWhere(fn ($q) => $q->whereIn('status', ['guest_approved', 'currently_hosting'])
-                    ->whereDate('check_in_date', '<=', today())
-                    ->where('gps_verified', false)))
-            ->whereNull('checked_in_at')
-            ->where('manually_checked_in', false)
-            ->whereNull('checked_out_at')
-            ->pluck('id');
-    }
-
     public function index(Request $request)
     {
         $showArchived = $request->boolean('archived');
@@ -53,29 +35,32 @@ class BookingController extends Controller
             ->when($request->property_id, fn ($query, $pid) => $query->where('property_id', $pid))
             ->when(! $hasSearch, fn ($query) => $showArchived ? $query->archived() : $query->notArchived());
 
-        $priorityIds = $this->actionablePriorityIds();
-        $priority = Booking::with('property')
-            ->whereIn('id', $priorityIds)
-            ->orderBy('check_in_date')
-            ->get();
-
+        // "Today" is a single merged section, not separate Priority/Today
+        // cards -- guests checking in today with incomplete steps come
+        // first, then other today check-ins, then today's checkouts, all
+        // ordered purely by Booking::weekCardSortTier() (tiers 1-3 cover
+        // exactly this). Splitting these into separate cards was the bug:
+        // the client asked for one "Today" section with internal priority
+        // ordering, not multiple labeled sections.
         $today = Booking::with('property')
             ->notArchived()
             ->where(fn ($q) => $q
                 ->whereDate('check_in_date', today())
                 ->orWhereDate('check_out_date', today()))
-            ->whereNotIn('id', $priorityIds)
-            ->orderBy('check_in_date')
-            ->get();
+            ->get()
+            ->sortBy(fn ($b) => $b->weekCardSortTier())
+            ->values();
         $todayTotal = $today->count();
         $todayIds = $today->pluck('id');
         $today = $today->take(5)->values();
 
-        // This Week remains the complete operational week list. Priority and
-        // Today are dedicated views above it, not replacements for this list.
+        // "This Week" covers everything else in the operational window
+        // (currently hosting, recently checked out, upcoming within 6
+        // days) -- tiers 4-6 of the same weekCardSortTier() scale, so the
+        // two sections use one consistent source of truth for ordering.
         $thisWeekAll = Booking::with('property')
             ->notArchived()
-            ->whereNotIn('id', $priorityIds->merge($todayIds))
+            ->whereNotIn('id', $todayIds)
             ->where(fn ($q) => $q
                 ->whereNull('checked_out_at')
                 ->orWhere('checked_out_at', '>=', now()->subDays(7)))
@@ -83,7 +68,11 @@ class BookingController extends Controller
                 ->whereNotNull('checked_out_at')
                 ->orWhereDate('check_in_date', '<=', today()->addDays(6)))
             ->get()
-            ->sortBy('check_in_date')
+            ->sort(function ($a, $b) {
+                $tierCompare = $a->weekCardSortTier() <=> $b->weekCardSortTier();
+
+                return $tierCompare !== 0 ? $tierCompare : $a->check_in_date->timestamp <=> $b->check_in_date->timestamp;
+            })
             ->values();
         $thisWeekTotal = $thisWeekAll->count();
         $thisWeek = $thisWeekAll->take(5)->values();
@@ -94,14 +83,13 @@ class BookingController extends Controller
         $upcomingLimit = 5;
         $upcomingBaseQuery = fn () => Booking::with('property')
             ->notArchived()
-            ->whereNotIn('id', $priorityIds)
             ->whereNull('checked_out_at')
             ->whereDate('check_in_date', '>', today()->addDays(6));
 
         $upcoming = ($upcomingBaseQuery)()->orderBy('check_in_date')->limit($upcomingLimit)->get();
         $upcomingTotal = ($upcomingBaseQuery)()->count();
 
-        $thisWeekIds = $thisWeekAll->pluck('id')->merge($priorityIds)->merge($todayIds);
+        $thisWeekIds = $thisWeekAll->pluck('id')->merge($todayIds);
         $bookings = ($baseQuery)()
             ->when($thisWeekIds->isNotEmpty(), fn ($q) => $q->whereNotIn('id', $thisWeekIds))
             ->when($showArchived && ! $hasSearch,
@@ -122,7 +110,7 @@ class BookingController extends Controller
                 ->count(),
         ];
 
-        return view('admin.bookings.index', compact('bookings', 'priority', 'today', 'todayTotal', 'thisWeek', 'thisWeekTotal', 'upcoming', 'upcomingTotal', 'upcomingLimit', 'properties', 'showArchived', 'stats'));
+        return view('admin.bookings.index', compact('bookings', 'today', 'todayTotal', 'thisWeek', 'thisWeekTotal', 'upcoming', 'upcomingTotal', 'upcomingLimit', 'properties', 'showArchived', 'stats'));
     }
 
     public function todayMore(Request $request)
@@ -130,23 +118,24 @@ class BookingController extends Controller
         $offset = max(0, (int) $request->query('offset', 0));
         $limit = min(12, max(1, (int) $request->query('limit', 5)));
 
-        $priorityIds = $this->actionablePriorityIds();
-
+        // Must match index()'s Today ordering exactly (sorted by
+        // weekCardSortTier() in PHP, not a DB-level orderBy) so "Show More"
+        // continues in the same priority order as the initial page load
+        // rather than falling back to plain check_in_date ordering.
         $bookings = Booking::with('property')
             ->notArchived()
-            ->whereNotIn('id', $priorityIds)
             ->where(fn ($q) => $q->whereDate('check_in_date', today())->orWhereDate('check_out_date', today()))
-            ->orderBy('check_in_date')
-            ->skip($offset)->take($limit)->get();
-        $total = Booking::notArchived()
-            ->whereNotIn('id', $priorityIds)
-            ->where(fn ($q) => $q->whereDate('check_in_date', today())->orWhereDate('check_out_date', today()))
-            ->count();
+            ->get()
+            ->sortBy(fn ($b) => $b->weekCardSortTier())
+            ->values();
+
+        $total = $bookings->count();
+        $batch = $bookings->slice($offset, $limit);
 
         return response()->json([
-            'html' => $bookings->map(fn ($booking) => view('admin.bookings.partials.week-guest-row', ['booking' => $booking, 'context' => 'today'])->render())->implode(''),
-            'next_offset' => $offset + $bookings->count(),
-            'has_more' => ($offset + $bookings->count()) < $total,
+            'html' => $batch->map(fn ($booking) => view('admin.bookings.partials.week-guest-row', ['booking' => $booking, 'context' => 'today'])->render())->implode(''),
+            'next_offset' => $offset + $batch->count(),
+            'has_more' => ($offset + $batch->count()) < $total,
         ]);
     }
 
@@ -157,7 +146,6 @@ class BookingController extends Controller
 
         $bookings = Booking::with('property')
             ->notArchived()
-            ->whereNotIn('id', $this->actionablePriorityIds())
             ->whereNotIn('id', Booking::notArchived()
                 ->where(fn ($q) => $q->whereDate('check_in_date', today())->orWhereDate('check_out_date', today()))
                 ->pluck('id'))
@@ -168,7 +156,11 @@ class BookingController extends Controller
                 ->whereNotNull('checked_out_at')
                 ->orWhereDate('check_in_date', '<=', today()->addDays(6)))
             ->get()
-            ->sortBy('check_in_date')
+            ->sort(function ($a, $b) {
+                $tierCompare = $a->weekCardSortTier() <=> $b->weekCardSortTier();
+
+                return $tierCompare !== 0 ? $tierCompare : $a->check_in_date->timestamp <=> $b->check_in_date->timestamp;
+            })
             ->values();
 
         $total = $bookings->count();
