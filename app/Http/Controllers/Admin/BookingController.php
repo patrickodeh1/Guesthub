@@ -301,7 +301,12 @@ class BookingController extends Controller
             ->take(25)
             ->get();
 
-        return view('admin.bookings.show', compact('booking', 'guestLogs'));
+        // Needed by the inline Guest Details edit panel's Property dropdown
+        // (task: merged edit/view page) -- same source list the old
+        // separate edit page used.
+        $properties = Property::where('active', true)->orderBy('name')->get();
+
+        return view('admin.bookings.show', compact('booking', 'guestLogs', 'properties'));
     }
 
     public function preview(Booking $booking, string $state)
