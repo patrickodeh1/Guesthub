@@ -126,7 +126,12 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     Route::get('guests/this-week', [BookingController::class, 'thisWeekMore'])->name('guests.this-week');
     Route::get('guests/today', [BookingController::class, 'todayMore'])->name('guests.today');
     Route::get('guests/upcoming', [BookingController::class, 'upcomingMore'])->name('guests.upcoming');
-    Route::resource('guests', BookingController::class)->parameters(['guests' => 'booking']);
+    // 'edit' intentionally excluded: editing an existing guest now happens
+    // inline on the show page via the expandable Guest Details panel
+    // (task: "merge edit and view page into one clean UI"), not a separate
+    // page. 'create'/'store' remain -- a brand-new booking still needs its
+    // own page since there's no existing record to expand yet.
+    Route::resource('guests', BookingController::class)->parameters(['guests' => 'booking'])->except(['edit']);
     Route::get('guests/{booking}/preview/{state}', [BookingController::class, 'preview'])->name('guests.preview');
     Route::post('guests/{booking}/override-checkin', [BookingController::class, 'overrideCheckin'])->name('guests.override');
     Route::post('guests/{booking}/override-checkout', [BookingController::class, 'overrideCheckout'])->name('guests.override-checkout');

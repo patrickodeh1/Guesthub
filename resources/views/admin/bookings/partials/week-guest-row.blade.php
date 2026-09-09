@@ -29,8 +29,7 @@
     <div class="absolute bottom-3 right-4" data-row-menu>
         <button type="button" class="btn-secondary !h-8 !min-h-8 !w-8 !p-1" onclick="toggleRowMenu(this)" aria-label="Actions"><x-icon name="more-vertical" class="h-4 w-4" /></button>
         <div data-row-menu-panel class="hidden absolute right-0 z-10 mt-1 w-56 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
-            <a href="{{ route('admin.guests.show', $booking) }}" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><x-icon name="eye" class="h-4 w-4" />View Details</a>
-            <a href="{{ route('admin.guests.edit', $booking) }}" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><x-icon name="edit" class="h-4 w-4" />Edit</a>
+            <a href="{{ route('admin.guests.show', $booking) }}" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><x-icon name="eye" class="h-4 w-4" />View / Edit</a>
             <button type="button" onclick="copyGuestUrl(this, '{{ $booking->publicUrl() }}')" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><x-icon name="copy" class="h-4 w-4" /><span data-copy-label>Copy Guest URL</span></button>
 
             @if(($booking->isApproved() && ! $booking->isBackgroundCheckComplete()) || ($booking->isBackgroundCheckComplete() && ! $booking->isDepositVerified()) || ! $booking->gps_verified)

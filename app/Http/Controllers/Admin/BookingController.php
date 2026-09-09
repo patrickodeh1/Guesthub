@@ -352,21 +352,6 @@ class BookingController extends Controller
         ]);
     }
 
-    public function edit(Booking $booking)
-    {
-        $instructionSteps = \App\Models\InstructionStep::where('property_id', $booking->property_id)
-            ->where('active', true)
-            ->orderBy('type')
-            ->orderBy('sort_order')
-            ->get(['id', 'type', 'title']);
-
-        return view('admin.bookings.form', [
-            'booking'          => $booking,
-            'properties'       => Property::where('active', true)->orderBy('name')->get(),
-            'instructionSteps' => $instructionSteps,
-        ]);
-    }
-
     public function update(Request $request, Booking $booking)
     {
         $oldStatus = $booking->status;
@@ -901,18 +886,18 @@ class BookingController extends Controller
             'check_out_date' => ['required', 'date', 'after_or_equal:check_in_date'],
             'property_id'    => ['required', 'exists:properties,id'],
             'id_type'        => ['required', 'in:state_id,passport'],
-            'parking_needed' => ['nullable', 'boolean'],
-            // parking_charge_override / incidentals_charge intentionally removed:
-            // no longer editable from the booking form (task: "remove all the
-            // fields in the booking edit"). Editing per-guest amounts now
-            // belongs on the guest show page's breakdown editor. Leaving these
-            // keys out of validated() entirely means store()/update() never
-            // include them in $data, so existing values set previously from
-            // the booking page are left untouched rather than nulled out.
-            'early_checkin_tier' => ['nullable', 'in:8am_12pm,12pm_2pm,2pm_4pm,8am,12pm'],
-            'late_checkout_type' => ['nullable', 'in:authorized,unauthorized'],
-            'late_checkout_hours' => ['nullable', 'numeric', 'min:0'],
-            'late_checkout_actual_time' => ['nullable', 'date'],
+            // parking_needed / parking_charge_override / incidentals_charge /
+            // early_checkin_tier / late_checkout_type / late_checkout_hours /
+            // late_checkout_actual_time intentionally removed: none of these
+            // are submitted by the merged guest details editor on the show
+            // page (task: "merge edit and view page into one clean UI" --
+            // these charge-driving fields are excluded there since they're
+            // already represented in the Guest Details card and get their
+            // own editor with the ledger work). Leaving these keys out of
+            // validated() entirely means store()/update() never include them
+            // in $data, so existing values are left untouched rather than
+            // nulled out when the form that used to submit them no longer
+            // does.
             'photo_id_received' => ['nullable', 'boolean'],
             'checkin_time_preference'  => ['nullable', 'date_format:H:i'],
             'checkout_time_preference' => ['nullable', 'date_format:H:i'],

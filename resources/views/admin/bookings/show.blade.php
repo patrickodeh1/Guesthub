@@ -15,10 +15,50 @@
             </div>
             <div class="flex flex-wrap items-center gap-3">
                 <span class="badge badge-{{ $booking->effectiveStatus() }} px-3 py-1 text-sm">{{ $booking->statusLabel() }}</span>
-                <a href="{{ route('admin.guests.edit', $booking) }}" title="Edit Guest" aria-label="Edit Guest" class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-800">
+                <button type="button" title="Edit Guest Details" aria-label="Edit Guest Details" aria-expanded="false" onclick="toggleGuestDetailsEdit(this)" class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-800">
                     <x-icon name="edit" class="h-4 w-4" />
-                </a>
+                </button>
             </div>
+        </div>
+
+        {{-- Expandable edit section: replaces the old separate /edit page for
+             existing bookings. Everything below is hidden by default so the
+             header looks exactly like before until an admin opens it.
+             Deliberately excludes parking_needed / early_checkin_tier /
+             late_checkout_type / late_checkout_hours / late_checkout_actual_time
+             -- those are charge-driving fields already represented in the
+             Guest Details card below and get their own editor with the
+             ledger work, not here. --}}
+        @php
+            $guestDetailsErrorFields = ['reservation_id', 'guest_name', 'phone', 'email', 'check_in_date', 'check_out_date', 'property_id', 'id_type', 'checkin_time_preference', 'checkout_time_preference', 'status', 'photo_id_received', 'notes'];
+            $hasGuestDetailsErrors = $errors->hasAny($guestDetailsErrorFields);
+        @endphp
+        <div id="guest-details-edit-panel" class="{{ $hasGuestDetailsErrors ? '' : 'hidden' }} mt-6 border-t border-slate-100 pt-6">
+            <form method="post" action="{{ route('admin.guests.update', $booking) }}">
+                @csrf @method('put')
+                <div class="grid gap-5 md:grid-cols-2">
+                    <label class="field-label">Reservation ID (Airbnb/VRBO) <span class="text-red-600">*</span><input name="reservation_id" value="{{ old('reservation_id', $booking->reservation_id) }}" required class="input">@error('reservation_id')<span class="mt-1 block text-xs text-red-700">{{ $message }}</span>@enderror</label>
+                    <label class="field-label">Guest name <span class="text-red-600">*</span><input name="guest_name" value="{{ old('guest_name', $booking->guest_name) }}" required class="input">@error('guest_name')<span class="mt-1 block text-xs text-red-700">{{ $message }}</span>@enderror</label>
+                    <label class="field-label">Phone<input id="guest-detail-phone-input" name="phone" value="{{ old('phone', $booking->phone) }}" placeholder="(555) 555-0199" maxlength="14" class="input"></label>
+                    <label class="field-label">Email<input name="email" value="{{ old('email', $booking->email) }}" placeholder="guest@example.com" class="input">@error('email')<span class="mt-1 block text-xs text-red-700">{{ $message }}</span>@enderror</label>
+                    <label class="field-label">Check-in <span class="text-red-600">*</span><input type="date" name="check_in_date" value="{{ old('check_in_date', optional($booking->check_in_date)->format('Y-m-d')) }}" required class="input">@error('check_in_date')<span class="mt-1 block text-xs text-red-700">{{ $message }}</span>@enderror</label>
+                    <label class="field-label">Check-out <span class="text-red-600">*</span><input type="date" name="check_out_date" value="{{ old('check_out_date', optional($booking->check_out_date)->format('Y-m-d')) }}" required class="input">@error('check_out_date')<span class="mt-1 block text-xs text-red-700">{{ $message }}</span>@enderror</label>
+                    <label class="field-label">Property <span class="text-red-600">*</span><select name="property_id" required class="input"><option value="" disabled @selected(!old('property_id', $booking->property_id))>Select a property...</option>@foreach($properties as $property)<option value="{{ $property->id }}" @selected(old('property_id', $booking->property_id)==$property->id)>{{ $property->name }}</option>@endforeach</select>@error('property_id')<span class="mt-1 block text-xs text-red-700">{{ $message }}</span>@enderror</label>
+                    <label class="field-label">ID type <span class="text-red-600">*</span><select name="id_type" required class="input"><option value="state_id" @selected(old('id_type', $booking->id_type ?: 'state_id')==='state_id')>State-issued ID (US guest)</option><option value="passport" @selected(old('id_type', $booking->id_type ?: 'state_id')==='passport')>Passport (international guest)</option></select></label>
+                    <label class="field-label">Requested Check-in Time<input type="time" name="checkin_time_preference" value="{{ old('checkin_time_preference', $booking->checkin_time_preference) }}" class="input"></label>
+                    <label class="field-label">Requested Check-out Time<input type="time" name="checkout_time_preference" value="{{ old('checkout_time_preference', $booking->checkout_time_preference) }}" class="input"></label>
+                    <label class="field-label">Status<select name="status" class="input">@foreach(['pending','pre_checkin_complete','awaiting_deposit','guest_approved','currently_hosting','checked_out'] as $status)<option value="{{ $status }}" @selected(old('status', $booking->status ?: 'pending')===$status)>{{ str($status)->replace('_',' ')->title() }}</option>@endforeach</select></label>
+                    <label class="field-label flex items-center gap-2 md:col-span-2">
+                        <input type="checkbox" name="photo_id_received" value="1" @checked(old('photo_id_received', $booking->photo_id_received))>
+                        <span>Photo ID Already Received</span>
+                    </label>
+                    <label class="field-label md:col-span-2">Notes<textarea name="notes" rows="4" placeholder="Arrival requests, internal reminders, owner notes..." class="textarea">{{ old('notes', $booking->notes) }}</textarea></label>
+                </div>
+                <div class="mt-5 flex gap-3">
+                    <button class="btn-primary">Save changes</button>
+                    <button type="button" onclick="toggleGuestDetailsEdit(document.querySelector('[aria-label=\'Edit Guest Details\']'))" class="btn-secondary">Cancel</button>
+                </div>
+            </form>
         </div>
     </section>
     </div>
@@ -792,5 +832,33 @@
             });
         }
     });
+    </script>
+
+    <script>
+    function toggleGuestDetailsEdit(btn) {
+        var panel = document.getElementById('guest-details-edit-panel');
+        if (!panel) return;
+        var willShow = panel.classList.contains('hidden');
+        panel.classList.toggle('hidden');
+        if (btn) btn.setAttribute('aria-expanded', willShow ? 'true' : 'false');
+        if (willShow) panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    (function () {
+        var phoneInput = document.getElementById('guest-detail-phone-input');
+        if (!phoneInput) return;
+        phoneInput.addEventListener('input', function (e) {
+            var digits = e.target.value.replace(/\D/g, '').slice(0, 10);
+            var formatted = digits;
+            if (digits.length > 6) {
+                formatted = '(' + digits.slice(0, 3) + ') ' + digits.slice(3, 6) + '-' + digits.slice(6);
+            } else if (digits.length > 3) {
+                formatted = '(' + digits.slice(0, 3) + ') ' + digits.slice(3);
+            } else if (digits.length > 0) {
+                formatted = '(' + digits;
+            }
+            e.target.value = formatted;
+        });
+    })();
     </script>
 </x-admin-layout>
