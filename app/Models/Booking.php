@@ -29,6 +29,7 @@ class Booking extends Model
         'photo_id_front_approved_at', 'photo_id_front_declined_reason',
         'photo_id_back_approved_at', 'photo_id_back_declined_reason',
         'parking_charge', 'parking_charge_override', 'incidentals_charge', 'checkin_reminder_sent_at',
+        'early_checkin_charge_override', 'late_checkout_charge_override', 'ledger_published_at',
         'vehicle_make_model', 'license_plate_photo_path', 'vehicle_info_bypassed_at',
     ];
 
@@ -66,6 +67,9 @@ class Booking extends Model
             'parking_charge' => 'decimal:2',
             'parking_charge_override' => 'decimal:2',
             'incidentals_charge' => 'decimal:2',
+            'early_checkin_charge_override' => 'decimal:2',
+            'late_checkout_charge_override' => 'decimal:2',
+            'ledger_published_at' => 'datetime',
             'checkin_reminder_sent_at' => 'datetime',
             'vehicle_info_bypassed_at' => 'datetime',
                     ];
@@ -138,7 +142,7 @@ class Booking extends Model
         if (($this->effectiveIncidentalsCharge() ?? 0) > 0) {
             $parts[] = 'incidentals $' . number_format($this->effectiveIncidentalsCharge(), 2);
         }
-        if (($earlyCheckin = $this->earlyCheckinCharge()) > 0) {
+        if (($earlyCheckin = $this->effectiveEarlyCheckinCharge()) > 0) {
             $parts[] = 'early check-in $' . number_format($earlyCheckin, 2);
         }
 
@@ -162,7 +166,7 @@ class Booking extends Model
     {
         $parkingCents = (int) round(($this->effectiveParkingCharge() ?? 0) * 100);
         $incidentalsCents = (int) round(($this->effectiveIncidentalsCharge() ?? 0) * 100);
-        $earlyCheckinCents = (int) round(($this->earlyCheckinCharge() ?? 0) * 100);
+        $earlyCheckinCents = (int) round(($this->effectiveEarlyCheckinCharge() ?? 0) * 100);
 
         $capCents = $this->property && $this->property->deposit_cap_cents !== null
             ? $this->property->deposit_cap_cents
@@ -219,13 +223,13 @@ class Booking extends Model
     }
 
     /**
-     * earlyCheckinCharge() minus whatever's already been billed (via the
-     * combined pre-checkin charge or a prior standalone early check-in
-     * charge). Same idea as unbilledIncidentalsCents().
+     * effectiveEarlyCheckinCharge() minus whatever's already been billed
+     * (via the combined pre-checkin charge or a prior standalone early
+     * check-in charge). Same idea as unbilledIncidentalsCents().
      */
     public function unbilledEarlyCheckinCents(): int
     {
-        $currentCents = (int) round(($this->earlyCheckinCharge() ?? 0) * 100);
+        $currentCents = (int) round(($this->effectiveEarlyCheckinCharge() ?? 0) * 100);
 
         return max(0, $currentCents - ($this->early_checkin_billed_cents ?? 0));
     }
@@ -440,6 +444,20 @@ class Booking extends Model
     }
 
     /**
+     * The early check-in charge actually in effect: an admin override on
+     * the ledger takes priority over the property/tier-derived rate. Same
+     * override pattern as effectiveParkingCharge().
+     */
+    public function effectiveEarlyCheckinCharge(): ?float
+    {
+        if ($this->early_checkin_charge_override !== null) {
+            return (float) $this->early_checkin_charge_override;
+        }
+
+        return $this->earlyCheckinCharge();
+    }
+
+    /**
      * The property's standard checkout instant for this booking's checkout
      * day, respecting the guest's chosen checkout time preference if set.
      * Used only for the unauthorized late-checkout hour calculation below —
@@ -525,6 +543,30 @@ class Booking extends Model
         }
 
         return null;
+    }
+
+    /**
+     * The late-checkout charge actually in effect: an admin override on
+     * the ledger takes priority over the computed rate. Same override
+     * pattern as effectiveParkingCharge() / effectiveEarlyCheckinCharge().
+     */
+    public function effectiveLateCheckoutCharge(): ?float
+    {
+        if ($this->late_checkout_charge_override !== null) {
+            return (float) $this->late_checkout_charge_override;
+        }
+
+        return $this->lateCheckoutCharge();
+    }
+
+    /**
+     * Whether the ledger has ever been published to the guest. Admin can
+     * freely edit parking/incidentals/early-check-in/late-checkout amounts
+     * without the guest seeing anything change until this is (re)published.
+     */
+    public function isLedgerPublished(): bool
+    {
+        return filled($this->ledger_published_at);
     }
 
     /**
