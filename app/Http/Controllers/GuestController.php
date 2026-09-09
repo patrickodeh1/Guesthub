@@ -714,19 +714,13 @@ class GuestController extends Controller
         $locks = $category->action === 'door_lock'
             ? $this->resolveLocks($booking)
             : collect();
+        // TicketmasterService removed -- the client explicitly does not want
+        // ticketed events shown (see project notes, Sept 2026). Local events
+        // is intentionally empty pending a curated/CitySpark-based free
+        // events replacement.
         $localEvents = collect();
         $eventsTotal = 0;
         $eventsHasMore = false;
-        if ($category->action === 'local_events' && $booking->property->latitude && $booking->property->longitude) {
-            $eventsResult = app(\App\Services\TicketmasterService::class)->findNearbyEvents(
-                (float) $booking->property->latitude,
-                (float) $booking->property->longitude,
-                (int) ($booking->property->events_radius_miles ?? 25)
-            );
-            $localEvents = collect($eventsResult['events']);
-            $eventsTotal = $eventsResult['totalElements'];
-            $eventsHasMore = $eventsResult['hasMore'];
-        }
 
         ActivityLogService::guest('category_viewed', "Guest {$booking->guest_name} viewed category: {$category->title}.", 'guest_portal', [
             'booking_id'  => $booking->id,
@@ -753,16 +747,9 @@ class GuestController extends Controller
 
         $page = max(0, (int) $request->query('page', 0));
 
+        // TicketmasterService removed -- see note in show(). No pagination
+        // needed until a real events source replaces it.
         $eventsResult = ['events' => [], 'totalElements' => 0, 'hasMore' => false];
-        if ($booking->property->latitude && $booking->property->longitude) {
-            $eventsResult = app(\App\Services\TicketmasterService::class)->findNearbyEvents(
-                (float) $booking->property->latitude,
-                (float) $booking->property->longitude,
-                (int) ($booking->property->events_radius_miles ?? 25),
-                20,
-                $page
-            );
-        }
 
         return response()->json($eventsResult);
     }

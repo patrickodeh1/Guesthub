@@ -1,20 +1,33 @@
-<div class="flex items-center justify-between gap-4 border-b border-slate-100 px-4 py-3 last:border-0">
-    <div class="min-w-0 flex-1">
-        <a class="block truncate text-[17px] font-bold text-slate-950 hover:text-teal-800" href="{{ route('admin.guests.show', $booking) }}">{{ $booking->guest_name }}</a>
-        <p class="truncate text-sm font-normal italic text-slate-500">{{ $booking->property->name }}</p>
-        <p class="text-sm text-slate-600">{{ $booking->dateRangeOnly() }} &middot; {{ $booking->weekCardDynamicLabel() }}</p>
+<div class="relative min-h-[112px] border-b border-slate-100 px-4 py-3 pr-16 last:border-0">
+    <div class="min-w-0 pr-[45%]">
+        <a class="block break-words pr-2 text-[17px] font-bold leading-6 text-slate-950 hover:text-teal-800" href="{{ route('admin.guests.show', $booking) }}">{{ $booking->guest_name }}</a>
+        <p class="break-words text-sm font-normal italic text-slate-500">{{ $booking->property->name }}</p>
+        <p class="text-sm text-slate-600">
+            {{ $booking->dateRangeOnly() }}
+            @if($context === 'today' && $booking->check_in_date->isToday() && ! $booking->isMarkedCheckedIn())
+                &middot; Checks in today
+            @elseif($context === 'today' && $booking->check_out_date->isToday())
+                &middot; Checks out today
+            @endif
+            @if($booking->nightsLabel())
+                &middot; {{ $booking->nightsLabel() }}
+            @endif
+            @if($booking->weekCardDynamicLabel() && $context === 'today' && ! ($booking->check_in_date->isToday() && ! $booking->isMarkedCheckedIn()) && ! $booking->check_out_date->isToday())
+                &middot; {{ $booking->weekCardDynamicLabel() }}
+            @endif
+        </p>
     </div>
 
-    <div class="shrink-0 text-right">
-        @if($context === 'upcoming')
-            <span class="badge badge-arrival-countdown whitespace-nowrap">{{ $booking->arrivalCountdownLabel() }}</span>
+    <div class="absolute right-4 top-3 max-w-[45%] text-right">
+        @if($context === 'upcoming' || ($context === 'this-week' && $booking->daysUntilCheckIn() > 0 && ! $booking->isMarkedCheckedIn()))
+            <span class="badge badge-arrival-countdown whitespace-normal">{{ $booking->arrivalCountdownLabel() }}</span>
         @else
-            <span class="badge badge-{{ $booking->effectiveStatus() }} whitespace-nowrap">{{ $booking->statusLabel() }}</span>
+            <span class="badge badge-{{ $booking->effectiveStatus() }} whitespace-normal">{{ $booking->statusLabel() }}</span>
         @endif
     </div>
 
-    <div class="relative shrink-0" data-row-menu>
-        <button type="button" class="btn-secondary !px-2" onclick="toggleRowMenu(this)" aria-label="Actions"><x-icon name="more-vertical" class="h-4 w-4" /></button>
+    <div class="absolute bottom-3 right-4" data-row-menu>
+        <button type="button" class="btn-secondary !h-8 !min-h-8 !w-8 !p-1" onclick="toggleRowMenu(this)" aria-label="Actions"><x-icon name="more-vertical" class="h-4 w-4" /></button>
         <div data-row-menu-panel class="hidden absolute right-0 z-10 mt-1 w-56 rounded-lg border border-slate-200 bg-white py-1 shadow-lg">
             <a href="{{ route('admin.guests.show', $booking) }}" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><x-icon name="eye" class="h-4 w-4" />View Details</a>
             <a href="{{ route('admin.guests.edit', $booking) }}" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><x-icon name="edit" class="h-4 w-4" />Edit</a>

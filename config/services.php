@@ -36,10 +36,6 @@ return [
         'webhook_secret' => env('SEAM_WEBHOOK_SECRET'),
     ],
 
-    'ticketmaster' => [
-        'api_key' => env('TICKETMASTER_API_KEY'),
-    ],
-
     'twilio' => [
         'sid' => env('TWILIO_SID'),
         'auth_token' => env('TWILIO_AUTH_TOKEN'),

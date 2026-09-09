@@ -105,19 +105,10 @@ class CategoryController extends Controller
             ? $property->locks->map(fn ($lock) => ['lock' => $lock, 'status' => null])
             : collect();
 
+        // TicketmasterService removed -- see note in GuestController::show.
         $localEvents = collect();
         $eventsTotal = 0;
         $eventsHasMore = false;
-        if ($category->action === 'local_events' && $property->latitude && $property->longitude) {
-            $eventsResult = app(\App\Services\TicketmasterService::class)->findNearbyEvents(
-                (float) $property->latitude,
-                (float) $property->longitude,
-                (int) ($property->events_radius_miles ?? 25)
-            );
-            $localEvents = collect($eventsResult['events']);
-            $eventsTotal = $eventsResult['totalElements'];
-            $eventsHasMore = $eventsResult['hasMore'];
-        }
 
         $state = 'guide';
 

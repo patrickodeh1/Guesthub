@@ -525,6 +525,21 @@ class Booking extends Model
         return $this->manually_checked_in || $this->status === 'currently_hosting';
     }
 
+    public function isMarkedCheckedIn(): bool
+    {
+        return $this->isCheckedIn() || $this->manually_checked_in || $this->status === 'currently_hosting';
+    }
+
+    public function isPriorityGuest(): bool
+    {
+        return $this->needsIdApproval()
+            || ($this->status === 'pre_checkin_complete' && ! $this->isApproved())
+            || $this->status === 'awaiting_deposit'
+            || ($this->isApproved() && ! $this->isBackgroundCheckComplete())
+            || ($this->isBackgroundCheckComplete() && ! $this->isDepositVerified())
+            || ($this->isCheckinDay() && in_array($this->status, ['guest_approved', 'currently_hosting'], true) && ! $this->gps_verified);
+    }
+
     public function isCheckinDay(?CarbonInterface $date = null): bool
     {
         $date ??= now();
@@ -554,13 +569,34 @@ class Booking extends Model
      */
     public function weekCardDynamicLabel(): string
     {
-        if (! $this->checked_out_at && ($this->isCheckedIn() || $this->manually_checked_in || $this->status === 'currently_hosting' || $this->isCheckinDay())) {
+        if ($this->checked_out_at) {
+            return 'Checked out';
+        }
+
+        if ($this->isMarkedCheckedIn() && ! $this->checked_out_at) {
             $daysLeft = $this->daysUntilCheckOut();
 
             return $daysLeft <= 0 ? 'Checks out today' : 'Checks out in '.$daysLeft.' '.Str::plural('day', $daysLeft);
         }
 
         return $this->nightsLabel();
+    }
+
+    public function weekCardArrivalLabel(): string
+    {
+        if ($this->isMarkedCheckedIn() || $this->checked_out_at) {
+            return '';
+        }
+
+        $daysUntil = $this->daysUntilCheckIn();
+
+        if ($daysUntil < 0) {
+            $daysAgo = abs($daysUntil);
+
+            return 'Check-in was '.$daysAgo.' '.Str::plural('day', $daysAgo).' ago';
+        }
+
+        return $daysUntil === 0 ? 'Checks in today' : 'Arriving in '.$daysUntil.' '.Str::plural('day', $daysUntil);
     }
 
     /**
@@ -574,23 +610,52 @@ class Booking extends Model
         return $daysUntil <= 0 ? 'Arriving today' : 'Arriving in '.$daysUntil.' '.Str::plural('day', $daysUntil);
     }
 
+    public function checkInCountdownLabel(): string
+    {
+        $daysUntil = $this->daysUntilCheckIn();
+
+        if ($daysUntil < 0) {
+            $daysAgo = abs($daysUntil);
+
+            return 'Check-in was '.$daysAgo.' '.Str::plural('day', $daysAgo).' ago';
+        }
+
+        return $daysUntil === 0
+            ? 'Checks in today'
+            : 'Check-in in '.$daysUntil.' '.Str::plural('day', $daysUntil);
+    }
+
     /**
-     * Which "week card" bucket this booking currently falls into, per the
-     * client's requested sort order (task 8):
-     * 1 = currently checked in / checking in today, 2 = recently checked out,
-     * 3 = upcoming stay.
+     * Sort today's operational work ahead of the rest of the week:
+     * priority check-ins, other check-ins, check-outs, active stays, then
+     * recently checked-out and upcoming bookings.
      */
     public function weekCardSortTier(): int
     {
-        if (! $this->checked_out_at && ($this->isCheckedIn() || $this->manually_checked_in || $this->status === 'currently_hosting' || $this->isCheckinDay())) {
+        $isTodayCheckIn = $this->check_in_date->isToday();
+        $isTodayCheckOut = $this->check_out_date->isToday();
+
+        if ($isTodayCheckIn && ! $this->isMarkedCheckedIn() && $this->isPriorityGuest()) {
             return 1;
         }
 
-        if ($this->checked_out_at) {
+        if ($isTodayCheckIn && ! $this->isMarkedCheckedIn()) {
             return 2;
         }
 
-        return 3;
+        if ($isTodayCheckOut) {
+            return 3;
+        }
+
+        if ($this->isMarkedCheckedIn() && ! $this->checked_out_at) {
+            return 4;
+        }
+
+        if ($this->checked_out_at) {
+            return 5;
+        }
+
+        return 6;
     }
 
     public function isSameDayBooking(): bool

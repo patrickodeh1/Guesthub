@@ -23,6 +23,35 @@
         <label class="mt-3 flex w-fit items-center gap-2 text-sm text-slate-600"><input type="checkbox" name="archived" value="1" form="guest-filter-form" @checked($showArchived) onchange="this.form.requestSubmit ? document.getElementById('guest-filter-form').requestSubmit() : document.getElementById('guest-filter-form').submit()"> Show archived</label>
     </div>
 
+    @if($priority->isNotEmpty())
+    <div class="mb-3 flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-slate-950">Priority</h2>
+        <span class="text-sm text-slate-500">{{ $priority->count() }} guest{{ $priority->count() === 1 ? '' : 's' }}</span>
+    </div>
+    <div class="card mb-4 divide-y divide-slate-100">
+        @foreach($priority as $booking)
+            @include('admin.bookings.partials.week-guest-row', ['booking' => $booking, 'context' => 'priority'])
+        @endforeach
+    </div>
+    @endif
+
+    @if($today->isNotEmpty())
+    <div class="mb-3 flex items-center justify-between">
+        <h2 class="text-lg font-semibold text-slate-950">Today</h2>
+        <span class="text-sm text-slate-500">{{ $todayTotal }} guest{{ $todayTotal === 1 ? '' : 's' }}</span>
+    </div>
+    <div id="today-card" class="card mb-4 divide-y divide-slate-100" data-offset="{{ $today->count() }}">
+        @foreach($today as $booking)
+            @include('admin.bookings.partials.week-guest-row', ['booking' => $booking, 'context' => 'today'])
+        @endforeach
+    </div>
+    @if($today->count() < $todayTotal)
+        <div class="mb-8 text-center">
+            <button type="button" id="today-show-more" class="btn-secondary">Show More</button>
+        </div>
+    @endif
+    @endif
+
     @if($thisWeek->isNotEmpty())
     <div class="mb-3 flex items-center justify-between">
         <h2 class="text-lg font-semibold text-slate-950">This Week</h2>
@@ -80,7 +109,7 @@
         <div class="mt-5">{{ $bookings->links() }}</div>
     @endif
 
-    @if($thisWeek->isEmpty() && $upcomingTotal === 0)
+    @if($priority->isEmpty() && $today->isEmpty() && $thisWeek->isEmpty() && $upcomingTotal === 0)
         <div class="card card-pad text-center text-slate-500">No guests checking in or out this week or coming up.</div>
     @endif
 
@@ -93,6 +122,31 @@
         const searchUrl = @json(route('admin.guests.search'));
         let debounceTimer = null;
         let activeController = null;
+
+        const todayCard = document.getElementById('today-card');
+        const todayShowMoreBtn = document.getElementById('today-show-more');
+        const todayMoreUrl = @json(route('admin.guests.today'));
+
+        todayShowMoreBtn?.addEventListener('click', function () {
+            const offset = parseInt(todayCard.dataset.offset || '0', 10);
+            todayShowMoreBtn.disabled = true;
+            todayShowMoreBtn.textContent = 'Loading...';
+            fetch(todayMoreUrl + '?offset=' + offset + '&limit=5', { headers: { 'Accept': 'application/json' } })
+                .then(r => r.json())
+                .then(function (data) {
+                    todayCard.insertAdjacentHTML('beforeend', data.html);
+                    todayCard.dataset.offset = data.next_offset;
+                    if (!data.has_more) todayShowMoreBtn.remove();
+                    else {
+                        todayShowMoreBtn.disabled = false;
+                        todayShowMoreBtn.textContent = 'Show More';
+                    }
+                })
+                .catch(function () {
+                    todayShowMoreBtn.disabled = false;
+                    todayShowMoreBtn.textContent = 'Show More';
+                });
+        });
 
         function hideResults() {
             results.classList.add('hidden');
