@@ -902,8 +902,13 @@ class BookingController extends Controller
             'property_id'    => ['required', 'exists:properties,id'],
             'id_type'        => ['required', 'in:state_id,passport'],
             'parking_needed' => ['nullable', 'boolean'],
-            'parking_charge_override' => ['nullable', 'numeric', 'min:0'],
-            'incidentals_charge' => ['nullable', 'numeric', 'min:0'],
+            // parking_charge_override / incidentals_charge intentionally removed:
+            // no longer editable from the booking form (task: "remove all the
+            // fields in the booking edit"). Editing per-guest amounts now
+            // belongs on the guest show page's breakdown editor. Leaving these
+            // keys out of validated() entirely means store()/update() never
+            // include them in $data, so existing values set previously from
+            // the booking page are left untouched rather than nulled out.
             'early_checkin_tier' => ['nullable', 'in:8am_12pm,12pm_2pm,2pm_4pm,8am,12pm'],
             'late_checkout_type' => ['nullable', 'in:authorized,unauthorized'],
             'late_checkout_hours' => ['nullable', 'numeric', 'min:0'],

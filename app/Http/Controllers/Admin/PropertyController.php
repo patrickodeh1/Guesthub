@@ -206,6 +206,7 @@ class PropertyController extends Controller
             'checkin_time' => ['nullable', 'date_format:H:i'],
             'channex_property_id' => ['nullable', 'string', 'max:255', 'unique:properties,channex_property_id,'.($property?->id ?? 'NULL')],
             'deposit_cap_dollars' => ['nullable', 'numeric', 'min:0', 'max:100000'],
+            'required_incidentals_hold_amount' => ['nullable', 'numeric', 'min:0', 'max:100000'],
             'lockbox_code' => ['nullable', 'string', 'max:255'],
             'parking_rate_sunday' => ['nullable', 'numeric', 'min:0'],
             'parking_rate_monday' => ['nullable', 'numeric', 'min:0'],

@@ -53,6 +53,7 @@ class Property extends Model
         'channex_room_type_id',
         'airbnb_ical_url',
         'deposit_cap_cents',
+        'required_incidentals_hold_amount',
     ];
 
     protected function casts(): array
@@ -70,6 +71,7 @@ class Property extends Model
             'late_checkout_rate_authorized_per_30min' => 'decimal:2',
             'late_checkout_rate_unauthorized_per_30min' => 'decimal:2',
             'deposit_cap_cents' => 'integer',
+            'required_incidentals_hold_amount' => 'decimal:2',
         ];
     }
 

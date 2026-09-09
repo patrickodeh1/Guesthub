@@ -131,6 +131,10 @@
                     <p class="mt-1 text-xs text-slate-500">Parking fees plus incidentals will be capped at this amount for the property. A global processing fee percentage (set in Admin Settings) is applied on top.</p>
                     <span class="field-help">Leave blank to use the global default.</span>
                 </label>
+                <label class="field-label mt-4">Required incidentals hold (USD)
+                    <input type="number" step="0.01" min="0" name="required_incidentals_hold_amount" value="{{ old('required_incidentals_hold_amount', $property->required_incidentals_hold_amount) }}" placeholder="e.g. 200.00" class="input">
+                    <p class="mt-1 text-xs text-slate-500">Default incidentals hold for every booking at this property.</p>
+                </label>
                 <label class="field-label mt-4">Channex property ID
                     <input name="channex_property_id" value="{{ old('channex_property_id', $property->channex_property_id) }}" placeholder="e.g. 3f9a2b10-..." class="input">
                     <span class="field-help">Bookings won't import until this is set.</span>

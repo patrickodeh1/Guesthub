@@ -33,23 +33,16 @@
             <label class="field-label mt-5">Parking<select name="parking_needed" class="input"><option value="">Unknown</option><option value="1" @selected(old('parking_needed', $booking->parking_needed)==='1' || old('parking_needed', $booking->parking_needed)===true)>Yes, guest needs parking</option><option value="0" @selected(old('parking_needed', $booking->parking_needed)==='0' || old('parking_needed', $booking->parking_needed)===false)>No parking needed</option></select></label>
             @if($booking->parking_needed)
             <div class="field-label mt-5">
-                <span>Parking charge (admin only)</span>
-                <p class="field-help mt-1">Auto-calculated: ${{ number_format($booking->parking_charge ?? 0, 2) }} from the property's weekday rates across the stay.</p>
-                <div class="flex items-center gap-1 mt-1">
-                    <span class="text-slate-500">$</span>
-                    <input type="number" step="0.01" min="0" name="parking_charge_override" value="{{ old('parking_charge_override', $booking->parking_charge_override) }}" placeholder="Override amount" class="input">
-                </div>
-                <span class="field-help">Leave blank to use the auto-calculated amount. Set a value to override it.</span>
+                <span>Parking charge</span>
+                <p class="field-help mt-1">${{ number_format($booking->effectiveParkingCharge() ?? 0, 2) }} — auto-calculated from the property's weekday rates.</p>
+                <span class="field-help">Edit the amount held/charged for this specific guest from the guest's page, not here.</span>
             </div>
             @endif
-            <label class="field-label mt-5">
-                Incidentals charge (admin only)
-                <div class="flex items-center gap-1 mt-1">
-                    <span class="text-slate-500">$</span>
-                    <input type="number" step="0.01" min="0" name="incidentals_charge" value="{{ old('incidentals_charge', $booking->incidentals_charge) }}" placeholder="0.00" class="input">
-                </div>
-                <span class="field-help">Any incidentals charge for this guest.</span>
-            </label>
+            <div class="field-label mt-5">
+                <span>Incidentals hold</span>
+                <p class="field-help mt-1">${{ number_format($booking->incidentals_charge ?? $booking->property->required_incidentals_hold_amount ?? 0, 2) }}</p>
+                <span class="field-help">Editing per-guest amounts is moving to a single guest page — coming in the next update.</span>
+            </div>
             @endif
 @if($booking->exists)
             <label class="field-label mt-5">

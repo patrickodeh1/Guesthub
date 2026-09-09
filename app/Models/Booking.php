@@ -562,6 +562,29 @@ class Booking extends Model
     }
 
     /**
+     * "in 3 days" / "tomorrow" / "today" phrasing for a future day count.
+     * Centralized so every countdown label (dashboard + guests list) uses
+     * the same wording instead of "in 1 day".
+     */
+    private function relativeDaysPhrase(int $daysUntil): string
+    {
+        return match (true) {
+            $daysUntil <= 0 => 'today',
+            $daysUntil === 1 => 'tomorrow',
+            default => 'in '.$daysUntil.' '.Str::plural('day', $daysUntil),
+        };
+    }
+
+    /**
+     * "1 day ago" / "yesterday" phrasing for a past day count ($daysAgo is
+     * always >= 1 at call sites).
+     */
+    private function relativeDaysAgoPhrase(int $daysAgo): string
+    {
+        return $daysAgo === 1 ? 'yesterday' : $daysAgo.' '.Str::plural('day', $daysAgo).' ago';
+    }
+
+    /**
      * Dynamic status line for the admin "This Week" guest card (task 8):
      * checked-in/checking-in-today guests show a countdown to checkout,
      * recently checked-out guests show how long ago they left, everyone
@@ -576,7 +599,7 @@ class Booking extends Model
         if ($this->isMarkedCheckedIn() && ! $this->checked_out_at) {
             $daysLeft = $this->daysUntilCheckOut();
 
-            return $daysLeft <= 0 ? 'Checks out today' : 'Checks out in '.$daysLeft.' '.Str::plural('day', $daysLeft);
+            return 'Checks out '.$this->relativeDaysPhrase($daysLeft);
         }
 
         return $this->nightsLabel();
@@ -591,12 +614,10 @@ class Booking extends Model
         $daysUntil = $this->daysUntilCheckIn();
 
         if ($daysUntil < 0) {
-            $daysAgo = abs($daysUntil);
-
-            return 'Check-in was '.$daysAgo.' '.Str::plural('day', $daysAgo).' ago';
+            return 'Check-in was '.$this->relativeDaysAgoPhrase(abs($daysUntil));
         }
 
-        return $daysUntil === 0 ? 'Checks in today' : 'Arriving in '.$daysUntil.' '.Str::plural('day', $daysUntil);
+        return $daysUntil === 0 ? 'Checks in today' : 'Arriving '.$this->relativeDaysPhrase($daysUntil);
     }
 
     /**
@@ -607,7 +628,7 @@ class Booking extends Model
     {
         $daysUntil = $this->daysUntilCheckIn();
 
-        return $daysUntil <= 0 ? 'Arriving today' : 'Arriving in '.$daysUntil.' '.Str::plural('day', $daysUntil);
+        return 'Arriving '.$this->relativeDaysPhrase($daysUntil);
     }
 
     public function checkInCountdownLabel(): string
@@ -615,14 +636,12 @@ class Booking extends Model
         $daysUntil = $this->daysUntilCheckIn();
 
         if ($daysUntil < 0) {
-            $daysAgo = abs($daysUntil);
-
-            return 'Check-in was '.$daysAgo.' '.Str::plural('day', $daysAgo).' ago';
+            return 'Check-in was '.$this->relativeDaysAgoPhrase(abs($daysUntil));
         }
 
         return $daysUntil === 0
             ? 'Checks in today'
-            : 'Check-in in '.$daysUntil.' '.Str::plural('day', $daysUntil);
+            : 'Check-in '.$this->relativeDaysPhrase($daysUntil);
     }
 
     /**
