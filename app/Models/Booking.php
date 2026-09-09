@@ -97,6 +97,24 @@ class Booking extends Model
     }
 
     /**
+     * The incidentals amount actually in effect for this booking: a
+     * per-booking amount set manually takes priority, otherwise falls back
+     * to the property's required_incidentals_hold_amount default. Returns
+     * null if neither is set, so callers can distinguish "no hold" from
+     * "$0 hold" the same way effectiveParkingCharge() does.
+     */
+    public function effectiveIncidentalsCharge(): ?float
+    {
+        if ($this->incidentals_charge !== null) {
+            return (float) $this->incidentals_charge;
+        }
+
+        return $this->property?->required_incidentals_hold_amount !== null
+            ? (float) $this->property->required_incidentals_hold_amount
+            : null;
+    }
+
+    /**
      * The pre-checkin combined charge: parking + incidentals + early
      * check-in (if already granted at this point), capped at the
      * property's flat-dollar ceiling (falling back to the global default),
@@ -117,8 +135,8 @@ class Booking extends Model
         if (($parking = $this->effectiveParkingCharge()) > 0) {
             $parts[] = 'parking $' . number_format($parking, 2);
         }
-        if (($this->incidentals_charge ?? 0) > 0) {
-            $parts[] = 'incidentals $' . number_format($this->incidentals_charge, 2);
+        if (($this->effectiveIncidentalsCharge() ?? 0) > 0) {
+            $parts[] = 'incidentals $' . number_format($this->effectiveIncidentalsCharge(), 2);
         }
         if (($earlyCheckin = $this->earlyCheckinCharge()) > 0) {
             $parts[] = 'early check-in $' . number_format($earlyCheckin, 2);
@@ -143,7 +161,7 @@ class Booking extends Model
     public function calculatePreCheckinChargeCents(): int
     {
         $parkingCents = (int) round(($this->effectiveParkingCharge() ?? 0) * 100);
-        $incidentalsCents = (int) round(($this->incidentals_charge ?? 0) * 100);
+        $incidentalsCents = (int) round(($this->effectiveIncidentalsCharge() ?? 0) * 100);
         $earlyCheckinCents = (int) round(($this->earlyCheckinCharge() ?? 0) * 100);
 
         $capCents = $this->property && $this->property->deposit_cap_cents !== null

@@ -40,7 +40,7 @@
             @endif
             <div class="field-label mt-5">
                 <span>Incidentals hold</span>
-                <p class="field-help mt-1">${{ number_format($booking->incidentals_charge ?? $booking->property->required_incidentals_hold_amount ?? 0, 2) }}</p>
+                <p class="field-help mt-1">${{ number_format($booking->effectiveIncidentalsCharge() ?? 0, 2) }}</p>
                 <span class="field-help">Editing per-guest amounts is moving to a single guest page — coming in the next update.</span>
             </div>
             @endif
