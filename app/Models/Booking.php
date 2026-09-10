@@ -570,6 +570,40 @@ class Booking extends Model
     }
 
     /**
+     * What's actually left of the incidentals hold once the late checkout
+     * charge is deducted from it at checkout (task: "we're not gonna charge
+     * them extra we'll just deduct that from the incidentals hold after
+     * check out" -- late checkout is never billed as a separate charge,
+     * see the guest-side fix that removed that card entirely). Floored at
+     * 0 -- if the deduction exceeds the hold, refunding stops there; it's
+     * on the admin to raise the incidentals hold ahead of time if a large
+     * late-checkout deduction is expected (see ledgerDeductionsExceedHold()).
+     */
+    public function estimatedIncidentalsRefund(): float
+    {
+        $hold = $this->effectiveIncidentalsCharge() ?? 0;
+        $deduction = $this->effectiveLateCheckoutCharge() ?? 0;
+
+        return max(0.0, $hold - $deduction);
+    }
+
+    /**
+     * True when the late checkout deduction alone would exceed the current
+     * incidentals hold -- the exact scenario the client described: "if they
+     * want ... a late checkout and that would exceed the amount of
+     * incidentals hold, we might change the incidentals hold". Surfaced as
+     * a warning banner on the ledger so admin catches it before checkout,
+     * not after.
+     */
+    public function ledgerDeductionsExceedHold(): bool
+    {
+        $hold = $this->effectiveIncidentalsCharge() ?? 0;
+        $deduction = $this->effectiveLateCheckoutCharge() ?? 0;
+
+        return $deduction > $hold;
+    }
+
+    /**
      * Converts a number of hours into whole half-hour blocks (rounding any
      * partial block up) and multiplies by the given per-block rate.
      */

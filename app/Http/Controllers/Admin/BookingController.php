@@ -360,11 +360,8 @@ class BookingController extends Controller
     public function update(Request $request, Booking $booking)
     {
         $oldStatus = $booking->status;
-        $oldEarlyCheckinTier = $booking->early_checkin_tier;
-        $oldLateCheckoutCharge = $booking->lateCheckoutCharge();
-        $oldIncidentalsCharge = (float) ($booking->incidentals_charge ?? 0);
         $data = $this->validated($request, $booking);
-        $this->enforcePreCheckinCap($data);
+        $this->enforcePreCheckinCap(array_merge($booking->only(['incidentals_charge', 'parking_needed', 'early_checkin_tier', 'early_checkin_charge_override']), $data));
         $data['photo_id_received'] = $request->boolean('photo_id_received');
         if (($data['status'] ?? null) === 'pre_checkin_complete') {
             $data['photo_id_received'] = true;
@@ -383,27 +380,6 @@ class BookingController extends Controller
         $booking->update($data);
         $booking->recalculateParkingCharge();
 
-        // Newly granted (not just re-saved unchanged) early check-in tier:
-        // let the guest know via their existing portal link so they can pay
-        // for it — they won't otherwise know to check back, since granting
-        // it is an admin-initiated action.
-        if ($booking->early_checkin_tier && $booking->early_checkin_tier !== $oldEarlyCheckinTier) {
-            \App\Services\GuestAlertService::send('early_checkin_granted', $booking);
-        }
-
-        // Same idea for late checkout / incidentals, but only once the guest
-        // has actually checked out — these are almost always entered by
-        // admin after the stay, and the guest can't see the payment screen
-        // (post_checkout state) until then anyway.
-        if ($booking->status === 'checked_out') {
-            $newLateCheckoutCharge = $booking->lateCheckoutCharge();
-            $newIncidentalsCharge = (float) ($booking->incidentals_charge ?? 0);
-
-            if (($newLateCheckoutCharge ?? 0) > ($oldLateCheckoutCharge ?? 0) || $newIncidentalsCharge > $oldIncidentalsCharge) {
-                \App\Services\GuestAlertService::send('post_checkout_balance_due', $booking);
-            }
-        }
-
         ActivityLogService::admin('booking_updated', auth()->user()->name." updated booking for {$booking->guest_name}.", 'guests', [
             'subject_type' => Booking::class,
             'subject_id'   => $booking->id,
@@ -413,6 +389,96 @@ class BookingController extends Controller
         ]);
 
         return redirect()->route('admin.guests.show', $booking)->with('success', 'Booking updated.');
+    }
+
+    /**
+     * Dedicated endpoint for the "Guest Details" ledger editor (parking,
+     * incidentals hold, early check-in, late checkout -- amounts and the
+     * fields that drive them). Kept entirely separate from update() above
+     * so this form and the identity-fields form on the same page never
+     * step on each other's fields -- each only ever submits/validates its
+     * own set, so neither can null out data the other owns.
+     */
+    public function updateLedger(Request $request, Booking $booking)
+    {
+        $oldEarlyCheckinTier = $booking->early_checkin_tier;
+        $oldLateCheckoutCharge = $booking->effectiveLateCheckoutCharge();
+        $oldIncidentalsCharge = (float) ($booking->effectiveIncidentalsCharge() ?? 0);
+
+        $data = $request->validate([
+            'parking_needed'                 => ['nullable', 'boolean'],
+            'parking_charge_override'        => ['nullable', 'numeric', 'min:0'],
+            'incidentals_charge'             => ['nullable', 'numeric', 'min:0'],
+            'early_checkin_tier'             => ['nullable', 'in:8am_12pm,12pm_2pm,2pm_4pm,8am,12pm'],
+            'early_checkin_charge_override'  => ['nullable', 'numeric', 'min:0'],
+            'late_checkout_type'             => ['nullable', 'in:authorized,unauthorized'],
+            'late_checkout_hours'            => ['nullable', 'numeric', 'min:0'],
+            'late_checkout_actual_time'      => ['nullable', 'date'],
+            'late_checkout_charge_override'  => ['nullable', 'numeric', 'min:0'],
+        ]);
+        $data['parking_needed'] = $request->boolean('parking_needed');
+
+        $this->enforcePreCheckinCap(array_merge(
+            $booking->only(['property_id', 'check_in_date', 'check_out_date']),
+            $data
+        ));
+
+        $booking->update($data);
+        $booking->recalculateParkingCharge();
+
+        // Newly granted (not just re-saved unchanged) early check-in tier:
+        // let the guest know via their existing portal link so they can pay
+        // for it -- they won't otherwise know to check back, since granting
+        // it is an admin-initiated action.
+        if ($booking->early_checkin_tier && $booking->early_checkin_tier !== $oldEarlyCheckinTier) {
+            \App\Services\GuestAlertService::send('early_checkin_granted', $booking);
+        }
+
+        // Same idea for late checkout / incidentals, but only once the guest
+        // has actually checked out -- these are almost always entered by
+        // admin after the stay, and the guest can't see the payment screen
+        // (post_checkout state) until then anyway.
+        if ($booking->status === 'checked_out') {
+            $newLateCheckoutCharge = $booking->effectiveLateCheckoutCharge();
+            $newIncidentalsCharge = (float) ($booking->effectiveIncidentalsCharge() ?? 0);
+
+            if (($newLateCheckoutCharge ?? 0) > ($oldLateCheckoutCharge ?? 0) || $newIncidentalsCharge > $oldIncidentalsCharge) {
+                \App\Services\GuestAlertService::send('post_checkout_balance_due', $booking);
+            }
+        }
+
+        ActivityLogService::admin('booking_ledger_updated', auth()->user()->name." updated the charge ledger for {$booking->guest_name}.", 'guests', [
+            'subject_type' => Booking::class,
+            'subject_id'   => $booking->id,
+            'booking_id'   => $booking->id,
+            'property_id'  => $booking->property_id,
+            'severity'     => 'info',
+        ]);
+
+        return redirect()->route('admin.guests.show', $booking)->with('success', 'Ledger updated.');
+    }
+
+    /**
+     * Marks the current ledger totals as ready to show the guest. Does not
+     * yet change anything the guest actually sees -- the guest-facing
+     * payment page still always reflects the live computed total. This is
+     * intentionally a separate, later step once gating behavior is decided,
+     * so nothing about live guest payments changes as a side effect of
+     * this patch.
+     */
+    public function publishLedger(Booking $booking)
+    {
+        $booking->update(['ledger_published_at' => now()]);
+
+        ActivityLogService::admin('booking_ledger_published', auth()->user()->name." published the charge ledger for {$booking->guest_name}.", 'guests', [
+            'subject_type' => Booking::class,
+            'subject_id'   => $booking->id,
+            'booking_id'   => $booking->id,
+            'property_id'  => $booking->property_id,
+            'severity'     => 'info',
+        ]);
+
+        return back()->with('success', 'Ledger marked as published.');
     }
 
     public function updateWelcomeMessage(Request $request, Booking $booking)
@@ -947,7 +1013,7 @@ class BookingController extends Controller
         $subtotalCents = (int) round((
             $parkingCharge
             + ((float) ($data['incidentals_charge'] ?? 0))
-            + ($booking->earlyCheckinCharge() ?? 0)
+            + ($booking->effectiveEarlyCheckinCharge() ?? 0)
         ) * 100);
 
         if ($subtotalCents > $capCents) {

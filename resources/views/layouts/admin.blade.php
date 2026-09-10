@@ -556,6 +556,23 @@ document.addEventListener('change', function(e) {
     }
 
     function closeConfirmModal() {
+        // A separate script (form loading-state handler) disables the
+        // submit button and swaps in a spinner on every form 'submit'
+        // event -- and since that listener is attached directly on the
+        // form (fires before this document-level one, per event bubble
+        // order), it already ran and mutated the button by the time we
+        // call preventDefault() below. Cancelling here must undo that or
+        // the button is left stuck showing "Working..." forever with
+        // nothing to reset it, since the form never actually submitted.
+        if (pendingForm) {
+            var btn = pendingForm.querySelector('[type="submit"], button:not([type="button"])');
+            if (btn && btn.dataset.loadingActive === 'true') {
+                btn.disabled = false;
+                btn.innerHTML = btn.dataset.originalHtml || btn.innerHTML;
+                delete btn.dataset.loadingActive;
+                delete btn.dataset.originalHtml;
+            }
+        }
         pendingForm = null;
         modal.classList.add('hidden');
         modal.classList.remove('flex');
