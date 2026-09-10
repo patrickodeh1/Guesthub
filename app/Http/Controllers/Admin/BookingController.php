@@ -406,7 +406,11 @@ class BookingController extends Controller
         $oldIncidentalsCharge = (float) ($booking->effectiveIncidentalsCharge() ?? 0);
 
         $data = $request->validate([
-            'parking_needed'                 => ['nullable', 'boolean'],
+            // parking_needed intentionally excluded: it's set by the guest
+            // during their own check-in flow, read-only for admin here.
+            // Leaving it out of validated() means updateLedger() never
+            // touches this column, so it can't be nulled out just because
+            // this form doesn't submit it.
             'parking_charge_override'        => ['nullable', 'numeric', 'min:0'],
             'incidentals_charge'             => ['nullable', 'numeric', 'min:0'],
             'early_checkin_tier'             => ['nullable', 'in:8am_12pm,12pm_2pm,2pm_4pm,8am,12pm'],
@@ -416,14 +420,17 @@ class BookingController extends Controller
             'late_checkout_actual_time'      => ['nullable', 'date'],
             'late_checkout_charge_override'  => ['nullable', 'numeric', 'min:0'],
         ]);
-        $data['parking_needed'] = $request->boolean('parking_needed');
 
         $this->enforcePreCheckinCap(array_merge(
-            $booking->only(['property_id', 'check_in_date', 'check_out_date']),
+            $booking->only(['property_id', 'check_in_date', 'check_out_date', 'parking_needed']),
             $data
         ));
 
         $booking->update($data);
+        // recalculateParkingCharge() is safe to leave here -- it only
+        // recomputes based on $booking->parking_needed (untouched) and the
+        // stay dates (also untouched by this form), so it doesn't need
+        // parking_needed to have come from this request.
         $booking->recalculateParkingCharge();
 
         // Newly granted (not just re-saved unchanged) early check-in tier:

@@ -555,6 +555,26 @@ document.addEventListener('change', function(e) {
         modal.classList.add('flex');
     }
 
+    // Shared by every <x-help> tooltip on any page: click toggles that
+    // one panel open, closes any other open panel first (so only one
+    // shows at a time), and clicking anywhere outside closes it.
+    function toggleHelp(btn) {
+        var wrapper = btn.closest('[data-help-wrapper]');
+        var panel = wrapper ? wrapper.querySelector('[data-help-panel]') : null;
+        if (!panel) return;
+        var willShow = panel.classList.contains('hidden');
+        document.querySelectorAll('[data-help-panel]').forEach(function (p) {
+            if (p !== panel) p.classList.add('hidden');
+        });
+        panel.classList.toggle('hidden', !willShow);
+    }
+    document.addEventListener('click', function (e) {
+        if (e.target.closest('[data-help-wrapper]')) return;
+        document.querySelectorAll('[data-help-panel]').forEach(function (p) {
+            p.classList.add('hidden');
+        });
+    });
+
     function closeConfirmModal() {
         // A separate script (form loading-state handler) disables the
         // submit button and swaps in a spinner on every form 'submit'
