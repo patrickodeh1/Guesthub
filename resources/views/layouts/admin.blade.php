@@ -387,7 +387,7 @@
      TOAST CONTAINER
 ══════════════════════════════════════════════════════════════════════════ --}}
 {{-- ══════════════════════════════════════════════════════════════════════════
-     GLOBAL MEDIA PICKER (used by every image field via <x-media-image-field>)
+     GLOBAL MEDIA PICKER (used by every shared media image field)
 ══════════════════════════════════════════════════════════════════════════ --}}
 <div id="global-media-picker-modal" class="fixed inset-0 z-[99999] hidden items-center justify-center bg-slate-950/40 p-4">
     <div class="w-full max-w-2xl rounded-xl bg-white p-5 shadow-xl">
@@ -555,7 +555,7 @@ document.addEventListener('change', function(e) {
         modal.classList.add('flex');
     }
 
-    // Shared by every <x-help> tooltip on any page: click toggles that
+    // Shared by every help tooltip on any page: click toggles that
     // one panel open, closes any other open panel first (so only one
     // shows at a time), and clicking anywhere outside closes it.
     function toggleHelp(btn) {

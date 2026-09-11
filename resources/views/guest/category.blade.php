@@ -1,4 +1,5 @@
 @php
+    $siteLogo = \App\Models\Setting::getValue('site_logo');
     $assignmentImage = optional($category->pivot)->header_image;
     $heroImage = $assignmentImage
         ? url('/img/'.$assignmentImage)
@@ -24,6 +25,14 @@
 
 <x-guest-layout :booking="$booking" :property="$booking->property" :title="$displayTitle" :state="$state">
 <section class="guest-detail-shell">
+    <div class="guest-status-bar">
+        <div>
+            @if($siteLogo)
+                <img src="{{ url('/img/'.$siteLogo) }}" alt="" class="h-8 max-w-[140px] w-auto object-contain">
+            @endif
+        </div>
+        <span class="guest-status-pill is-checked">Guest Guide</span>
+    </div>
     @if($state === 'checkout_available')
         <div class="guest-portal-card p-6">
             <x-checkout-today-card :booking="$booking" :link-only="true" />

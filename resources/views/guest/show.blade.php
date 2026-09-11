@@ -1948,6 +1948,7 @@
                      billing it again on top of the hold double-charges
                      the guest. See admin-side ledger for the actual
                      charge amount. --}}
+                @if($locks->isNotEmpty())
                     <div class="px-6 pb-2">
                         <div class="grid gap-6 {{ $locks->count() > 1 ? 'sm:grid-cols-2' : '' }}">
                             @foreach($locks as $entry)
