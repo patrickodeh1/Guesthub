@@ -80,9 +80,9 @@
                         ...(($booking->effectiveEarlyCheckinCharge() ?? 0) > 0 || $booking->early_checkin_tier ? [['calendar', 'Early Check-in Charge', '$'.number_format($booking->effectiveEarlyCheckinCharge() ?? 0, 2), 'Billed to the guest as part of their pre-check-in total -- not deducted from the incidentals hold.']] : []),
                         ...(($booking->effectiveLateCheckoutCharge() ?? 0) > 0 || $booking->late_checkout_type ? [['clock', 'Late Checkout Deduction', '$'.number_format($booking->effectiveLateCheckoutCharge() ?? 0, 2).($booking->late_checkout_type ? ' ('.ucfirst($booking->late_checkout_type).')' : ''), 'Never billed to the guest separately -- this amount is deducted from their incidentals hold refund after checkout instead. See the Ledger card below.']] : []),
                     ] as [$icon, $label, $value, $help])
-                        <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3 break-inside-avoid last:border-0">
+                        <div class="flex flex-col gap-1 border-b border-slate-100 py-3 break-inside-avoid last:border-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                             <span class="flex items-center gap-2.5 text-slate-500"><x-icon :name="$icon" class="h-4 w-4 shrink-0 text-slate-400" />{{ $label }}<x-help :text="$help" /></span>
-                            <span class="font-semibold text-slate-950 text-right">{{ $value }}</span>
+                            <span class="font-semibold text-slate-950 sm:text-right">{{ $value }}</span>
                         </div>
                     @endforeach
 
@@ -112,9 +112,9 @@
                             </div>
                         @endif
 
-                        <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3 sm:col-start-2">
+                        <div class="flex flex-col gap-1 border-b border-slate-100 py-3 sm:col-start-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                             <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="parking" class="h-4 w-4 shrink-0 text-slate-400" />Guest needs parking<x-help text="Set by the guest during their own check-in -- read-only here, not editable by admin." /></span>
-                            <span class="font-semibold text-right">
+                            <span class="font-semibold sm:text-right">
                                 @if($booking->parking_needed === true)
                                     <x-icon name="check" class="inline h-4 w-4 text-emerald-600" />
                                 @elseif($booking->parking_needed === false)
@@ -125,26 +125,26 @@
                             </span>
                         </div>
 
-                        <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3">
+                        <div class="flex flex-col gap-1 border-b border-slate-100 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                             <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="parking" class="h-4 w-4 shrink-0 text-slate-400" />Parking override<x-help text="Overrides the auto-calculated parking charge above. Leave blank to keep using the property's per-weekday rates." /></span>
-                            <span class="flex items-center gap-2">
-                                <input type="number" step="0.01" min="0" id="lf-parking_charge_override" name="parking_charge_override" value="{{ old('parking_charge_override', $booking->parking_charge_override) }}" placeholder="Auto ${{ number_format($booking->calculateParkingCharge() ?? 0, 2) }}" class="ledger-field pointer-events-none w-28 border-none bg-transparent p-0 text-right font-semibold text-slate-950 placeholder:font-normal placeholder:text-slate-400" tabindex="-1">
+                            <span class="flex items-center gap-2 sm:justify-end">
+                                <input type="number" step="0.01" min="0" id="lf-parking_charge_override" name="parking_charge_override" value="{{ old('parking_charge_override', $booking->parking_charge_override) }}" placeholder="Auto ${{ number_format($booking->calculateParkingCharge() ?? 0, 2) }}" class="ledger-field pointer-events-none w-28 max-w-full border-none bg-transparent p-0 text-right font-semibold text-slate-950 placeholder:font-normal placeholder:text-slate-400" tabindex="-1">
                                 <button type="button" id="lf-parking_charge_override-btn" onclick="unlockLedgerField('lf-parking_charge_override')" class="text-slate-400 hover:text-slate-700"><span class="lf-pencil"><x-icon name="edit" class="h-3.5 w-3.5" /></span><span class="lf-check hidden"><x-icon name="check" class="h-3.5 w-3.5" /></span></button>
                             </span>
                         </div>
 
-                        <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3">
+                        <div class="flex flex-col gap-1 border-b border-slate-100 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                             <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="receipt" class="h-4 w-4 shrink-0 text-slate-400" />Incidentals hold override<x-help text="Overrides the property's default hold amount for just this booking. Raise this if early check-in + late checkout charges could exceed it, to leave a damage buffer." /></span>
-                            <span class="flex items-center gap-2">
-                                <input type="number" step="0.01" min="0" id="lf-incidentals_charge" name="incidentals_charge" value="{{ old('incidentals_charge', $booking->incidentals_charge) }}" placeholder="Default ${{ number_format($booking->property->required_incidentals_hold_amount ?? 0, 2) }}" class="ledger-field pointer-events-none w-28 border-none bg-transparent p-0 text-right font-semibold text-slate-950 placeholder:font-normal placeholder:text-slate-400" tabindex="-1">
+                            <span class="flex items-center gap-2 sm:justify-end">
+                                <input type="number" step="0.01" min="0" id="lf-incidentals_charge" name="incidentals_charge" value="{{ old('incidentals_charge', $booking->incidentals_charge) }}" placeholder="Default ${{ number_format($booking->property->required_incidentals_hold_amount ?? 0, 2) }}" class="ledger-field pointer-events-none w-28 max-w-full border-none bg-transparent p-0 text-right font-semibold text-slate-950 placeholder:font-normal placeholder:text-slate-400" tabindex="-1">
                                 <button type="button" id="lf-incidentals_charge-btn" onclick="unlockLedgerField('lf-incidentals_charge')" class="text-slate-400 hover:text-slate-700"><span class="lf-pencil"><x-icon name="edit" class="h-3.5 w-3.5" /></span><span class="lf-check hidden"><x-icon name="check" class="h-3.5 w-3.5" /></span></button>
                             </span>
                         </div>
 
-                        <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3">
+                        <div class="flex flex-col gap-1 border-b border-slate-100 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                             <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="calendar" class="h-4 w-4 shrink-0 text-slate-400" />Early check-in window<x-help text="Which early check-in time block this guest is approved for. Setting this bills the guest the property's rate for that window as part of their pre-check-in total." /></span>
-                            <span class="flex items-center gap-2">
-                                <select id="lf-early_checkin_tier" name="early_checkin_tier" class="ledger-field pointer-events-none appearance-none border-none bg-transparent p-0 text-right font-semibold text-slate-950" tabindex="-1">
+                            <span class="flex items-center gap-2 sm:justify-end">
+                                <select id="lf-early_checkin_tier" name="early_checkin_tier" class="ledger-field pointer-events-none max-w-full appearance-none border-none bg-transparent p-0 text-right font-semibold text-slate-950" tabindex="-1">
                                     <option value="" @selected(!old('early_checkin_tier', $booking->early_checkin_tier))>None</option>
                                     <option value="8am_12pm" @selected(old('early_checkin_tier', $booking->early_checkin_tier)==='8am_12pm' || old('early_checkin_tier', $booking->early_checkin_tier)==='8am')>8:00 AM - 12:00 PM</option>
                                     <option value="12pm_2pm" @selected(old('early_checkin_tier', $booking->early_checkin_tier)==='12pm_2pm' || old('early_checkin_tier', $booking->early_checkin_tier)==='12pm')>12:00 PM - 2:00 PM</option>
@@ -154,18 +154,18 @@
                             </span>
                         </div>
 
-                        <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3">
+                        <div class="flex flex-col gap-1 border-b border-slate-100 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                             <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="calendar" class="h-4 w-4 shrink-0 text-slate-400" />Early check-in override<x-help text="Charges this exact amount instead of the property's rate for the selected window. Leave blank to use the auto-calculated rate." /></span>
-                            <span class="flex items-center gap-2">
-                                <input type="number" step="0.01" min="0" id="lf-early_checkin_charge_override" name="early_checkin_charge_override" value="{{ old('early_checkin_charge_override', $booking->early_checkin_charge_override) }}" placeholder="Auto ${{ number_format($booking->earlyCheckinCharge() ?? 0, 2) }}" class="ledger-field pointer-events-none w-28 border-none bg-transparent p-0 text-right font-semibold text-slate-950 placeholder:font-normal placeholder:text-slate-400" tabindex="-1">
+                            <span class="flex items-center gap-2 sm:justify-end">
+                                <input type="number" step="0.01" min="0" id="lf-early_checkin_charge_override" name="early_checkin_charge_override" value="{{ old('early_checkin_charge_override', $booking->early_checkin_charge_override) }}" placeholder="Auto ${{ number_format($booking->earlyCheckinCharge() ?? 0, 2) }}" class="ledger-field pointer-events-none w-28 max-w-full border-none bg-transparent p-0 text-right font-semibold text-slate-950 placeholder:font-normal placeholder:text-slate-400" tabindex="-1">
                                 <button type="button" id="lf-early_checkin_charge_override-btn" onclick="unlockLedgerField('lf-early_checkin_charge_override')" class="text-slate-400 hover:text-slate-700"><span class="lf-pencil"><x-icon name="edit" class="h-3.5 w-3.5" /></span><span class="lf-check hidden"><x-icon name="check" class="h-3.5 w-3.5" /></span></button>
                             </span>
                         </div>
 
-                        <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3">
+                        <div class="flex flex-col gap-1 border-b border-slate-100 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                             <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="clock" class="h-4 w-4 shrink-0 text-slate-400" />Late checkout billing<x-help text="Authorized: hours are set by admin below. Unauthorized: hours are calculated from the actual checkout time you enter. Either way, this is deducted from the incidentals hold -- never billed to the guest separately." /></span>
-                            <span class="flex items-center gap-2">
-                                <select id="lf-late_checkout_type" name="late_checkout_type" class="ledger-field pointer-events-none appearance-none border-none bg-transparent p-0 text-right font-semibold text-slate-950" tabindex="-1">
+                            <span class="flex items-center gap-2 sm:justify-end">
+                                <select id="lf-late_checkout_type" name="late_checkout_type" class="ledger-field pointer-events-none max-w-full appearance-none border-none bg-transparent p-0 text-right font-semibold text-slate-950" tabindex="-1">
                                     <option value="" @selected(!old('late_checkout_type', $booking->late_checkout_type))>Not applicable</option>
                                     <option value="authorized" @selected(old('late_checkout_type', $booking->late_checkout_type)==='authorized')>Authorized</option>
                                     <option value="unauthorized" @selected(old('late_checkout_type', $booking->late_checkout_type)==='unauthorized')>Unauthorized</option>
@@ -174,43 +174,43 @@
                             </span>
                         </div>
 
-                        <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3">
+                        <div class="flex flex-col gap-1 border-b border-slate-100 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                             <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="clock" class="h-4 w-4 shrink-0 text-slate-400" />Late checkout hours (authorized)<x-help text="How many hours late checkout was authorized for. Only used when billing is set to Authorized." /></span>
-                            <span class="flex items-center gap-2">
-                                <input type="number" step="0.25" min="0" id="lf-late_checkout_hours" name="late_checkout_hours" value="{{ old('late_checkout_hours', $booking->late_checkout_hours) }}" placeholder="e.g. 2" class="ledger-field pointer-events-none w-20 border-none bg-transparent p-0 text-right font-semibold text-slate-950 placeholder:font-normal placeholder:text-slate-400" tabindex="-1">
+                            <span class="flex items-center gap-2 sm:justify-end">
+                                <input type="number" step="0.25" min="0" id="lf-late_checkout_hours" name="late_checkout_hours" value="{{ old('late_checkout_hours', $booking->late_checkout_hours) }}" placeholder="e.g. 2" class="ledger-field pointer-events-none w-20 max-w-full border-none bg-transparent p-0 text-right font-semibold text-slate-950 placeholder:font-normal placeholder:text-slate-400" tabindex="-1">
                                 <button type="button" id="lf-late_checkout_hours-btn" onclick="unlockLedgerField('lf-late_checkout_hours')" class="text-slate-400 hover:text-slate-700"><span class="lf-pencil"><x-icon name="edit" class="h-3.5 w-3.5" /></span><span class="lf-check hidden"><x-icon name="check" class="h-3.5 w-3.5" /></span></button>
                             </span>
                         </div>
 
-                        <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3">
+                        <div class="flex flex-col gap-1 border-b border-slate-100 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                             <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="clock" class="h-4 w-4 shrink-0 text-slate-400" />Actual checkout time (unauthorized)<x-help text="What time the guest actually left. Used to calculate unauthorized late-checkout hours against the property's standard checkout time -- separate from the automatic checkout timestamp." /></span>
-                            <span class="flex items-center gap-2">
-                                <input type="datetime-local" id="lf-late_checkout_actual_time" name="late_checkout_actual_time" value="{{ old('late_checkout_actual_time', optional($booking->localTimestamp($booking->late_checkout_actual_time))->format('Y-m-d\TH:i')) }}" class="ledger-field pointer-events-none border-none bg-transparent p-0 text-right font-semibold text-slate-950" tabindex="-1">
+                            <span class="flex items-center gap-2 sm:justify-end">
+                                <input type="datetime-local" id="lf-late_checkout_actual_time" name="late_checkout_actual_time" value="{{ old('late_checkout_actual_time', optional($booking->localTimestamp($booking->late_checkout_actual_time))->format('Y-m-d\TH:i')) }}" class="ledger-field pointer-events-none max-w-full border-none bg-transparent p-0 text-right font-semibold text-slate-950" tabindex="-1">
                                 <button type="button" id="lf-late_checkout_actual_time-btn" onclick="unlockLedgerField('lf-late_checkout_actual_time')" class="text-slate-400 hover:text-slate-700"><span class="lf-pencil"><x-icon name="edit" class="h-3.5 w-3.5" /></span><span class="lf-check hidden"><x-icon name="check" class="h-3.5 w-3.5" /></span></button>
                             </span>
                         </div>
 
-                        <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3">
+                        <div class="flex flex-col gap-1 border-b border-slate-100 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                             <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="clock" class="h-4 w-4 shrink-0 text-slate-400" />Late checkout override<x-help text="Charges/deducts this exact amount instead of the calculated per-half-hour rate. Leave blank to use the auto-calculated amount." /></span>
-                            <span class="flex items-center gap-2">
-                                <input type="number" step="0.01" min="0" id="lf-late_checkout_charge_override" name="late_checkout_charge_override" value="{{ old('late_checkout_charge_override', $booking->late_checkout_charge_override) }}" placeholder="Auto ${{ number_format($booking->lateCheckoutCharge() ?? 0, 2) }}" class="ledger-field pointer-events-none w-28 border-none bg-transparent p-0 text-right font-semibold text-slate-950 placeholder:font-normal placeholder:text-slate-400" tabindex="-1">
+                            <span class="flex items-center gap-2 sm:justify-end">
+                                <input type="number" step="0.01" min="0" id="lf-late_checkout_charge_override" name="late_checkout_charge_override" value="{{ old('late_checkout_charge_override', $booking->late_checkout_charge_override) }}" placeholder="Auto ${{ number_format($booking->lateCheckoutCharge() ?? 0, 2) }}" class="ledger-field pointer-events-none w-28 max-w-full border-none bg-transparent p-0 text-right font-semibold text-slate-950 placeholder:font-normal placeholder:text-slate-400" tabindex="-1">
                                 <button type="button" id="lf-late_checkout_charge_override-btn" onclick="unlockLedgerField('lf-late_checkout_charge_override')" class="text-slate-400 hover:text-slate-700"><span class="lf-pencil"><x-icon name="edit" class="h-3.5 w-3.5" /></span><span class="lf-check hidden"><x-icon name="check" class="h-3.5 w-3.5" /></span></button>
                             </span>
                         </div>
                     </form>
-                    <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3">
+                    <div class="flex flex-col gap-1 border-b border-slate-100 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                         <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="contact-guest-services" class="h-4 w-4 shrink-0 text-slate-400" />Checked In At</span>
-                        <span class="font-semibold text-right">{{ $booking->localTimestamp($booking->checked_in_at)?->format('M j, Y g:i A') ?? 'Not yet' }}</span>
+                        <span class="font-semibold sm:text-right">{{ $booking->localTimestamp($booking->checked_in_at)?->format('M j, Y g:i A') ?? 'Not yet' }}</span>
                     </div>
-                    <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3">
+                    <div class="flex flex-col gap-1 border-b border-slate-100 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                         <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="contact-guest-services" class="h-4 w-4 shrink-0 text-slate-400" />Checked Out At</span>
-                        <span class="font-semibold text-right">{{ $booking->localTimestamp($booking->checked_out_at)?->format('M j, Y g:i A') ?? 'Not yet' }}</span>
+                        <span class="font-semibold sm:text-right">{{ $booking->localTimestamp($booking->checked_out_at)?->format('M j, Y g:i A') ?? 'Not yet' }}</span>
                     </div>
                     @if($checkinNeedsReview || $checkoutNeedsReview)
                     <div class="border-b border-slate-100 py-3 sm:col-start-2">
                         <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Requested times</p>
                         @if($checkinNeedsReview)
-                        <div class="mt-3 flex items-center justify-between gap-3">
+                        <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <p class="text-sm text-slate-500">Check-in</p>
                                 <p class="font-semibold text-slate-950">{{ $booking->checkinTimePreferenceFormatted() }}</p>
@@ -234,7 +234,7 @@
                         </div>
                         @endif
                         @if($checkoutNeedsReview)
-                        <div class="mt-3 flex items-center justify-between gap-3 {{ $checkinNeedsReview ? 'border-t border-slate-100 pt-3' : '' }}">
+                        <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between {{ $checkinNeedsReview ? 'border-t border-slate-100 pt-3' : '' }}">
                             <div>
                                 <p class="text-sm text-slate-500">Check-out</p>
                                 <p class="font-semibold text-slate-950">{{ $booking->checkoutTimePreferenceFormatted() }}</p>
@@ -294,21 +294,21 @@
                 @endif
 
                 <dl class="mt-4 grid gap-x-10 text-sm sm:grid-cols-2">
-                    <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3">
+                    <div class="flex flex-col gap-1 border-b border-slate-100 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                         <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="calculator" class="h-4 w-4 shrink-0 text-slate-400" />Charged before check-in<x-help text="The total actually charged to the guest's card before check-in: incidentals hold + parking + early check-in + processing fee." /></span>
-                        <span class="font-semibold text-slate-950 text-right">${{ number_format($booking->calculatePreCheckinChargeCents() / 100, 2) }}</span>
+                        <span class="font-semibold text-slate-950 sm:text-right">${{ number_format($booking->calculatePreCheckinChargeCents() / 100, 2) }}</span>
                     </div>
-                    <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3">
+                    <div class="flex flex-col gap-1 border-b border-slate-100 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                         <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="receipt" class="h-4 w-4 shrink-0 text-slate-400" />Incidentals hold (of the above)<x-help text="The refundable portion of the amount above. This is what late checkout deductions come out of." /></span>
-                        <span class="font-semibold text-slate-950 text-right">${{ number_format($booking->effectiveIncidentalsCharge() ?? 0, 2) }}</span>
+                        <span class="font-semibold text-slate-950 sm:text-right">${{ number_format($booking->effectiveIncidentalsCharge() ?? 0, 2) }}</span>
                     </div>
-                    <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3">
+                    <div class="flex flex-col gap-1 border-b border-slate-100 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                         <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="clock" class="h-4 w-4 shrink-0 text-slate-400" />Late checkout deduction<x-help text="Never billed to the guest separately -- this comes out of their incidentals hold instead, reducing what you refund after checkout." /></span>
-                        <span class="font-semibold text-slate-950 text-right">-${{ number_format($booking->effectiveLateCheckoutCharge() ?? 0, 2) }}</span>
+                        <span class="font-semibold text-slate-950 sm:text-right">-${{ number_format($booking->effectiveLateCheckoutCharge() ?? 0, 2) }}</span>
                     </div>
-                    <div class="flex items-start justify-between gap-4 border-b border-slate-100 py-3 sm:col-span-2">
+                    <div class="flex flex-col gap-1 border-b border-slate-100 py-3 sm:col-span-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                         <span class="flex items-center gap-2.5 font-semibold text-slate-950"><x-icon name="check" class="h-4 w-4 shrink-0 text-emerald-600" />Estimated refund from incidentals hold<x-help text="Incidentals hold minus the late checkout deduction, floored at $0. This is what to actually refund the guest after checkout -- doesn't move any money automatically." /></span>
-                        <span class="font-bold text-slate-950 text-right">${{ number_format($booking->estimatedIncidentalsRefund(), 2) }}</span>
+                        <span class="font-bold text-slate-950 sm:text-right">${{ number_format($booking->estimatedIncidentalsRefund(), 2) }}</span>
                     </div>
                 </dl>
                 <p class="mt-2 text-xs text-slate-500">This is an estimate for planning the refund after checkout -- it doesn't move any money automatically.</p>
@@ -322,7 +322,7 @@
                 </div>
             </section>
 
-            <div class="grid gap-6 lg:grid-cols-5">
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-5">
                 {{-- Photo ID --}}
                 <section class="card card-pad {{ $booking->parking_needed ? 'lg:col-span-3' : 'lg:col-span-5' }}">
                     <div class="flex items-center justify-between">
@@ -331,7 +331,7 @@
                     </div>
                     @if($booking->photo_id_path || $booking->photo_id_back_path)
                         <div class="mt-4">
-                            <div class="flex gap-4 border-b border-slate-200 text-sm font-semibold text-slate-500">
+                            <div class="flex gap-4 overflow-x-auto border-b border-slate-200 text-sm font-semibold text-slate-500">
                                 @if($booking->photo_id_path)
                                     <button type="button" id="photo-id-tab-front" onclick="switchPhotoIdTab('front')" class="-mb-px border-b-2 border-teal-700 pb-2 text-teal-800">Front</button>
                                 @endif
@@ -344,7 +344,7 @@
                                     <button type="button" onclick="openPhotoIdModal('{{ route('admin.guests.photo-id-view', $booking) }}', 'Photo ID front')" class="block w-full text-left">
                                         <img src="{{ route('admin.guests.photo-id-view', $booking) }}" alt="Photo ID front" class="w-full max-h-64 rounded-lg border border-slate-200 object-contain bg-slate-50">
                                     </button>
-                                    <div class="mt-3 flex flex-wrap gap-3">
+                                    <div class="mt-3 flex flex-wrap gap-x-4 gap-y-2">
                                         <button type="button" onclick="openPhotoIdModal('{{ route('admin.guests.photo-id-view', $booking) }}', 'Photo ID front')" class="text-sm font-semibold text-teal-800">View full size</button>
                                         <a class="text-sm font-semibold text-teal-800" href="{{ route('admin.guests.photo-id', $booking) }}">Download original</a>
                                     </div>
@@ -370,7 +370,7 @@
                                     <button type="button" onclick="openPhotoIdModal('{{ route('admin.guests.photo-id-back-view', $booking) }}', 'Photo ID back')" class="block w-full text-left">
                                         <img src="{{ route('admin.guests.photo-id-back-view', $booking) }}" alt="Photo ID back" class="w-full max-h-64 rounded-lg border border-slate-200 object-contain bg-slate-50">
                                     </button>
-                                    <div class="mt-3 flex flex-wrap gap-3">
+                                    <div class="mt-3 flex flex-wrap gap-x-4 gap-y-2">
                                         <button type="button" onclick="openPhotoIdModal('{{ route('admin.guests.photo-id-back-view', $booking) }}', 'Photo ID back')" class="text-sm font-semibold text-teal-800">View full size</button>
                                         <a class="text-sm font-semibold text-teal-800" href="{{ route('admin.guests.photo-id-back', $booking) }}">Download original</a>
                                     </div>
@@ -410,7 +410,7 @@
                         <button type="button" onclick="openPhotoIdModal('{{ route('admin.guests.license-plate-view', $booking) }}', 'License plate')" class="mt-4 block w-full text-left">
                             <img src="{{ route('admin.guests.license-plate-view', $booking) }}" alt="License plate" class="w-full max-h-64 rounded-lg border border-slate-200 object-contain bg-slate-50">
                         </button>
-                        <div class="mt-3 flex flex-wrap gap-3">
+                        <div class="mt-3 flex flex-wrap gap-x-4 gap-y-2">
                             <button type="button" onclick="openPhotoIdModal('{{ route('admin.guests.license-plate-view', $booking) }}', 'License plate')" class="text-sm font-semibold text-teal-800">View full size</button>
                             <a class="text-sm font-semibold text-teal-800" href="{{ route('admin.guests.license-plate', $booking) }}">Download original</a>
                         </div>
@@ -436,7 +436,7 @@
                             <p class="text-sm font-semibold text-slate-700">Secure guest URL</p>
                             <div class="mt-3 flex flex-col gap-2 sm:flex-row">
                                 <input id="guest-url" readonly value="{{ $booking->publicUrl() }}" class="input mt-0 min-w-0 flex-1">
-                                <button type="button" data-copy="#guest-url" class="btn-primary gap-2"><x-icon name="copy" class="h-4 w-4" />Copy URL</button>
+                                <button type="button" data-copy="#guest-url" class="btn-primary w-full justify-center gap-2 sm:w-auto"><x-icon name="copy" class="h-4 w-4" />Copy URL</button>
                             </div>
                         </div>
                     </div>
