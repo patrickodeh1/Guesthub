@@ -568,6 +568,13 @@ document.addEventListener('change', function(e) {
         });
         panel.classList.toggle('hidden', !willShow);
     }
+    // The help component triggers this via an inline
+    // onclick="toggleHelp(this)". Inline handlers run in the global scope,
+    // so this function must be exposed on window -- otherwise the click
+    // throws "toggleHelp is not defined" and the ? appears to do nothing,
+    // even though the function (and the click-outside listener below)
+    // exist fine inside this IIFE.
+    window.toggleHelp = toggleHelp;
     document.addEventListener('click', function (e) {
         if (e.target.closest('[data-help-wrapper]')) return;
         document.querySelectorAll('[data-help-panel]').forEach(function (p) {
