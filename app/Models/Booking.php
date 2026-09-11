@@ -16,7 +16,7 @@ class Booking extends Model
     use HasFactory;
 
     protected $fillable = [
-        'booking_id', 'reservation_id', 'source', 'channex_booking_id', 'guest_name', 'phone', 'email', 'check_in_date', 'check_out_date',
+        'booking_id', 'reservation_id', 'source', 'booking_platform', 'channex_booking_id', 'guest_name', 'phone', 'email', 'check_in_date', 'check_out_date',
         'property_id', 'id_type', 'token', 'photo_id_path', 'photo_id_back_path', 'photo_id_received', 'parking_needed', 'early_checkin_tier', 'checkin_time_preference', 'checkout_time_preference', 'checkin_time_status', 'checkout_time_status', 'gps_verified', 'guest_authenticated_at',
         'manually_checked_in', 'checked_in_at', 'checked_out_at', 'late_checkout_type', 'late_checkout_hours', 'late_checkout_actual_time', 'gps_overridden', 'status', 'cancelled_at', 'notes', 'welcome_message', 'identity_confirmed_at',
         'approved_at', 'decline_reason', 'archived_at', 'background_check_completed_at', 'deposit_verified_at',
@@ -29,7 +29,7 @@ class Booking extends Model
         'photo_id_front_approved_at', 'photo_id_front_declined_reason',
         'photo_id_back_approved_at', 'photo_id_back_declined_reason',
         'parking_charge', 'parking_charge_override', 'incidentals_charge', 'checkin_reminder_sent_at',
-        'early_checkin_charge_override', 'late_checkout_charge_override', 'ledger_published_at',
+        'early_checkin_charge_override', 'early_checkin_billing_mode', 'late_checkout_charge_override', 'ledger_published_at',
         'vehicle_make_model', 'license_plate_photo_path', 'vehicle_info_bypassed_at',
     ];
 
@@ -142,7 +142,7 @@ class Booking extends Model
         if (($this->effectiveIncidentalsCharge() ?? 0) > 0) {
             $parts[] = 'incidentals $' . number_format($this->effectiveIncidentalsCharge(), 2);
         }
-        if (($earlyCheckin = $this->effectiveEarlyCheckinCharge()) > 0) {
+        if (($earlyCheckin = $this->effectiveEarlyCheckinCharge()) > 0 && ! $this->earlyCheckinIsDeductedFromHold()) {
             $parts[] = 'early check-in $' . number_format($earlyCheckin, 2);
         }
 
@@ -166,7 +166,9 @@ class Booking extends Model
     {
         $parkingCents = (int) round(($this->effectiveParkingCharge() ?? 0) * 100);
         $incidentalsCents = (int) round(($this->effectiveIncidentalsCharge() ?? 0) * 100);
-        $earlyCheckinCents = (int) round(($this->effectiveEarlyCheckinCharge() ?? 0) * 100);
+        $earlyCheckinCents = $this->earlyCheckinIsDeductedFromHold()
+            ? 0
+            : (int) round(($this->effectiveEarlyCheckinCharge() ?? 0) * 100);
 
         $capCents = $this->property && $this->property->deposit_cap_cents !== null
             ? $this->property->deposit_cap_cents
@@ -458,6 +460,17 @@ class Booking extends Model
     }
 
     /**
+     * Whether this booking's early check-in is settled by deducting from the
+     * incidentals hold at checkout (like late checkout) instead of being
+     * billed to the guest upfront. null/default ("charge") keeps the old
+     * behavior where early check-in is part of the pre-check-in charge.
+     */
+    public function earlyCheckinIsDeductedFromHold(): bool
+    {
+        return $this->early_checkin_billing_mode === 'deduct_from_hold';
+    }
+
+    /**
      * The property's standard checkout instant for this booking's checkout
      * day, respecting the guest's chosen checkout time preference if set.
      * Used only for the unauthorized late-checkout hour calculation below —
@@ -570,37 +583,62 @@ class Booking extends Model
     }
 
     /**
+     * Total that gets deducted from the incidentals hold at checkout: late
+     * checkout plus, when configured, early check-in. This is the amount
+     * the guest is not refunded.
+     */
+    public function holdDeductions(): float
+    {
+        $deduction = $this->effectiveLateCheckoutCharge() ?? 0;
+
+        if ($this->earlyCheckinIsDeductedFromHold()) {
+            $deduction += $this->effectiveEarlyCheckinCharge() ?? 0;
+        }
+
+        return (float) $deduction;
+    }
+
+    /**
      * What's actually left of the incidentals hold once the late checkout
-     * charge is deducted from it at checkout (task: "we're not gonna charge
-     * them extra we'll just deduct that from the incidentals hold after
-     * check out" -- late checkout is never billed as a separate charge,
-     * see the guest-side fix that removed that card entirely). Floored at
-     * 0 -- if the deduction exceeds the hold, refunding stops there; it's
+     * (and, when configured, early check-in) deductions are taken out of it
+     * at checkout (task: "we're not gonna charge them extra we'll just
+     * deduct that from the incidentals hold after check out"). Floored at
+     * 0 -- if the deductions exceed the hold, refunding stops there; it's
      * on the admin to raise the incidentals hold ahead of time if a large
-     * late-checkout deduction is expected (see ledgerDeductionsExceedHold()).
+     * deduction is expected (see ledgerDeductionsExceedHold()).
      */
     public function estimatedIncidentalsRefund(): float
     {
         $hold = $this->effectiveIncidentalsCharge() ?? 0;
-        $deduction = $this->effectiveLateCheckoutCharge() ?? 0;
 
-        return max(0.0, $hold - $deduction);
+        return max(0.0, $hold - $this->holdDeductions());
     }
 
     /**
-     * True when the late checkout deduction alone would exceed the current
-     * incidentals hold -- the exact scenario the client described: "if they
-     * want ... a late checkout and that would exceed the amount of
-     * incidentals hold, we might change the incidentals hold". Surfaced as
-     * a warning banner on the ledger so admin catches it before checkout,
-     * not after.
+     * True when the hold deductions (late checkout, plus early check-in if
+     * in deduct-from-hold mode) would exceed the current incidentals hold —
+     * the exact scenario the client described: "if they want ... a late
+     * checkout and that would exceed the amount of incidentals hold, we
+     * might change the incidentals hold". Surfaced as a warning banner on
+     * the ledger so admin catches it before checkout, not after.
      */
     public function ledgerDeductionsExceedHold(): bool
     {
         $hold = $this->effectiveIncidentalsCharge() ?? 0;
-        $deduction = $this->effectiveLateCheckoutCharge() ?? 0;
 
-        return $deduction > $hold;
+        return $this->holdDeductions() > $hold;
+    }
+
+    /**
+     * What the guest actually ends up paying net of the refund: the
+     * pre-check-in charge minus the estimated refund from the incidentals
+     * hold. Equivalently parking + early check-in (if charged) + late
+     * checkout + processing fee — i.e. the non-refundable portion admin
+     * ultimately keeps. This is the "at a glance" figure for the ledger.
+     */
+    public function netChargeCents(): int
+    {
+        return max(0, $this->calculatePreCheckinChargeCents() - (int) round($this->estimatedIncidentalsRefund() * 100));
     }
 
     /**
@@ -670,6 +708,20 @@ class Booking extends Model
     }
 
     /**
+     * Same as relativeDaysPhrase() but with no leading "in", for phrases
+     * whose verb already ends in "in" -- "Checks in tomorrow" / "Checks in
+     * 3 days" instead of "Checks in in 3 days".
+     */
+    private function relativeDaysPhraseBare(int $daysUntil): string
+    {
+        return match (true) {
+            $daysUntil <= 0 => 'today',
+            $daysUntil === 1 => 'tomorrow',
+            default => $daysUntil.' '.Str::plural('day', $daysUntil),
+        };
+    }
+
+    /**
      * "1 day ago" / "yesterday" phrasing for a past day count ($daysAgo is
      * always >= 1 at call sites).
      */
@@ -711,18 +763,16 @@ class Booking extends Model
             return 'Check-in was '.$this->relativeDaysAgoPhrase(abs($daysUntil));
         }
 
-        return $daysUntil === 0 ? 'Checks in today' : 'Arriving '.$this->relativeDaysPhrase($daysUntil);
+        return 'Checks in '.$this->relativeDaysPhraseBare($daysUntil);
     }
 
     /**
      * Countdown label for the admin "Next Week" guest card (task 9),
-     * e.g. "Arriving in 5 days".
+     * e.g. "Checks in 5 days".
      */
     public function arrivalCountdownLabel(): string
     {
-        $daysUntil = $this->daysUntilCheckIn();
-
-        return 'Arriving '.$this->relativeDaysPhrase($daysUntil);
+        return 'Checks in '.$this->relativeDaysPhraseBare($this->daysUntilCheckIn());
     }
 
     public function checkInCountdownLabel(): string
@@ -733,9 +783,43 @@ class Booking extends Model
             return 'Check-in was '.$this->relativeDaysAgoPhrase(abs($daysUntil));
         }
 
-        return $daysUntil === 0
-            ? 'Checks in today'
-            : 'Check-in '.$this->relativeDaysPhrase($daysUntil);
+        return 'Checks in '.$this->relativeDaysPhraseBare($daysUntil);
+    }
+
+    /**
+     * One-line label for the admin dashboard's per-property list: arriving
+     * today / checking out today / staying until / arriving later, followed by
+     * the property's check-in (or check-out) time. $todayDate is the display
+     * timezone's Y-m-d, compared as a plain string so a UTC server can't push
+     * a "tomorrow" arrival into "today".
+     */
+    public function dashboardArrivalLine(string $todayDate): string
+    {
+        $checkIn = $this->check_in_date?->toDateString();
+        $checkOut = $this->check_out_date?->toDateString();
+
+        if ($checkIn === $todayDate) {
+            return 'Arriving today &middot; Check-in '.$this->effectiveCheckinTimeFormatted();
+        }
+
+        if ($checkOut === $todayDate) {
+            return 'Checking out today &middot; Check-out '.$this->effectiveCheckoutTimeFormatted();
+        }
+
+        if ($this->isMarkedCheckedIn() && ! $this->checked_out_at) {
+            return 'Staying until '.$this->check_out_date->format('M j');
+        }
+
+        $days = (int) \Carbon\Carbon::parse($todayDate)->startOfDay()
+            ->diffInDays($this->check_in_date->startOfDay(), false);
+
+        $when = match (true) {
+            $days <= 0 => 'today',
+            $days === 1 => 'tomorrow',
+            default => 'in '.$days.' days',
+        };
+
+        return 'Arriving '.$when.' &middot; Check-in '.$this->effectiveCheckinTimeFormatted();
     }
 
     /**
@@ -745,8 +829,12 @@ class Booking extends Model
      */
     public function weekCardSortTier(): int
     {
-        $isTodayCheckIn = $this->check_in_date->isToday();
-        $isTodayCheckOut = $this->check_out_date->isToday();
+        // Compare plain date strings against the host's local day instead of
+        // Carbon's isToday(), which uses the UTC app timezone and can push a
+        // "tomorrow" arrival into "today".
+        $today = now()->setTimezone(config('app.display_timezone'))->toDateString();
+        $isTodayCheckIn = $this->check_in_date->toDateString() === $today;
+        $isTodayCheckOut = $this->check_out_date->toDateString() === $today;
 
         if ($isTodayCheckIn && ! $this->isMarkedCheckedIn() && $this->isPriorityGuest()) {
             return 1;
@@ -1047,6 +1135,29 @@ class Booking extends Model
     public function statusLabel(): string
     {
         return str($this->effectiveStatus())->replace('_', ' ')->title()->toString();
+    }
+
+    /**
+     * The booking platform to name in the guest "pay on …" flow. Uses the
+     * OTA recorded from the channel manager (or set by hand) and falls back
+     * to "Airbnb" when nothing is on file, so bookings created before this
+     * field existed keep their exact previous guest experience.
+     */
+    public function platformLabel(): string
+    {
+        $platform = trim((string) ($this->booking_platform ?? ''));
+
+        if ($platform === '') {
+            return 'Airbnb';
+        }
+
+        return match (strtolower($platform)) {
+            'airbnb' => 'Airbnb',
+            'vrbo', 'homeaway' => 'Vrbo',
+            'booking.com', 'booking' => 'Booking.com',
+            'expedia' => 'Expedia',
+            default => $platform,
+        };
     }
 
     public function getFormattedPhoneAttribute(): ?string

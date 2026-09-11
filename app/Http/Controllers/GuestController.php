@@ -710,7 +710,7 @@ class GuestController extends Controller
         $page = CategoryPage::where('property_id', $booking->property_id)
             ->where('category_id', $category->id)
             ->where('active', true)
-            ->first();
+            ->first()?->resolvedPage();
         $locks = $category->action === 'door_lock'
             ? $this->resolveLocks($booking)
             : collect();

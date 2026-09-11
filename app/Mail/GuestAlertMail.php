@@ -13,11 +13,14 @@ class GuestAlertMail extends Mailable
     public function __construct(
         public string $eventLabel,
         public string $message,
+        public ?string $subjectLine = null,
     ) {}
 
     public function build()
     {
-        return $this->subject("GuestHub: {$this->eventLabel}")
+        // The sender and the email header already show the app name, so the
+        // subject leads with the guest instead of repeating it.
+        return $this->subject($this->subjectLine ?: $this->eventLabel)
             ->markdown('emails.guest-alert')
             ->with([
                 'eventLabel' => $this->eventLabel,

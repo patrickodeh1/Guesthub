@@ -30,7 +30,7 @@
              Guest Details card below and get their own editor with the
              ledger work, not here. --}}
         @php
-            $guestDetailsErrorFields = ['reservation_id', 'guest_name', 'phone', 'email', 'check_in_date', 'check_out_date', 'property_id', 'id_type', 'checkin_time_preference', 'checkout_time_preference', 'status', 'photo_id_received', 'notes'];
+            $guestDetailsErrorFields = ['reservation_id', 'booking_platform', 'guest_name', 'phone', 'email', 'check_in_date', 'check_out_date', 'property_id', 'id_type', 'checkin_time_preference', 'checkout_time_preference', 'status', 'photo_id_received', 'notes'];
             $hasGuestDetailsErrors = $errors->hasAny($guestDetailsErrorFields);
         @endphp
         <div id="guest-details-edit-panel" class="{{ $hasGuestDetailsErrors ? '' : 'hidden' }} mt-6 border-t border-slate-100 pt-6">
@@ -38,6 +38,7 @@
                 @csrf @method('put')
                 <div class="grid gap-5 md:grid-cols-2">
                     <label class="field-label">Reservation ID (Airbnb/VRBO) <span class="text-red-600">*</span><input name="reservation_id" value="{{ old('reservation_id', $booking->reservation_id) }}" required class="input">@error('reservation_id')<span class="mt-1 block text-xs text-red-700">{{ $message }}</span>@enderror</label>
+                    <label class="field-label">Booking platform<input name="booking_platform" list="booking-platform-options" value="{{ old('booking_platform', $booking->booking_platform) }}" placeholder="Airbnb, Vrbo, Booking.com…" class="input"><datalist id="booking-platform-options"><option value="Airbnb"></option><option value="Vrbo"></option><option value="Booking.com"></option><option value="Expedia"></option><option value="Direct"></option></datalist><span class="field-help">Shown to the guest on the payment screen ("Pay on …"). Auto-filled for channel-manager bookings.</span></label>
                     <label class="field-label">Guest name <span class="text-red-600">*</span><input name="guest_name" value="{{ old('guest_name', $booking->guest_name) }}" required class="input">@error('guest_name')<span class="mt-1 block text-xs text-red-700">{{ $message }}</span>@enderror</label>
                     <label class="field-label">Phone<input id="guest-detail-phone-input" name="phone" value="{{ old('phone', $booking->phone) }}" placeholder="(555) 555-0199" maxlength="14" class="input"></label>
                     <label class="field-label">Email<input name="email" value="{{ old('email', $booking->email) }}" placeholder="guest@example.com" class="input">@error('email')<span class="mt-1 block text-xs text-red-700">{{ $message }}</span>@enderror</label>
@@ -77,7 +78,7 @@
                     @foreach([
                         ['receipt', 'Incidentals Charge', $booking->effectiveIncidentalsCharge() !== null ? '$'.number_format($booking->effectiveIncidentalsCharge(), 2) : 'Not set', 'The refundable hold charged to the guest before check-in. Uses this booking\'s override if set below, otherwise the property\'s default hold amount.'],
                         ['parking', 'Parking Charge', $booking->effectiveParkingCharge() !== null ? '$'.number_format($booking->effectiveParkingCharge(), 2) : 'Not set', 'Auto-calculated from the property\'s per-weekday parking rates across the guest\'s stay, unless overridden below.'],
-                        ...(($booking->effectiveEarlyCheckinCharge() ?? 0) > 0 || $booking->early_checkin_tier ? [['calendar', 'Early Check-in Charge', '$'.number_format($booking->effectiveEarlyCheckinCharge() ?? 0, 2), 'Billed to the guest as part of their pre-check-in total -- not deducted from the incidentals hold.']] : []),
+                        ...(($booking->effectiveEarlyCheckinCharge() ?? 0) > 0 || $booking->early_checkin_tier ? [['calendar', $booking->earlyCheckinIsDeductedFromHold() ? 'Early Check-in Deduction' : 'Early Check-in Charge', '$'.number_format($booking->effectiveEarlyCheckinCharge() ?? 0, 2), $booking->earlyCheckinIsDeductedFromHold() ? 'Deducted from the incidentals hold at checkout, like late checkout.' : 'Billed to the guest as part of their pre-check-in total -- not deducted from the incidentals hold.']] : []),
                         ...(($booking->effectiveLateCheckoutCharge() ?? 0) > 0 || $booking->late_checkout_type ? [['clock', 'Late Checkout Deduction', '$'.number_format($booking->effectiveLateCheckoutCharge() ?? 0, 2).($booking->late_checkout_type ? ' ('.ucfirst($booking->late_checkout_type).')' : ''), 'Never billed to the guest separately -- this amount is deducted from their incidentals hold refund after checkout instead. See the Ledger card below.']] : []),
                     ] as [$icon, $label, $value, $help])
                         <div class="flex flex-col gap-1 border-b border-slate-100 py-3 break-inside-avoid last:border-0 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
@@ -100,7 +101,7 @@
                         @csrf @method('put')
 
                         @php
-                            $ledgerErrorFields = ['parking_needed', 'parking_charge_override', 'incidentals_charge', 'early_checkin_tier', 'early_checkin_charge_override', 'late_checkout_type', 'late_checkout_hours', 'late_checkout_actual_time', 'late_checkout_charge_override'];
+                            $ledgerErrorFields = ['parking_needed', 'parking_charge_override', 'incidentals_charge', 'early_checkin_tier', 'early_checkin_charge_override', 'early_checkin_billing_mode', 'late_checkout_type', 'late_checkout_hours', 'late_checkout_actual_time', 'late_checkout_charge_override'];
                         @endphp
                         @if($errors->hasAny($ledgerErrorFields))
                             <div class="border-b border-slate-100 py-3 sm:col-span-2">
@@ -163,6 +164,17 @@
                         </div>
 
                         <div class="flex flex-col gap-1 border-b border-slate-100 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                            <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="calendar" class="h-4 w-4 shrink-0 text-slate-400" />Early check-in billing<x-help text="Charged upfront: added to the guest's pre-check-in payment. Deducted from hold: taken out of the incidentals hold at checkout (like late checkout), so the guest is refunded less instead of paying more now." /></span>
+                            <span class="flex items-center gap-2 sm:justify-end">
+                                <select id="lf-early_checkin_billing_mode" name="early_checkin_billing_mode" class="ledger-field pointer-events-none max-w-full appearance-none border-none bg-transparent p-0 text-right font-semibold text-slate-950" tabindex="-1">
+                                    <option value="charge" @selected(old('early_checkin_billing_mode', $booking->early_checkin_billing_mode) === 'charge')>Charged upfront</option>
+                                    <option value="deduct_from_hold" @selected(old('early_checkin_billing_mode', $booking->early_checkin_billing_mode) === 'deduct_from_hold')>Deducted from hold</option>
+                                </select>
+                                <button type="button" id="lf-early_checkin_billing_mode-btn" onclick="unlockLedgerField('lf-early_checkin_billing_mode')" class="text-slate-400 hover:text-slate-700"><span class="lf-pencil"><x-icon name="edit" class="h-3.5 w-3.5" /></span><span class="lf-check hidden"><x-icon name="check" class="h-3.5 w-3.5" /></span></button>
+                            </span>
+                        </div>
+
+                        <div class="flex flex-col gap-1 border-b border-slate-100 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                             <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="clock" class="h-4 w-4 shrink-0 text-slate-400" />Late checkout billing<x-help text="Authorized: hours are set by admin below. Unauthorized: hours are calculated from the actual checkout time you enter. Either way, this is deducted from the incidentals hold -- never billed to the guest separately." /></span>
                             <span class="flex items-center gap-2 sm:justify-end">
                                 <select id="lf-late_checkout_type" name="late_checkout_type" class="ledger-field pointer-events-none max-w-full appearance-none border-none bg-transparent p-0 text-right font-semibold text-slate-950" tabindex="-1">
@@ -216,7 +228,7 @@
                                 <p class="font-semibold text-slate-950">{{ $booking->checkinTimePreferenceFormatted() }}</p>
                             </div>
                             <div class="flex shrink-0 gap-2">
-                                <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkin']) }}" data-confirm-title="Approve this check-in time?" data-confirm="This lets the guest arrive at this time -- it does not bill them automatically. If you want this early check-in included in what the guest is charged, set an Early check-in window (and override amount if needed) in Guest Details.">
+                                <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkin']) }}" data-confirm-title="Approve this check-in time?" data-confirm="{{ $booking->isDepositCaptured() ? 'This lets the guest arrive at this time. The guest has already paid, so set the Early check-in window in Guest Details so the ledger computes correctly.' : 'This lets the guest arrive at this time. The guest hasn\'t paid yet, so set the Early check-in window in Guest Details and choose whether to charge them upfront or deduct it from their incidentals hold.' }}">
                                     @csrf
                                     <input type="hidden" name="decision" value="approved">
                                     <button type="submit" title="Approve check-in time" aria-label="Approve check-in time" class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2">
@@ -282,44 +294,42 @@
             <section class="card card-pad">
                 <div class="flex items-center justify-between">
                     <h2 class="section-title">Ledger<x-help text="What's actually held vs. owed for this guest, so you can see at a glance what to refund from the incidentals hold after checkout." /></h2>
-                    <span class="text-xs font-semibold uppercase tracking-wide {{ $booking->isLedgerPublished() ? 'text-emerald-700' : 'text-slate-400' }}">
-                        {{ $booking->isLedgerPublished() ? 'Shared with guest '.$booking->localTimestamp($booking->ledger_published_at)->format('M j, g:i A') : 'Not yet shared with guest' }}
-                    </span>
                 </div>
 
                 @if($booking->ledgerDeductionsExceedHold())
                     <div class="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
-                        <span class="font-semibold">Heads up:</span> the late checkout deduction (${{ number_format($booking->effectiveLateCheckoutCharge(), 2) }}) exceeds the current incidentals hold (${{ number_format($booking->effectiveIncidentalsCharge() ?? 0, 2) }}). Consider raising the incidentals hold override in Guest Details so the deduction is covered, with some buffer left for any damages.
+                        <span class="font-semibold">Heads up:</span> the hold deductions (${{ number_format($booking->holdDeductions(), 2) }}{{ $booking->earlyCheckinIsDeductedFromHold() ? ' — late checkout + early check-in' : ' — late checkout' }}) exceed the current incidentals hold (${{ number_format($booking->effectiveIncidentalsCharge() ?? 0, 2) }}). Consider raising the incidentals hold override in Guest Details so the deductions are covered, with some buffer left for any damages.
                     </div>
                 @endif
 
                 <dl class="mt-4 grid gap-x-10 text-sm sm:grid-cols-2">
                     <div class="flex flex-col gap-1 border-b border-slate-100 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                        <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="calculator" class="h-4 w-4 shrink-0 text-slate-400" />Charged before check-in<x-help text="The total actually charged to the guest's card before check-in: incidentals hold + parking + early check-in + processing fee." /></span>
+                        <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="calculator" class="h-4 w-4 shrink-0 text-slate-400" />Charged before check-in<x-help text="{{ $booking->preCheckinChargeBreakdown() }}." /></span>
                         <span class="font-semibold text-slate-950 sm:text-right">${{ number_format($booking->calculatePreCheckinChargeCents() / 100, 2) }}</span>
                     </div>
                     <div class="flex flex-col gap-1 border-b border-slate-100 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                        <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="receipt" class="h-4 w-4 shrink-0 text-slate-400" />Incidentals hold (of the above)<x-help text="The refundable portion of the amount above. This is what late checkout deductions come out of." /></span>
+                        <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="receipt" class="h-4 w-4 shrink-0 text-slate-400" />Incidentals hold (refundable)<x-help text="The refundable portion of the amount above. This is what the deductions below come out of." /></span>
                         <span class="font-semibold text-slate-950 sm:text-right">${{ number_format($booking->effectiveIncidentalsCharge() ?? 0, 2) }}</span>
                     </div>
                     <div class="flex flex-col gap-1 border-b border-slate-100 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                         <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="clock" class="h-4 w-4 shrink-0 text-slate-400" />Late checkout deduction<x-help text="Never billed to the guest separately -- this comes out of their incidentals hold instead, reducing what you refund after checkout." /></span>
                         <span class="font-semibold text-slate-950 sm:text-right">-${{ number_format($booking->effectiveLateCheckoutCharge() ?? 0, 2) }}</span>
                     </div>
+                    @if($booking->earlyCheckinIsDeductedFromHold())
+                    <div class="flex flex-col gap-1 border-b border-slate-100 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                        <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="calendar" class="h-4 w-4 shrink-0 text-slate-400" />Early check-in deduction<x-help text="This booking's early check-in is set to be deducted from the incidentals hold at checkout (not billed upfront)." /></span>
+                        <span class="font-semibold text-slate-950 sm:text-right">-${{ number_format($booking->effectiveEarlyCheckinCharge() ?? 0, 2) }}</span>
+                    </div>
+                    @endif
                     <div class="flex flex-col gap-1 border-b border-slate-100 py-3 sm:col-span-2 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-                        <span class="flex items-center gap-2.5 font-semibold text-slate-950"><x-icon name="check" class="h-4 w-4 shrink-0 text-emerald-600" />Estimated refund from incidentals hold<x-help text="Incidentals hold minus the late checkout deduction, floored at $0. This is what to actually refund the guest after checkout -- doesn't move any money automatically." /></span>
-                        <span class="font-bold text-slate-950 sm:text-right">${{ number_format($booking->estimatedIncidentalsRefund(), 2) }}</span>
+                        <span class="flex items-center gap-2.5 font-semibold text-slate-950"><x-icon name="receipt" class="h-4 w-4 shrink-0 text-slate-400" />Net charge to guest<x-help text="Charged before check-in minus the estimated refund -- the non-refundable total you actually keep (parking + early check-in if charged + late checkout + processing fee)." /></span>
+                        <span class="text-lg font-bold text-slate-950 sm:text-right">${{ number_format($booking->netChargeCents() / 100, 2) }}</span>
+                    </div>
+                    <div class="flex flex-col gap-1 py-3 sm:col-span-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+                        <span class="flex items-center gap-2.5 font-bold text-slate-950"><x-icon name="refresh" class="h-4 w-4 shrink-0 text-emerald-600" />Estimated refund from incidentals hold<x-help text="Incidentals hold minus the deductions above, floored at $0. This is what to actually refund the guest after checkout -- doesn't move any money automatically." /></span>
+                        <span class="text-lg font-extrabold text-slate-950 sm:text-right">${{ number_format($booking->estimatedIncidentalsRefund(), 2) }}</span>
                     </div>
                 </dl>
-                <p class="mt-2 text-xs text-slate-500">This is an estimate for planning the refund after checkout -- it doesn't move any money automatically.</p>
-
-                <div class="mt-4 flex items-center gap-2">
-                    <form method="post" action="{{ route('admin.guests.ledger.publish', $booking) }}" data-confirm-title="Share this ledger with the guest?" data-confirm="This marks the current breakdown as ready. Note: the guest-facing payment page does not yet change based on this -- it always shows the live total regardless of publish status.">
-                        @csrf
-                        <button class="btn-secondary">{{ $booking->isLedgerPublished() ? 'Re-publish ledger' : 'Publish ledger' }}</button>
-                    </form>
-                    <x-help text="Marks this breakdown as reviewed and ready. Doesn't change what the guest sees yet -- their payment page always shows the live total regardless of publish status." />
-                </div>
             </section>
 
             <div class="grid grid-cols-1 gap-6 lg:grid-cols-5">

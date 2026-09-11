@@ -4,12 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use App\Models\Booking;
 
 class CategoryPage extends Model
 {
     protected $fillable = [
-        'property_id', 'category_id', 'title', 'content', 'image_1', 'image_2', 'image_3', 'sort_order', 'active',
+        'property_id', 'category_id', 'linked_page_id', 'title', 'content',
+        'image_1', 'image_2', 'image_3', 'sort_order', 'active',
     ];
 
     protected function casts(): array
@@ -25,6 +27,64 @@ class CategoryPage extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Category::class);
+    }
+
+    /**
+     * The page this one inherits its content from, if any.
+     */
+    public function linkedPage(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'linked_page_id');
+    }
+
+    /**
+     * Pages that inherit their content from this one (this page is a shared
+     * source for those properties).
+     */
+    public function linkedPages(): HasMany
+    {
+        return $this->hasMany(self::class, 'linked_page_id');
+    }
+
+    public function isLinked(): bool
+    {
+        return filled($this->linked_page_id);
+    }
+
+    /**
+     * Follow the linked_page_id chain to the page that actually holds the
+     * content. Guards against a cycle so a bad link can never loop forever.
+     */
+    public function resolvedPage(): self
+    {
+        $page = $this;
+        $seen = [];
+
+        while ($page->linked_page_id && ! isset($seen[$page->id])) {
+            $seen[$page->id] = true;
+            $next = $page->linkedPage;
+
+            if (! $next) {
+                break;
+            }
+
+            $page = $next;
+        }
+
+        return $page;
+    }
+
+    /**
+     * The page whose content should be shown for a property + category,
+     * resolving any link to its source. Null when no page row exists yet.
+     */
+    public static function effectiveFor(?int $propertyId, int $categoryId): ?self
+    {
+        $row = static::where('property_id', $propertyId)
+            ->where('category_id', $categoryId)
+            ->first();
+
+        return $row?->resolvedPage();
     }
 
     public function renderContent(Booking $booking): string

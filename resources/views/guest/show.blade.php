@@ -1636,6 +1636,14 @@
                             <p class="mt-3 text-sm leading-6 text-slate-600">Thank you. Your payment has been received. We are confirming your deposit now, and you will receive a message with your check-in details once it has been verified.</p>
                         </div>
                     @elseif($stripeConfigured && $depositAmountCents > 0)
+                        @php
+                            $platformLabel = $booking->platformLabel();
+                            $otaInstructions = \App\Models\Setting::getValue(
+                                'airbnb_payment_instructions',
+                                "<p>We'll send you a payment request through [[platform]]. Once it's completed, we'll confirm and send your check-in details.</p>"
+                            );
+                            $otaInstructions = str_replace('[[platform]]', $platformLabel, $otaInstructions);
+                        @endphp
                         <div class="text-center">
                             <h2 class="text-xl font-extrabold text-slate-950">Incidentals payment</h2>
                             <p class="mt-3 text-sm leading-6 text-slate-600">A payment of <strong>${{ number_format($depositAmountCents / 100, 2) }}</strong> is required before check-in.</p>
@@ -1643,11 +1651,11 @@
 
                         <div id="deposit-payment-choice" class="mt-5">
                             <button type="button" id="deposit-pay-here-btn" class="guest-primary-btn w-full">Pay Here with Card</button>
-                            <button type="button" id="deposit-pay-airbnb-btn" class="guest-outline-btn w-full mt-3">Pay on Airbnb</button>
+                            <button type="button" id="deposit-pay-airbnb-btn" class="guest-outline-btn w-full mt-3">Pay on {{ $platformLabel }}</button>
                         </div>
 
                         <div id="deposit-airbnb-instructions" class="mt-5 hidden text-left text-sm leading-6 text-slate-600 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                            {!! \App\Models\Setting::getValue('airbnb_payment_instructions', '<p>Please submit this payment through the Airbnb app or website. Once received, we will confirm and send your check-in details.</p>') !!}
+                            {!! $otaInstructions !!}
                             <button type="button" id="deposit-airbnb-back-btn" class="mt-4 text-xs font-semibold text-blue-600 underline">Back</button>
                         </div>
 
@@ -1669,8 +1677,8 @@
                                     <div id="deposit-payment-card-cvc" class="guest-card-field"></div>
                                 </div>
                                 <div class="guest-card-step hidden" data-step="postal" id="deposit-step-postal">
-                                    <label class="guest-card-label" for="deposit-payment-card-postal">Billing ZIP code</label>
-                                    <input id="deposit-payment-card-postal" type="text" inputmode="numeric" maxlength="10" placeholder="Billing ZIP" class="guest-card-postal" aria-label="Billing ZIP code">
+                                    <label class="guest-card-label" for="deposit-payment-card-postal">Billing ZIP / postal code</label>
+                                    <input id="deposit-payment-card-postal" name="postal-code" type="text" autocomplete="postal-code" maxlength="12" placeholder="ZIP / Postal code" class="guest-card-input" aria-label="Billing ZIP / postal code">
                                 </div>
                             </div>
                             <button type="submit" id="deposit-pay-btn" class="guest-primary-btn mt-4 w-full" disabled>Pay ${{ number_format($depositAmountCents / 100, 2) }}</button>
@@ -1692,10 +1700,19 @@
                             var errorBox = document.getElementById("deposit-payment-error");
                             var stripe, elements, cardNumber, cardExpiry, cardCvc, clientSecret = null;
                             var postalField = document.getElementById("deposit-payment-card-postal");
+                            var summaryList = document.getElementById("deposit-summary-list");
+                            var stepNumber = document.getElementById("deposit-step-number");
+                            var stepExpiry = document.getElementById("deposit-step-expiry");
+                            var stepCvc = document.getElementById("deposit-step-cvc");
+                            var stepPostal = document.getElementById("deposit-step-postal");
 
                             function showError(msg) {
                                 errorBox.textContent = msg;
                                 errorBox.classList.remove("hidden");
+                            }
+
+                            function clearError() {
+                                errorBox.classList.add("hidden");
                             }
 
                             function showSuccess(msg) {
@@ -1716,14 +1733,39 @@
                                 container.appendChild(success);
                             }
 
-                            function makeStripeFieldAccessible(fieldId, label) {
+                            function addSummaryRow(label) {
+                                var row = document.createElement("div");
+                                row.className = "guest-card-summary-item";
+                                var icon = document.createElement("span");
+                                icon.textContent = "✓";
+                                var text = document.createElement("span");
+                                text.textContent = label;
+                                row.append(icon, text);
+                                summaryList.appendChild(row);
+                            }
+
+                            function hideStep(step) {
+                                step.classList.add("hidden");
+                            }
+
+                            function showStep(step) {
+                                step.classList.remove("hidden");
+                            }
+
+                            function brandLabel(brand) {
+                                var map = { visa: "Visa", mastercard: "Mastercard", amex: "Amex", discover: "Discover", diners: "Diners Club", jcb: "JCB", unionpay: "UnionPay" };
+                                if (map[brand]) return map[brand];
+                                return brand ? brand.charAt(0).toUpperCase() + brand.slice(1) : "Card";
+                            }
+
+                            function makeStripeFieldAccessible(fieldId, label, autocomplete) {
                                 var attempts = 0;
                                 var timer = window.setInterval(function() {
                                     var field = document.querySelector('#' + fieldId + ' .__PrivateStripeElement-input');
                                     if (field) {
                                         field.setAttribute('aria-hidden', 'false');
                                         field.setAttribute('aria-label', label);
-                                        field.setAttribute('autocomplete', 'off');
+                                        field.setAttribute('autocomplete', autocomplete);
                                         window.clearInterval(timer);
                                         return;
                                     }
@@ -1733,6 +1775,17 @@
                                     }
                                 }, 100);
                             }
+
+                            postalField.addEventListener("input", function() {
+                                clearError();
+                                if (postalField.value.trim().length >= 3) {
+                                    payBtn.disabled = false;
+                                    payBtn.classList.add("is-go");
+                                } else {
+                                    payBtn.disabled = true;
+                                    payBtn.classList.remove("is-go");
+                                }
+                            });
 
                             function initStripeCardForm() {
                                 if (stripeInitStarted || !form) return;
@@ -1767,7 +1820,6 @@
                                         };
                                         cardNumber = elements.create("cardNumber", {
                                             showIcon: true,
-                                            disableLink: true,
                                             placeholder: "1234 5678 9012 3456",
                                             classes: { base: "guest-card-field-inner" },
                                             style: stripeElementStyle
@@ -1785,35 +1837,22 @@
                                         cardNumber.mount("#deposit-payment-card-number");
                                         cardExpiry.mount("#deposit-payment-card-expiry");
                                         cardCvc.mount("#deposit-payment-card-cvc");
-                                        makeStripeFieldAccessible("deposit-payment-card-number", "Card number");
-                                        makeStripeFieldAccessible("deposit-payment-card-expiry", "Card expiry");
-                                        makeStripeFieldAccessible("deposit-payment-card-cvc", "Card security code");
+                                        makeStripeFieldAccessible("deposit-payment-card-number", "Card number", "cc-number");
+                                        makeStripeFieldAccessible("deposit-payment-card-expiry", "Card expiry", "cc-exp");
+                                        makeStripeFieldAccessible("deposit-payment-card-cvc", "Card security code", "cc-csc");
 
-                                        var summaryList = document.getElementById("deposit-summary-list");
-                                        var stepNumber = document.getElementById("deposit-step-number");
-                                        var stepExpiry = document.getElementById("deposit-step-expiry");
-                                        var stepCvc = document.getElementById("deposit-step-cvc");
-                                        var stepPostal = document.getElementById("deposit-step-postal");
                                         var numberDone = false, expiryDone = false, cvcDone = false;
-
-                                        function addSummaryRow(label, brand) {
-                                            var row = document.createElement("div");
-                                            row.className = "flex items-center gap-2 text-xs font-semibold text-slate-500 mb-2";
-                                            var icon = document.createElement("span");
-                                            icon.textContent = "✓";
-                                            icon.className = "text-emerald-600";
-                                            var text = document.createElement("span");
-                                            text.textContent = brand ? (label + " (" + brand + ")") : label;
-                                            row.append(icon, text);
-                                            summaryList.appendChild(row);
-                                        }
+                                        var cardBrand = "Card";
 
                                         cardNumber.on("change", function(event) {
                                             if (event.error) { showError(event.error.message); return; }
                                             errorBox.classList.add("hidden");
+                                            if (event.brand && event.brand !== "unknown") cardBrand = brandLabel(event.brand);
                                             if (event.complete && !numberDone) {
                                                 numberDone = true;
-                                                                                                                            stepExpiry.classList.remove("hidden");
+                                                hideStep(stepNumber);
+                                                addSummaryRow(cardBrand + " •••• •••• •••• ••••");
+                                                showStep(stepExpiry);
                                                 cardExpiry.focus();
                                             }
                                         });
@@ -1822,7 +1861,9 @@
                                             errorBox.classList.add("hidden");
                                             if (event.complete && !expiryDone) {
                                                 expiryDone = true;
-                                                                                                                            stepCvc.classList.remove("hidden");
+                                                hideStep(stepExpiry);
+                                                addSummaryRow("Expiry date entered");
+                                                showStep(stepCvc);
                                                 cardCvc.focus();
                                             }
                                         });
@@ -1831,8 +1872,9 @@
                                             errorBox.classList.add("hidden");
                                             if (event.complete && !cvcDone) {
                                                 cvcDone = true;
-                                                                                                                            stepPostal.classList.remove("hidden");
-                                                payBtn.disabled = false;
+                                                hideStep(stepCvc);
+                                                addSummaryRow("Security code entered");
+                                                showStep(stepPostal);
                                                 postalField.focus();
                                             }
                                         });
@@ -1873,7 +1915,7 @@
                                             card: cardNumber,
                                             billing_details: {
                                                 address: {
-                                                    postal_code: (postalField.value || '').trim()
+                                                    postal_code: postalField.value.trim()
                                                 }
                                             }
                                         }
@@ -1901,12 +1943,14 @@
                                                     } else {
                                                         showError(confirmData.error || "Payment could not be confirmed. Please contact us.");
                                                         payBtn.disabled = false;
+                                                        payBtn.textContent = "Pay {{ '$' . number_format($depositAmountCents / 100, 2) }}";
                                                     }
                                                 });
                                         })
                                         .catch(function() {
                                             showError("Network error confirming payment. Please try again.");
                                             payBtn.disabled = false;
+                                            payBtn.textContent = "Pay {{ '$' . number_format($depositAmountCents / 100, 2) }}";
                                         });
                                 });
                             }
@@ -2063,23 +2107,6 @@
                     <p class="max-w-md text-sm leading-6 text-slate-600">We appreciate it. If you'd like to stay with us again, please contact us directly for a discount.</p>
                 </div>
             </div>
-
-            @php
-                $stripeConfiguredForCharges = filled(config('services.stripe.key')) && filled(config('services.stripe.secret'));
-
-                $incidentalsAmountCents = $booking->unbilledIncidentalsCents();
-                $incidentalsPaid = $booking->charges()->where('type', \App\Models\Charge::TYPE_INCIDENTALS)->where('status', \App\Models\Charge::STATUS_SUCCESS)->exists();
-                $showIncidentalsCharge = $incidentalsAmountCents > 0 && ! $incidentalsPaid && $stripeConfiguredForCharges;
-            @endphp
-            @if($showIncidentalsCharge)
-                    <x-guest-charge-card type="incidentals" label="Incidentals" description="Additional charges from your stay." :amount-cents="$incidentalsAmountCents" :booking="$booking" />
-                @include('guest.partials.charge-card-script')
-                <script>
-                (function() {
-                    @if($showIncidentalsCharge) initGuestChargeCard("incidentals"); @endif
-                })();
-                </script>
-            @endif
         @elseif($state === 'checkout_locked')
             @if($booking->status === 'checked_out')
                 <div class="guest-portal-card">

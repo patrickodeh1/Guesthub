@@ -26,7 +26,7 @@
                             'gps_verify_message' => ['label' => 'GPS Verify Message', 'help' => 'Shown above the map on the location verification step.', 'rows' => 3],
                             'lock_message' => ['label' => 'Smart Lock Message', 'help' => 'Shown on the smart lock step when a property has a lock configured.', 'rows' => 3],
                             'background_check_step_instructions' => ['label' => \App\Models\Setting::getValue('background_check_step_name', 'Background Check'), 'help' => 'Shown to guests on the waiting screen for this step.', 'rows' => 3],
-                            'airbnb_payment_instructions' => ['label' => 'Pay on Airbnb Instructions', 'help' => 'Shown to guests who choose to pay on Airbnb instead of by card.', 'rows' => 3],
+                            'airbnb_payment_instructions' => ['label' => 'Pay on Booking Platform Instructions', 'help' => 'Shown when the guest chooses to pay on their booking platform instead of by card. Use [[platform]] to insert the platform name (for example, Airbnb or Vrbo).', 'rows' => 3],
                         ];
                     @endphp
                     <div class="mb-3 flex flex-wrap gap-2">

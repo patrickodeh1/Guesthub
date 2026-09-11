@@ -373,12 +373,13 @@
         margin-bottom: 4px;
     }
     .guest-card-field {
-        min-height: 30px;
-        border: 1px solid #000000;
-        border-radius: 12px;
-        background: #ffffff;
-        padding: 0 12px;
+        display: flex;
         align-items: center;
+        min-height: 44px;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        background: #ffffff;
+        padding: 10px 12px;
         position: relative;
         overflow: visible;
         transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
@@ -443,8 +444,49 @@
         margin-bottom: 0;
     }
     @keyframes guestCardStepIn {
-        from { opacity: 0; }
-        to { opacity: 1; }
+        from { opacity: 0; transform: translateX(14px); }
+        to { opacity: 1; transform: translateX(0); }
+    }
+
+    .guest-card-input {
+        width: 100%;
+        min-height: 44px;
+        border: 1px solid #cbd5e1;
+        border-radius: 10px;
+        background: #ffffff;
+        padding: 10px 12px;
+        font-size: 15px;
+        line-height: 1.4;
+        color: #0f172a;
+        outline: none;
+        transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+    }
+    .guest-card-input:focus {
+        border-color: #0f172a;
+        background: #ffffff;
+        box-shadow: 0 0 0 3px rgb(15 23 42 / .08);
+    }
+    .guest-card-input::placeholder {
+        color: #94a3b8;
+    }
+
+    .guest-card-summary-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+        padding: 8px 12px;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        background: #f8fafc;
+        font-size: 13px;
+        font-weight: 600;
+        color: #0f172a;
+        animation: guestCardStepIn .25s ease;
+    }
+    .guest-card-summary-item > span:first-child {
+        color: #16a34a;
+        font-weight: 800;
     }
 
     .guest-portal-card--wizard {

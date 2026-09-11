@@ -1,4 +1,8 @@
 <div class="relative min-h-[112px] border-b border-slate-100 px-4 py-3 pr-16 last:border-0">
+    @php
+        $checkinToday = $booking->check_in_date?->isToday() ?? false;
+        $checkoutToday = $booking->check_out_date?->isToday() ?? false;
+    @endphp
     <div class="min-w-0 pr-[45%]">
         <a class="block break-words pr-2 text-[17px] font-bold leading-6 text-slate-950 hover:text-teal-800" href="{{ route('admin.guests.show', $booking) }}">{{ $booking->guest_name }}</a>
         <p class="break-words text-sm font-normal italic text-slate-500">{{ $booking->property->name }}</p>
@@ -14,6 +18,16 @@
                 &middot; {{ $booking->weekCardArrivalLabel() }}
             @else
                 &middot; {{ $booking->weekCardDynamicLabel() }}
+            @endif
+        </p>
+        <p class="mt-0.5 flex items-center gap-1.5 text-sm font-medium text-slate-700">
+            <x-icon name="clock" class="h-3.5 w-3.5 shrink-0 text-slate-400" />
+            @if($checkinToday && ! $checkoutToday)
+                <span>Check-in {{ $booking->effectiveCheckinTimeFormatted() }}</span>
+            @elseif($checkoutToday && ! $checkinToday)
+                <span>Check-out {{ $booking->effectiveCheckoutTimeFormatted() }}</span>
+            @else
+                <span>Check-in {{ $booking->effectiveCheckinTimeFormatted() }} &middot; Check-out {{ $booking->effectiveCheckoutTimeFormatted() }}</span>
             @endif
         </p>
     </div>

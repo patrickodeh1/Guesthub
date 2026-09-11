@@ -14,7 +14,4 @@ Re-upload my ID
 </x-mail::button>
 
 If you have any questions, please reach out to your host.
-
-Thanks,<br>
-GuestHub
 </x-mail::message>

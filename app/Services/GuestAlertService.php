@@ -33,73 +33,73 @@ class GuestAlertService
     public const EVENTS = [
         'registration_received' => [
             'label' => 'Registration received',
-            'default_guest_message' => "GuestHub: Hi {guest_first_name}, thanks for registering for {property_name}! We're reviewing your details now and will let you know as soon as the next step is ready.",
-            'default_staff_message' => 'GuestHub alert: New registration submitted for {property_name} by {guest_name}. Review it in the admin panel.',
+            'default_guest_message' => "Hi {guest_first_name}, thanks for registering for {property_name}! We're reviewing your details now and will let you know as soon as the next step is ready.",
+            'default_staff_message' => 'New registration submitted for {property_name} by {guest_name}. Review it in the admin panel.',
         ],
         'background_check_complete' => [
             'label' => 'Background check complete',
-            'default_guest_message' => "GuestHub: Hi {guest_first_name}, good news! Your {step_name} for {property_name} is complete. We'll follow up with next steps shortly.",
-            'default_staff_message' => "GuestHub alert: {guest_name}'s {step_name} for {property_name} came back complete.",
+            'default_guest_message' => "Hi {guest_first_name}, good news! Your {step_name} for {property_name} is complete. We'll follow up with next steps shortly.",
+            'default_staff_message' => "{guest_name}'s {step_name} for {property_name} came back complete.",
         ],
         'fully_approved' => [
             'label' => 'Fully approved',
-            'default_guest_message' => "GuestHub: Hi {guest_first_name}, you're fully approved for {property_name}! Check-in: {check_in_time} on {check_in_date}. Check-out: {check_out_time} on {check_out_date}. Parking: {parking_status}.",
-            'default_staff_message' => 'GuestHub alert: {guest_name} was just marked fully approved for {property_name}. Check-in {check_in_date} at {check_in_time}, check-out {check_out_date} at {check_out_time}. Parking: {parking_status}.',
+            'default_guest_message' => "Hi {guest_first_name}, you're fully approved for {property_name}! Check-in: {check_in_time} on {check_in_date}. Check-out: {check_out_time} on {check_out_date}. Parking: {parking_status}.",
+            'default_staff_message' => '{guest_name} was just marked fully approved for {property_name}. Check-in {check_in_date} at {check_in_time}, check-out {check_out_date} at {check_out_time}. Parking: {parking_status}.',
         ],
         'time_to_check_in' => [
             'label' => 'Time to check in',
-            'default_guest_message' => "GuestHub: Hi {guest_first_name}, today's the day! Check-in at {property_name} opens at {check_in_time}.",
-            'default_staff_message' => 'GuestHub alert: {guest_name} is due to check in today at {property_name}, opening at {check_in_time}. Make sure the unit is ready.',
+            'default_guest_message' => "Hi {guest_first_name}, today's the day! Check-in at {property_name} opens at {check_in_time}.",
+            'default_staff_message' => '{guest_name} is due to check in today at {property_name}, opening at {check_in_time}. Make sure the unit is ready.',
         ],
         'checkin_completed' => [
             'label' => 'Check-in completed',
-            'default_guest_message' => "GuestHub: Hi {guest_first_name}, you're checked in at {property_name}. Enjoy your stay!",
-            'default_staff_message' => 'GuestHub alert: {guest_name} has just checked in at {property_name}.',
+            'default_guest_message' => 'Hi {guest_first_name}, your check-in at {property_name} is complete. Enjoy your stay!',
+            'default_staff_message' => 'Check-in has been completed and {guest_name} is successfully checked into {property_name}.',
         ],
         'checkout_completed' => [
             'label' => 'Check-out completed',
-            'default_guest_message' => 'GuestHub: Hi {guest_first_name}, thanks for staying at {property_name}. You are now checked out. Safe travels!',
-            'default_staff_message' => 'GuestHub alert: {guest_name} has just checked out of {property_name}. The unit is ready for turnover.',
+            'default_guest_message' => 'Hi {guest_first_name}, thanks for staying at {property_name}. You are now checked out. Safe travels!',
+            'default_staff_message' => '{guest_name} has just checked out of {property_name}. The unit is ready for turnover.',
         ],
         'deposit_paid' => [
             'label' => 'Deposit paid',
-            'default_guest_message' => 'GuestHub: Hi {guest_first_name}, your incidentals deposit for {property_name} has been received. Thanks!',
-            'default_staff_message' => 'GuestHub alert: {guest_name} paid their incidentals deposit online for {property_name}.',
+            'default_guest_message' => 'Hi {guest_first_name}, your incidentals deposit for {property_name} has been received. Thanks!',
+            'default_staff_message' => '{guest_name} paid their incidentals deposit online for {property_name}.',
         ],
         'early_checkin_granted' => [
             'label' => 'Early check-in granted',
-            'default_guest_message' => 'GuestHub: Hi {guest_first_name}, your early check-in request for {property_name} has been approved. Please visit your check-in link to complete payment.',
-            'default_staff_message' => 'GuestHub alert: Early check-in was granted for {guest_name} at {property_name}.',
+            'default_guest_message' => 'Hi {guest_first_name}, your early check-in request for {property_name} has been approved. Please visit your check-in link to complete payment.',
+            'default_staff_message' => 'Early check-in was granted for {guest_name} at {property_name}.',
         ],
         'post_checkout_balance_due' => [
-            'label' => 'Post-checkout balance due',
-            'default_guest_message' => 'GuestHub: Hi {guest_first_name}, an additional balance is due for your stay at {property_name}. Please visit your check-in link to complete payment.',
-            'default_staff_message' => 'GuestHub alert: A post-checkout balance (late checkout / incidentals) is now due for {guest_name} at {property_name}.',
+            'label' => 'Post-checkout charge recorded',
+            'default_guest_message' => 'Thanks for your stay at {property_name}, {guest_first_name}! We hope you had a great time.',
+            'default_staff_message' => 'A post-checkout charge (late checkout / incidentals) was recorded for {guest_name} at {property_name} -- refund handled offline.',
         ],
         'pms_booking_received' => [
             'label' => 'New channel booking received',
             'default_guest_message' => '', // guest not notified for this event; see defaultToggleOverrides()
-            'default_staff_message' => 'GuestHub alert: New booking for {guest_name} at {property_name} ({check_in_date} to {check_out_date}) came in via the channel manager. Review it in the admin panel.',
+            'default_staff_message' => 'New booking for {guest_name} at {property_name} ({check_in_date} to {check_out_date}) came in via the channel manager. Review it in the admin panel.',
         ],
         'pms_booking_cancelled' => [
             'label' => 'Channel booking cancelled',
             'default_guest_message' => '', // guest not notified for this event; see defaultToggleOverrides()
-            'default_staff_message' => 'GuestHub alert: The booking for {guest_name} at {property_name} ({check_in_date} to {check_out_date}) was cancelled on the channel manager.',
+            'default_staff_message' => 'The booking for {guest_name} at {property_name} ({check_in_date} to {check_out_date}) was cancelled on the channel manager.',
         ],
         'pms_booking_updated' => [
             'label' => 'Channel booking updated',
             'default_guest_message' => '', // guest not notified for this event; see defaultToggleOverrides()
-            'default_staff_message' => 'GuestHub alert: The booking for {guest_name} at {property_name} was updated via the channel manager -- now {check_in_date} to {check_out_date}. Review it in the admin panel.',
+            'default_staff_message' => 'The booking for {guest_name} at {property_name} was updated via the channel manager -- now {check_in_date} to {check_out_date}. Review it in the admin panel.',
         ],
         'photo_id_uploaded' => [
             'label' => 'Photo ID uploaded',
-            'default_guest_message' => 'GuestHub: Hi {guest_first_name}, your photo ID for {property_name} was received and is being reviewed. No action needed for now.',
-            'default_staff_message' => 'GuestHub alert: {guest_name} uploaded a photo ID for {property_name}. Please log in and review it.',
+            'default_guest_message' => 'Hi {guest_first_name}, your photo ID for {property_name} was received and is being reviewed. No action needed for now.',
+            'default_staff_message' => '{guest_name} uploaded a photo ID for {property_name}. Please log in and review it.',
         ],
         'photo_id_declined' => [
             'label' => 'Photo ID declined',
-            'default_guest_message' => 'GuestHub: Hi {guest_first_name}, the {id_side} of your ID for {property_name} was not approved. Reason: {decline_reason}. Please log back in to re-upload it.',
-            'default_staff_message' => 'GuestHub alert: The {id_side} of {guest_name}\'s ID for {property_name} was declined. Reason: {decline_reason}. Guest has been asked to re-upload.',
+            'default_guest_message' => 'Hi {guest_first_name}, the {id_side} of your ID for {property_name} was not approved. Reason: {decline_reason}. Please log back in to re-upload it.',
+            'default_staff_message' => 'The {id_side} of {guest_name}\'s ID for {property_name} was declined. Reason: {decline_reason}. Guest has been asked to re-upload.',
         ],
     ];
 
@@ -289,18 +289,28 @@ class GuestAlertService
             return;
         }
 
+        $label = self::labels()[$event];
         $row = self::config()[$event];
-        $guestMessage = self::render($row['guest_message'], $booking, $extraTokens);
-        $staffMessage = self::render($row['staff_message'], $booking, $extraTokens);
+        $appName = (string) config('app.name');
+
+        // The email already brands itself (header + footer), so a leading
+        // app-name prefix on the stored wording is redundant there. SMS keeps
+        // it, since a text only shows a number with no sender display name.
+        $guestMessage = self::stripSenderPrefix(self::render($row['guest_message'], $booking, $extraTokens), $appName);
+        $staffMessage = self::stripSenderPrefix(self::render($row['staff_message'], $booking, $extraTokens), $appName);
+
+        // Subject identifies the guest, never the app (the sender already
+        // shows the app name).
+        $subject = trim($booking->guest_name.' '.$label);
 
         if ($row['guest_sms'] && $booking->phone) {
-            SmsNotificationService::guestAlert($booking->phone, $guestMessage, true);
+            SmsNotificationService::guestAlert($booking->phone, self::withSenderPrefix($guestMessage, $appName), true);
         }
 
         if ($row['guest_email']) {
             if ($booking->email) {
                 try {
-                    Mail::to($booking->email)->send(new GuestAlertMail(self::labels()[$event], $guestMessage));
+                    Mail::to($booking->email)->send(new GuestAlertMail($label, $guestMessage, $subject));
                     Log::info("Guest alert email sent (guest, {$event}) to {$booking->email}.");
                 } catch (\Throwable $e) {
                     Log::error("Guest alert email failed (guest, {$event}): ".$e->getMessage());
@@ -313,13 +323,13 @@ class GuestAlertService
         [$staffPhones, $staffEmails] = self::staffRecipients($row);
 
         foreach ($staffPhones as $phone) {
-            SmsNotificationService::guestAlert($phone, $staffMessage, false);
+            SmsNotificationService::guestAlert($phone, self::withSenderPrefix($staffMessage, $appName), false);
         }
 
         if (! empty($staffEmails)) {
             foreach ($staffEmails as $recipient) {
                 try {
-                    Mail::to($recipient)->send(new GuestAlertMail(self::labels()[$event], $staffMessage));
+                    Mail::to($recipient)->send(new GuestAlertMail($label, $staffMessage, $subject));
                     Log::info("Guest alert email sent (staff, {$event}) to {$recipient}.");
                 } catch (\Throwable $e) {
                     Log::error("Guest alert email failed (staff, {$event}, {$recipient}): ".$e->getMessage());
@@ -410,6 +420,38 @@ class GuestAlertService
         $normalized = preg_replace('/[^\d+]/', '', $number);
 
         return $normalized ?: null;
+    }
+
+    /**
+     * Remove a leading app-name prefix (e.g. "Guest Hub: " or "Guest Hub
+     * alert: ") from a stored message so the email doesn't repeat the brand
+     * its own header/footer already show. Tolerant of the name being written
+     * with or without a space ("GuestHub" vs "Guest Hub").
+     */
+    protected static function stripSenderPrefix(string $message, string $appName): string
+    {
+        $appName = trim($appName);
+
+        if ($appName === '') {
+            return $message;
+        }
+
+        $name = str_replace(' ', '\s*', preg_quote($appName, '/'));
+        $pattern = '/^\s*'.$name.'(?:\s+alert)?\s*[:\-\x{2013}\x{2014}]\s*/iu';
+
+        return (string) preg_replace($pattern, '', $message, 1);
+    }
+
+    /**
+     * Prefix a rendered message with the app name for SMS, where there is no
+     * sender display name to identify us. Applied after stripSenderPrefix()
+     * so it never doubles up.
+     */
+    protected static function withSenderPrefix(string $message, string $appName): string
+    {
+        $appName = trim($appName);
+
+        return $appName !== '' ? "{$appName}: {$message}" : $message;
     }
 
     protected static function render(string $template, Booking $booking, array $extraTokens = []): string

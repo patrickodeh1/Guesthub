@@ -21,7 +21,12 @@ public function editPage(Property $property, Category $category)
             'category_id' => $category->id,
         ], ['title' => $category->title, 'active' => true]);
 
-        return view('admin.content.page-form', compact('property', 'category', 'page'));
+        // When this property's page inherits from another property, show the
+        // source content and offer to break the link rather than editing a
+        // copy that would silently be ignored.
+        $source = $page->isLinked() ? $page->resolvedPage() : null;
+
+        return view('admin.content.page-form', compact('property', 'category', 'page', 'source'));
     }
 
     public function updatePage(Request $request, Property $property, Category $category)
@@ -34,11 +39,50 @@ public function editPage(Property $property, Category $category)
         ]);
 
         $page = CategoryPage::firstOrNew(['property_id' => $property->id, 'category_id' => $category->id]);
-        $data['active'] = $request->boolean('active');
-        $page->fill($data)->save();
+        $page->fill([
+            'title' => $data['title'],
+            'content' => $data['content'] ?? null,
+            'active' => $request->boolean('active'),
+        ]);
+        if (array_key_exists('sort_order', $data)) {
+            $page->sort_order = $data['sort_order'];
+        }
+        // Saving this property's own content makes it the master again.
+        $page->linked_page_id = null;
+        $page->save();
+
         ActivityLog::record('category_content_updated', "{$category->title} content updated for {$property->name}.", 'content', $page);
 
         return redirect()->route('admin.guest-guide.show', $property->id)->with('success', 'Category page saved.');
+    }
+
+    /**
+     * Break a shared link and keep an editable local copy of the content, so a
+     * single unit can diverge from the shared version (e.g. its own Wi-Fi).
+     */
+    public function unlinkPage(Property $property, Category $category)
+    {
+        $page = CategoryPage::where('property_id', $property->id)
+            ->where('category_id', $category->id)
+            ->firstOrFail();
+
+        if ($page->isLinked()) {
+            $source = $page->resolvedPage();
+            $page->fill([
+                'title' => $source->title,
+                'content' => $source->content,
+                'image_1' => $source->image_1,
+                'image_2' => $source->image_2,
+                'image_3' => $source->image_3,
+            ]);
+            $page->linked_page_id = null;
+            $page->save();
+
+            ActivityLog::record('category_content_unlinked', "{$category->title} content unlinked from shared source for {$property->name}.", 'content', $page);
+        }
+
+        return redirect()->route('admin.content.edit', [$property, $category])
+            ->with('success', 'This property now has its own copy you can customize.');
     }
 
     public function updateAssignment(Request $request, Property $property, Category $category)

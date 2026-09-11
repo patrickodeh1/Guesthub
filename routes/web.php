@@ -117,6 +117,7 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     // ─── Guest Guide (per-property categories) ──────────────────────────────
     Route::get('guest-guide', [PropertyController::class, 'guideIndex'])->name('guest-guide.index');
     Route::get('properties/{property}/categories', [PropertyController::class, 'guide'])->name('guest-guide.show');
+    Route::post('properties/{property}/guide/copy', [PropertyController::class, 'copyGuide'])->name('guest-guide.copy');
 
     // ─── Properties ──────────────────────────────────────────────────────────
     Route::resource('properties', PropertyController::class)->except(['show']);
@@ -133,7 +134,6 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     // own page since there's no existing record to expand yet.
     Route::resource('guests', BookingController::class)->parameters(['guests' => 'booking'])->except(['edit']);
     Route::put('guests/{booking}/ledger', [BookingController::class, 'updateLedger'])->name('guests.ledger.update');
-    Route::post('guests/{booking}/ledger/publish', [BookingController::class, 'publishLedger'])->name('guests.ledger.publish');
     Route::get('guests/{booking}/preview/{state}', [BookingController::class, 'preview'])->name('guests.preview');
     Route::post('guests/{booking}/override-checkin', [BookingController::class, 'overrideCheckin'])->name('guests.override');
     Route::post('guests/{booking}/override-checkout', [BookingController::class, 'overrideCheckout'])->name('guests.override-checkout');
@@ -168,6 +168,7 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     // ─── Content / Pages ──────────────────────────────────────────────────────
     Route::get('content/{property}/{category}/edit', [ContentController::class, 'editPage'])->name('content.edit');
     Route::put('content/{property}/{category}', [ContentController::class, 'updatePage'])->name('content.update');
+    Route::post('content/{property}/{category}/unlink', [ContentController::class, 'unlinkPage'])->name('content.unlink');
     Route::put('content/{property}/{category}/assignment', [ContentController::class, 'updateAssignment'])->name('content.assignment.update');
     Route::get('content/{property}/amenities', [ContentController::class, 'amenitiesIndex'])->name('amenities.index');
     Route::get('content/{property}/amenities/create', [ContentController::class, 'createAmenity'])->name('amenities.create');

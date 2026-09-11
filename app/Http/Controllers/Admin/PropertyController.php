@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ActivityLog;
 use App\Models\Property;
 use App\Models\Category;
+use App\Models\CategoryPage;
 use App\Models\InstructionStep;
 use Illuminate\Http\Request;
 use App\Services\MediaService;
@@ -33,15 +34,105 @@ class PropertyController extends Controller
 
     public function guide(Property $property)
     {
-        $property->load(['categories', 'pages']);
+        $property->load(['categories', 'pages.linkedPage.property', 'pages.linkedPages']);
         $assignedIds = $property->categories->pluck('id')->toArray();
         $categories = Category::orderBy('sort_order')->get();
+        $allProperties = Property::orderBy('name')->get();
 
         return view('admin.guest-guide.show', [
             'property' => $property,
             'categories' => $categories,
             'assignedIds' => $assignedIds,
+            'allProperties' => $allProperties,
         ]);
+    }
+
+    /**
+     * Bulk "copy this guide to other properties": assigns every category this
+     * property has (with its per-property title/description/header/active) to
+     * each selected property and links their category pages back to this
+     * property's pages, so the guide is written once and stays in sync. A
+     * single unit can still break away per section via "Customize locally".
+     */
+    public function copyGuide(Request $request, Property $property)
+    {
+        $data = $request->validate([
+            'target_property_ids' => ['required', 'array', 'min:1'],
+            'target_property_ids.*' => ['integer', 'exists:properties,id'],
+            'separate_category_ids' => ['nullable', 'array'],
+            'separate_category_ids.*' => ['integer', 'exists:categories,id'],
+        ]);
+
+        $targetIds = collect($data['target_property_ids'])
+            ->map(fn ($id) => (int) $id)
+            ->reject(fn ($id) => $id === $property->id)
+            ->unique()
+            ->values();
+
+        $separateCategoryIds = collect($data['separate_category_ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->all();
+
+        $property->load(['categories', 'pages']);
+
+        $count = 0;
+
+        foreach ($targetIds as $targetId) {
+            $target = Property::find($targetId);
+            if (! $target) {
+                continue;
+            }
+
+            $sync = $property->categories->mapWithKeys(fn (Category $category) => [
+                $category->id => [
+                    'active' => $category->pivot->active,
+                    'custom_title' => $category->pivot->custom_title,
+                    'custom_description' => $category->pivot->custom_description,
+                    'header_image' => $category->pivot->header_image,
+                ],
+            ])->all();
+            $target->categories()->syncWithoutDetaching($sync);
+
+            foreach ($property->pages as $page) {
+                $source = $page->resolvedPage();
+
+                $targetPage = CategoryPage::firstOrNew([
+                    'property_id' => $target->id,
+                    'category_id' => $page->category_id,
+                ]);
+                $targetPage->title = $targetPage->title ?: $page->title;
+                $targetPage->active = $page->active;
+                $targetPage->sort_order = $targetPage->sort_order ?: $page->sort_order;
+
+                if (in_array($page->category_id, $separateCategoryIds, true)) {
+                    // Sections flagged "keep separate" (e.g. Wi-Fi) are given
+                    // their own copy so each unit can edit it independently,
+                    // never following the original.
+                    if (! $targetPage->exists || blank($targetPage->content)) {
+                        $targetPage->content = $source->content;
+                        $targetPage->image_1 = $source->image_1;
+                        $targetPage->image_2 = $source->image_2;
+                        $targetPage->image_3 = $source->image_3;
+                    }
+                    $targetPage->linked_page_id = null;
+                } else {
+                    $targetPage->linked_page_id = $source->id;
+                }
+
+                $targetPage->save();
+            }
+
+            $count++;
+        }
+
+        ActivityLog::record(
+            'property_guide_copied',
+            "Guide copied from {$property->name} to {$count} propert".($count === 1 ? 'y' : 'ies').'.',
+            'content',
+            $property
+        );
+
+        return back()->with('success', "Guide copied to {$count} propert".($count === 1 ? 'y' : 'ies').'.');
     }
     public function index(Request $request)
     {
@@ -143,8 +234,18 @@ class PropertyController extends Controller
             }
 
             foreach ($property->pages as $page) {
-                $newPage = $page->replicate();
-                $newPage->property_id = $copy->id;
+                // New units inherit the original's guide content instead of
+                // copying it, so editing the source updates every unit. Use
+                // "Customize locally" on a page to break away (e.g. Wi-Fi).
+                $source = $page->resolvedPage();
+
+                $newPage = new CategoryPage([
+                    'property_id' => $copy->id,
+                    'category_id' => $page->category_id,
+                    'title' => $page->title,
+                    'active' => $page->active,
+                ]);
+                $newPage->linked_page_id = $source->id;
                 $newPage->save();
             }
 

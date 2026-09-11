@@ -83,6 +83,13 @@ class BookingImportService
             'check_out_date' => $pmsBooking->checkOutDate ?: null,
         ];
 
+        // Name the OTA (Airbnb, Vrbo, Booking.com, …) the channel manager
+        // reports, so the guest payment flow can label itself correctly
+        // instead of always saying "Airbnb".
+        if ($pmsBooking->otaName) {
+            $attributes['booking_platform'] = $pmsBooking->otaName;
+        }
+
         // Guest name is the one field we always trust from the PMS — it's
         // needed to even show a placeholder booking in the admin list.
         // Contact info (email/phone) is treated as prefill only: the guest
@@ -208,6 +215,15 @@ class BookingImportService
             }
 
             if (empty($changed)) {
+                // Nothing staff-visible changed. Silently backfill the OTA name
+                // for bookings imported before booking_platform existed, so
+                // the guest payment screen can name the right platform without
+                // firing a "booking updated" alert for every old reservation.
+                if (array_key_exists('booking_platform', $attributes)
+                    && $booking->booking_platform !== $attributes['booking_platform']) {
+                    $booking->update(['booking_platform' => $attributes['booking_platform']]);
+                }
+
                 Log::info('PMS booking import skipped: no changes on re-delivered revision', [
                     'booking_id' => $booking->id,
                     'external_booking_id' => $pmsBooking->externalBookingId,

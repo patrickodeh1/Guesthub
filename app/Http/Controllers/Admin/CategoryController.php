@@ -82,7 +82,7 @@ class CategoryController extends Controller
         $page = \App\Models\CategoryPage::where('property_id', $property->id)
             ->where('category_id', $category->id)
             ->where('active', true)
-            ->first();
+            ->first()?->resolvedPage();
 
         $booking = new \App\Models\Booking([
             'booking_id'      => 'PREVIEW',

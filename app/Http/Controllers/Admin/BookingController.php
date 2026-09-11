@@ -55,18 +55,16 @@ class BookingController extends Controller
         $today = $today->take(5)->values();
 
         // "This Week" covers everything else in the operational window
-        // (currently hosting, recently checked out, upcoming within 6
-        // days) -- tiers 4-6 of the same weekCardSortTier() scale, so the
-        // two sections use one consistent source of truth for ordering.
+        // (currently hosting, upcoming within 6 days) -- tiers 4-6 of the
+        // same weekCardSortTier() scale, so the two sections use one
+        // consistent source of truth for ordering. Guests who have already
+        // checked out are deliberately excluded: they only appear in
+        // "Today" on the day they check out, then are archived.
         $thisWeekAll = Booking::with('property')
             ->notArchived()
             ->whereNotIn('id', $todayIds)
-            ->where(fn ($q) => $q
-                ->whereNull('checked_out_at')
-                ->orWhere('checked_out_at', '>=', now()->subDays(7)))
-            ->where(fn ($q) => $q
-                ->whereNotNull('checked_out_at')
-                ->orWhereDate('check_in_date', '<=', today()->addDays(6)))
+            ->whereNull('checked_out_at')
+            ->whereDate('check_in_date', '<=', today()->addDays(6))
             ->get()
             ->sort(function ($a, $b) {
                 $tierCompare = $a->weekCardSortTier() <=> $b->weekCardSortTier();
@@ -149,12 +147,8 @@ class BookingController extends Controller
             ->whereNotIn('id', Booking::notArchived()
                 ->where(fn ($q) => $q->whereDate('check_in_date', today())->orWhereDate('check_out_date', today()))
                 ->pluck('id'))
-            ->where(fn ($q) => $q
-                ->whereNull('checked_out_at')
-                ->orWhere('checked_out_at', '>=', now()->subDays(7)))
-            ->where(fn ($q) => $q
-                ->whereNotNull('checked_out_at')
-                ->orWhereDate('check_in_date', '<=', today()->addDays(6)))
+            ->whereNull('checked_out_at')
+            ->whereDate('check_in_date', '<=', today()->addDays(6))
             ->get()
             ->sort(function ($a, $b) {
                 $tierCompare = $a->weekCardSortTier() <=> $b->weekCardSortTier();
@@ -222,7 +216,6 @@ class BookingController extends Controller
 
         $bookings = Booking::with('property')
             ->notArchived()
-            ->whereNotIn('id', $this->actionablePriorityIds())
             ->whereNull('checked_out_at')
             ->whereDate('check_in_date', '>', today()->addDays(6))
             ->orderBy('check_in_date')
@@ -361,7 +354,7 @@ class BookingController extends Controller
     {
         $oldStatus = $booking->status;
         $data = $this->validated($request, $booking);
-        $this->enforcePreCheckinCap(array_merge($booking->only(['incidentals_charge', 'parking_needed', 'early_checkin_tier', 'early_checkin_charge_override']), $data));
+        $this->enforcePreCheckinCap(array_merge($booking->only(['incidentals_charge', 'parking_needed', 'early_checkin_tier', 'early_checkin_charge_override', 'early_checkin_billing_mode']), $data));
         $data['photo_id_received'] = $request->boolean('photo_id_received');
         if (($data['status'] ?? null) === 'pre_checkin_complete') {
             $data['photo_id_received'] = true;
@@ -415,6 +408,7 @@ class BookingController extends Controller
             'incidentals_charge'             => ['nullable', 'numeric', 'min:0'],
             'early_checkin_tier'             => ['nullable', 'in:8am_12pm,12pm_2pm,2pm_4pm,8am,12pm'],
             'early_checkin_charge_override'  => ['nullable', 'numeric', 'min:0'],
+            'early_checkin_billing_mode'     => ['nullable', 'in:charge,deduct_from_hold'],
             'late_checkout_type'             => ['nullable', 'in:authorized,unauthorized'],
             'late_checkout_hours'            => ['nullable', 'numeric', 'min:0'],
             'late_checkout_actual_time'      => ['nullable', 'date'],
@@ -422,7 +416,7 @@ class BookingController extends Controller
         ]);
 
         $this->enforcePreCheckinCap(array_merge(
-            $booking->only(['property_id', 'check_in_date', 'check_out_date', 'parking_needed']),
+            $booking->only(['property_id', 'check_in_date', 'check_out_date', 'parking_needed', 'early_checkin_billing_mode']),
             $data
         ));
 
@@ -463,29 +457,6 @@ class BookingController extends Controller
         ]);
 
         return redirect()->route('admin.guests.show', $booking)->with('success', 'Ledger updated.');
-    }
-
-    /**
-     * Marks the current ledger totals as ready to show the guest. Does not
-     * yet change anything the guest actually sees -- the guest-facing
-     * payment page still always reflects the live computed total. This is
-     * intentionally a separate, later step once gating behavior is decided,
-     * so nothing about live guest payments changes as a side effect of
-     * this patch.
-     */
-    public function publishLedger(Booking $booking)
-    {
-        $booking->update(['ledger_published_at' => now()]);
-
-        ActivityLogService::admin('booking_ledger_published', auth()->user()->name." published the charge ledger for {$booking->guest_name}.", 'guests', [
-            'subject_type' => Booking::class,
-            'subject_id'   => $booking->id,
-            'booking_id'   => $booking->id,
-            'property_id'  => $booking->property_id,
-            'severity'     => 'info',
-        ]);
-
-        return back()->with('success', 'Ledger marked as published.');
     }
 
     public function updateWelcomeMessage(Request $request, Booking $booking)
@@ -957,6 +928,7 @@ class BookingController extends Controller
         return $request->validate([
             'booking_id'     => ['nullable', 'string', 'max:255', 'unique:bookings,booking_id,'.($booking?->id ?? 'NULL')],
             'reservation_id' => ['required', 'string', 'max:255', 'unique:bookings,reservation_id,'.($booking?->id ?? 'NULL')],
+            'booking_platform' => ['nullable', 'string', 'max:100'],
             'guest_name'     => ['required', 'string', 'max:255'],
             'phone'          => ['nullable', 'string', 'max:255'],
             'email'          => ['nullable', 'email', 'max:255'],
@@ -1020,7 +992,7 @@ class BookingController extends Controller
         $subtotalCents = (int) round((
             $parkingCharge
             + ((float) ($data['incidentals_charge'] ?? 0))
-            + ($booking->effectiveEarlyCheckinCharge() ?? 0)
+            + ($booking->earlyCheckinIsDeductedFromHold() ? 0 : ($booking->effectiveEarlyCheckinCharge() ?? 0))
         ) * 100);
 
         if ($subtotalCents > $capCents) {

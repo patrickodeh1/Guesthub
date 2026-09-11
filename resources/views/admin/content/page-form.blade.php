@@ -8,6 +8,25 @@
         <a href="{{ route('admin.guest-guide.show', $property->id) }}" class="btn-secondary">Back</a>
     </div>
 
+    @if($source)
+        <section class="card card-pad border-amber-200 bg-amber-50">
+            <p class="text-sm font-bold text-amber-900">Shared from {{ $source->property->name }}</p>
+            <p class="mt-1 text-sm text-amber-800">This property shows the {{ $category->title }} content written on {{ $source->property->name }}. Editing it there updates every property that shares it. To give {{ $property->name }} its own version (for example, Wi-Fi), customize it locally.</p>
+            <div class="mt-4 flex flex-wrap gap-2">
+                <a href="{{ route('admin.content.edit', [$source->property, $category]) }}" class="btn-secondary text-xs">Edit the shared page</a>
+                <form method="post" action="{{ route('admin.content.unlink', [$property, $category]) }}">
+                    @csrf
+                    <button class="btn-primary text-xs" onclick="return confirm('Give {{ $property->name }} its own copy? It will stop following the shared version.')">Customize locally</button>
+                </form>
+            </div>
+        </section>
+
+        <section class="card card-pad mt-6">
+            <h2 class="section-title">Preview</h2>
+            <p class="section-copy mt-2">Read-only: this is the shared content guests will see.</p>
+            <div class="prose-welcome mt-4 text-base">{!! $source->content !!}</div>
+        </section>
+    @else
     <form method="post" enctype="multipart/form-data" action="{{ route('admin.content.update', [$property, $category]) }}" class="grid gap-6 xl:grid-cols-[1fr_360px]">
         @csrf @method('put')
         <section class="card card-pad">
@@ -29,7 +48,9 @@
             <a href="{{ route('admin.categories.edit', $category) }}" class="btn-secondary mt-3 w-full text-sm">Change Header</a>
         </aside>
     </form>
+    @endif
 
+    @unless($source)
     {{-- Media Picker Modal (for editor image insert) --}}
     <div id="media-picker-modal" class="fixed inset-0 hidden items-center justify-center bg-slate-950/40 p-4" style="z-index:2147483000;">
         <div class="w-full max-w-2xl rounded-xl bg-white p-5 shadow-xl">
@@ -324,4 +345,5 @@
         }
     });
     </script>
+    @endunless
 </x-admin-layout>

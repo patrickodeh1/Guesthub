@@ -11,6 +11,46 @@
         </div>
     </div>
 
+    @if($allProperties->where('id', '!=', $property->id)->isNotEmpty())
+    <details class="card card-pad mb-8">
+        <summary class="cursor-pointer font-bold text-slate-800">Copy this guide to other properties</summary>
+        <p class="section-copy mt-3">Assigns every section below to the properties you pick. Sections stay shared and in sync with this guide, except any you mark to keep separate per unit (for example, Wi-Fi).</p>
+        <form method="post" action="{{ route('admin.guest-guide.copy', $property) }}" class="mt-4">
+            @csrf
+            <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                @foreach($allProperties->where('id', '!=', $property->id) as $other)
+                    <label class="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                        <input type="checkbox" name="target_property_ids[]" value="{{ $other->id }}" class="rounded border-slate-300 copy-guide-target">
+                        <span class="truncate">{{ $other->name }}</span>
+                    </label>
+                @endforeach
+            </div>
+
+            <div class="mt-5 border-t border-slate-100 pt-4">
+                <p class="text-sm font-semibold text-slate-700">Keep these sections separate per unit</p>
+                <p class="field-help">These are copied once so each unit can edit its own — use this for Wi-Fi and anything else that differs per unit. Everything not checked is shared and stays in sync with this property.</p>
+                @if($property->categories->whereIn('id', $assignedIds)->isEmpty())
+                    <p class="mt-3 text-sm text-slate-500">This guide has no sections yet.</p>
+                @else
+                    <div class="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        @foreach($property->categories->whereIn('id', $assignedIds) as $cat)
+                            <label class="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm">
+                                <input type="checkbox" name="separate_category_ids[]" value="{{ $cat->id }}" class="rounded border-slate-300">
+                                <span class="truncate">{{ $cat->pivot->custom_title ?: $cat->title }}</span>
+                            </label>
+                        @endforeach
+                    </div>
+                @endif
+            </div>
+
+            <div class="mt-4 flex flex-wrap items-center gap-3">
+                <button type="button" class="btn-secondary text-xs" onclick="document.querySelectorAll('.copy-guide-target').forEach(function (c) { c.checked = true; })">Select all</button>
+                <button class="btn-primary text-sm" onclick="return confirm('Copy this guide to the selected properties? Their sections will share and stay in sync with this guide.')">Copy guide</button>
+            </div>
+        </form>
+    </details>
+    @endif
+
     @php
         $unassigned = $categories->whereNotIn('id', $assignedIds);
     @endphp
@@ -48,9 +88,15 @@
                             <p class="text-sm text-slate-500">{{ $category->description }}</p>
                         </div>
                     </div>
-                    <div class="flex flex-wrap shrink-0 gap-2">
+                    <div class="flex flex-wrap shrink-0 items-center gap-2">
+                        @if($page?->isLinked())
+                            @php $source = $page->resolvedPage(); @endphp
+                            <span class="rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-semibold text-amber-700">Shared from {{ $source->property->name }}</span>
+                        @elseif($page && $page->linkedPages->isNotEmpty())
+                            <span class="rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700">Shared with {{ $page->linkedPages->count() }} {{ \Illuminate\Support\Str::plural('property', $page->linkedPages->count()) }}</span>
+                        @endif
                         <a href="{{ route('admin.categories.preview', [$category, $property]) }}" target="_blank" class="btn-secondary text-xs">Preview</a>
-                        <a href="{{ route('admin.content.edit', [$property, $category]) }}" class="btn-secondary text-xs">Edit</a>
+                        <a href="{{ route('admin.content.edit', [$property, $category]) }}" class="btn-secondary text-xs">{{ $page?->isLinked() ? 'Manage' : 'Edit' }}</a>
                         <form method="post" action="{{ route('admin.categories.assign') }}">
                             @csrf
                             <input type="hidden" name="property_id" value="{{ $property->id }}">
