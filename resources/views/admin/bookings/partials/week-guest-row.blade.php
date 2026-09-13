@@ -67,6 +67,16 @@
             @else
                 <form method="post" action="{{ route('admin.guests.archive', $booking) }}">@csrf<button class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><x-icon name="folder" class="h-4 w-4" />Archive</button></form>
             @endif
+
+            @unless($booking->isCancelled())
+                <div class="my-1 border-t border-slate-100"></div>
+                <form method="post" action="{{ route('admin.guests.update-status', $booking) }}" onsubmit="return confirm('Cancel this reservation? If check-in is within 30 days, a cancellation fee applies and it will stay active but locked. Otherwise it will be archived immediately.')">
+                    @csrf
+                    <input type="hidden" name="status" value="cancelled">
+                    <button class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"><x-icon name="x" class="h-4 w-4" />Cancel Reservation</button>
+                </form>
+            @endunless
+
             <form method="post" action="{{ route('admin.guests.destroy', $booking) }}" onsubmit="return confirm('Delete this guest? This cannot be undone.')">@csrf @method('delete')<button class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"><x-icon name="delete" class="h-4 w-4" />Delete</button></form>
         </div>
     </div>

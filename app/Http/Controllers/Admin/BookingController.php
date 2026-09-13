@@ -574,6 +574,8 @@ class BookingController extends Controller
 
     public function markIdReceived(Booking $booking)
     {
+        $this->guardNotCancelled($booking);
+
         $booking->update([
             'photo_id_received' => true,
             'status' => $booking->status === 'pending' ? 'pre_checkin_complete' : $booking->status,
@@ -593,6 +595,8 @@ class BookingController extends Controller
 
     public function bypassVehicleInfo(Booking $booking)
     {
+        $this->guardNotCancelled($booking);
+
         $booking->update([
             'vehicle_info_bypassed_at' => now(),
         ]);
@@ -657,7 +661,38 @@ class BookingController extends Controller
             'status' => ['required', 'in:pending,pre_checkin_complete,awaiting_deposit,guest_approved,currently_hosting,checked_out,cancelled'],
         ]);
 
-        $booking->update(['status' => $data['status']]);
+        $wasCancelled = $booking->isCancelled();
+        $goingCancelled = $data['status'] === 'cancelled';
+
+        // Any status change on a cancelled booking is blocked EXCEPT
+        // reversing the cancellation itself (picking a different status) --
+        // that's the one deliberate way to undo an admin/guest mistake.
+        if ($wasCancelled && $goingCancelled) {
+            $this->guardNotCancelled($booking);
+        }
+
+        $updates = ['status' => $data['status']];
+
+        if (! $wasCancelled && $goingCancelled) {
+            // Admin-triggered cancellation: mirror the OTA cancellation path
+            // in BookingImportService exactly, just with cancelled_by_guest
+            // false since this one came from the admin panel, not the guest.
+            $feeApplies = $booking->cancellationFeeAppliesForDate();
+
+            $updates['cancelled_at'] = now();
+            $updates['cancelled_by_guest'] = false;
+            $updates['cancellation_fee_applies'] = $feeApplies;
+            $updates['archived_at'] = $feeApplies ? null : now();
+        } elseif ($wasCancelled && ! $goingCancelled) {
+            // Reversing a cancellation: clear every cancellation-related
+            // field and make sure the booking isn't left archived.
+            $updates['cancelled_at'] = null;
+            $updates['cancelled_by_guest'] = false;
+            $updates['cancellation_fee_applies'] = false;
+            $updates['archived_at'] = null;
+        }
+
+        $booking->update($updates);
 
         ActivityLogService::admin('status_manually_changed', auth()->user()->name." manually set status to \"".str($data['status'])->replace('_', ' ')->title()."\" for {$booking->guest_name}.", 'guests', [
             'subject_type' => Booking::class,
@@ -806,6 +841,8 @@ class BookingController extends Controller
      */
     public function declineIdSide(Request $request, Booking $booking, string $side)
     {
+        $this->guardNotCancelled($booking);
+
         abort_unless(in_array($side, ['front', 'back'], true), 404);
 
         $data = $request->validate([
@@ -870,6 +907,8 @@ class BookingController extends Controller
 
     public function unblockAccess(Booking $booking)
     {
+        $this->guardNotCancelled($booking);
+
         $booking->update([
             'access_blocked_at' => null,
             'access_blocked_reason' => null,
@@ -1049,11 +1088,13 @@ class BookingController extends Controller
     }
 
     /**
-     * A guest-cancelled reservation is locked: no edits, approvals, or
-     * check-in actions, whether from the UI or a direct request.
+     * A cancelled reservation (whether cancelled by the guest via the OTA
+     * or manually by admin) is locked: no edits, approvals, or check-in
+     * actions, whether from the UI or a direct request. The one exception
+     * is reversing the cancellation itself via updateStatus().
      */
     private function guardNotCancelled(Booking $booking): void
     {
-        abort_if($booking->isCancelled(), 403, 'This reservation was cancelled by the guest and is locked.');
+        abort_if($booking->isCancelled(), 403, 'This reservation is cancelled and is locked.');
     }
 }

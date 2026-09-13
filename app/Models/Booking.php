@@ -328,6 +328,27 @@ class Booking extends Model
     }
 
     /**
+     * Whether a cancellation as of today falls inside the 30-day window
+     * before this booking's arrival (or after the stay was due to start),
+     * where we're still owed money and the booking must stay unarchived
+     * and read-only. Shared by the OTA cancellation import path
+     * (BookingImportService) and admin-triggered cancellation
+     * (BookingController::updateStatus) so both use the identical rule.
+     */
+    public function cancellationFeeAppliesForDate($checkInDate = null): bool
+    {
+        $date = $checkInDate ?? $this->check_in_date;
+
+        if (! $date) {
+            return false;
+        }
+
+        $today = now()->setTimezone(config('app.display_timezone'))->startOfDay();
+
+        return \Carbon\Carbon::parse($date)->startOfDay()->lte($today->copy()->addDays(30));
+    }
+
+    /**
      * A cancelled booking inside the 30-day pre-arrival window: we're owed
      * money, so it stays unarchived and read-only rather than being filed away.
      */
