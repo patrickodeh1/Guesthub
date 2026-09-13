@@ -105,10 +105,15 @@ class IdDocumentScanner
             return $result;
         }
 
-        // Nothing readable at all — recorded for the host (shown under "Scanned
-        // ID details"); the host verifies the photo manually rather than the
-        // guest being falsely blocked.
-        if (! $name && ! $dob && ! $expiry) {
+        // All three fields must have actually been read (and, for MRZ sources,
+        // check-digit verified — see parseMrz) before a submission is allowed
+        // through as "valid". A *partial* read used to slip through silently:
+        // e.g. expiry read but name didn't, which skipped the name-match check
+        // entirely (it only runs `if ($expectedName && $result['name'])`) and
+        // let an unverified name reach the approval queue looking identical to
+        // a fully verified one. Requiring all three closes that gap — anything
+        // incomplete is routed back to the guest for a retake instead.
+        if (! $name || ! $dob || ! $expiry) {
             $result['status'] = 'unreadable';
 
             return $result;
@@ -287,7 +292,12 @@ class IdDocumentScanner
 
     /**
      * Parse a machine-readable zone (TD1 3x30, TD2 2x36, TD3 2x44) including
-     * the holder's name.
+     * the holder's name. DOB and expiry are only trusted when their ICAO
+     * check digit actually verifies (see mrzCheckDigit) — OCR misreads a
+     * character just as often inside a date as anywhere else, and a wrong
+     * DOB/expiry that happens to parse is worse than one we flag as unread,
+     * since a wrong-but-plausible date would sail through the age/expiry
+     * checks instead of forcing a retake.
      */
     private function parseMrz(array $lines): ?array
     {
@@ -302,9 +312,9 @@ class IdDocumentScanner
                 $data = $lines[$i + 1];
 
                 return [
-                    'date_of_birth' => $this->mrzDate(substr($data, 0, 6), false),
-                    'expiry_date' => $this->mrzDate(substr($data, 8, 6), true),
-                    'number' => $this->mrzNumber(substr($data, 15, 14)),
+                    'date_of_birth' => $this->mrzDateChecked($data, 0, 6, false),
+                    'expiry_date' => $this->mrzDateChecked($data, 8, 6, true),
+                    'number' => $this->mrzNumber(substr($lines[$i], 5, 9)),
                     'name' => $this->mrzName(substr($lines[$i + 2], 0, 30)),
                 ];
             }
@@ -314,8 +324,8 @@ class IdDocumentScanner
                 $data = $lines[$i + 1];
 
                 return [
-                    'date_of_birth' => $this->mrzDate(substr($data, 13, 6), false),
-                    'expiry_date' => $this->mrzDate(substr($data, 21, 6), true),
+                    'date_of_birth' => $this->mrzDateChecked($data, 13, 6, false),
+                    'expiry_date' => $this->mrzDateChecked($data, 21, 6, true),
                     'number' => $this->mrzNumber(substr($data, 0, 9)),
                     'name' => $this->mrzName(substr($line, 5, 31)),
                 ];
@@ -326,8 +336,8 @@ class IdDocumentScanner
                 $data = $lines[$i + 1];
 
                 return [
-                    'date_of_birth' => $this->mrzDate(substr($data, 13, 6), false),
-                    'expiry_date' => $this->mrzDate(substr($data, 21, 6), true),
+                    'date_of_birth' => $this->mrzDateChecked($data, 13, 6, false),
+                    'expiry_date' => $this->mrzDateChecked($data, 21, 6, true),
                     'number' => $this->mrzNumber(substr($data, 0, 9)),
                     'name' => $this->mrzName(substr($line, 5, 39)),
                 ];
@@ -335,6 +345,47 @@ class IdDocumentScanner
         }
 
         return null;
+    }
+
+    /**
+     * Extract a YYMMDD date field at a known offset and only return it if the
+     * single check digit immediately following it (per ICAO Doc 9303) is
+     * correct. Returns null — not a best-effort guess — on mismatch, so a
+     * bad read surfaces as "unreadable" rather than as a wrong date.
+     */
+    private function mrzDateChecked(string $data, int $offset, int $length, bool $expiry): ?string
+    {
+        $raw = substr($data, $offset, $length);
+        $check = substr($data, $offset + $length, 1);
+
+        if (strlen($raw) !== $length || $check === '' || $this->mrzCheckDigit($raw) !== $check) {
+            return null;
+        }
+
+        return $this->mrzDate($raw, $expiry);
+    }
+
+    /**
+     * ICAO Doc 9303 check digit: weights 7,3,1 repeating over each character,
+     * digits count as themselves, A-Z as 10-35, '<' (fill) as 0. Sum mod 10.
+     */
+    private function mrzCheckDigit(string $data): string
+    {
+        $weights = [7, 3, 1];
+        $sum = 0;
+
+        foreach (str_split(strtoupper($data)) as $i => $char) {
+            if ($char >= '0' && $char <= '9') {
+                $value = (int) $char;
+            } elseif ($char >= 'A' && $char <= 'Z') {
+                $value = ord($char) - ord('A') + 10;
+            } else {
+                $value = 0; // '<' and anything unrecognized
+            }
+            $sum += $value * $weights[$i % 3];
+        }
+
+        return (string) ($sum % 10);
     }
 
     private function mrzName(string $raw): ?string

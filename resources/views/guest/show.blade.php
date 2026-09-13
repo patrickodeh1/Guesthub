@@ -1076,10 +1076,10 @@
                 // crop risks cutting off the name line. Grabbing extra blank margin
                 // above the MRZ costs OCR almost nothing; cutting off the name line
                 // loses the one field we most need.
-                function __idwCropToBottomThird(dataUrl, cb) {
+                function __idwCropBand(dataUrl, topFraction, cb) {
                     var img = new Image();
                     img.onload = function() {
-                        var bandTop = Math.round(img.naturalHeight * 0.65);
+                        var bandTop = Math.round(img.naturalHeight * topFraction);
                         var bandHeight = img.naturalHeight - bandTop;
                         var canvas = document.createElement("canvas");
                         var scale = 1.5;
@@ -1097,19 +1097,52 @@
                     img.src = dataUrl;
                 }
 
+                // A single fixed "bottom 35%" crop clips the MRZ entirely whenever the
+                // guest's capture doesn't perfectly fill the guide box (common -- the
+                // guide overlay is decorative, nothing stops the document sitting
+                // higher/lower in frame). Try a tight crop first (best signal-to-noise
+                // when it lands correctly), and only pay for a second, wider OCR pass
+                // if the tight one didn't actually find MRZ-shaped text.
+                function __idwLooksLikeMrz(text) {
+                    if (!text) return false;
+                    var cleaned = text.toUpperCase().replace(/\s+/g, "");
+                    // Two ICAO-style anchors: a long run of MRZ filler chars, and the
+                    // DOB+check+sex+expiry digit signature used server-side too.
+                    return /[A-Z0-9<]{20,}/.test(cleaned) && /\d{6}\d[MF<]\d{6}/.test(cleaned);
+                }
+
+                function __idwCropToBottomThird(dataUrl, cb) {
+                    __idwCropBand(dataUrl, 0.65, cb);
+                }
+
+                // Hard ceiling on the whole OCR attempt. loadTesseract() already times
+                // out script *loading* at 8s, but the actual recognize() call has no
+                // ceiling of its own -- a stalled worker (slow device, huge image,
+                // WASM init hiccup) can hang indefinitely with nothing to fall back to,
+                // which is what leaves the guest stuck on "Reading your ID..." forever.
+                var IDW_OCR_HARD_TIMEOUT_MS = 20000;
+
                 function ocrIdImage(dataUrl, cb) {
                     var called = false;
-                    function finish(text) { if (called) return; called = true; cb(text); }
+                    var hardTimer = setTimeout(function() { finish(null); }, IDW_OCR_HARD_TIMEOUT_MS);
+                    function finish(text) {
+                        if (called) return;
+                        called = true;
+                        clearTimeout(hardTimer);
+                        cb(text);
+                    }
 
                     function recognizeOne(image, whitelist, onDone) {
+                        var done = false;
+                        function once(v) { if (done) return; done = true; onDone(v); }
                         loadTesseract(function() {
-                            if (!window.Tesseract || !window.Tesseract.recognize) { onDone(null); return; }
+                            if (!window.Tesseract || !window.Tesseract.recognize) { once(null); return; }
                             var opts = { logger: null };
                             if (whitelist) opts.tessedit_char_whitelist = whitelist;
                             window.Tesseract.recognize(image, "eng", opts)
-                                .then(function(r) { onDone(r && r.data && r.data.text ? r.data.text : null); })
-                                .catch(function() { onDone(null); });
-                        }, function() { onDone(null); });
+                                .then(function(r) { once(r && r.data && r.data.text ? r.data.text : null); })
+                                .catch(function() { once(null); });
+                        }, function() { once(null); });
                     }
 
                     if (!isPassport) {
@@ -1126,15 +1159,31 @@
                     // strategies against whatever text it's given, so combining
                     // sources here only helps -- it can't produce a false positive,
                     // it just gives it more to work with.
-                    __idwCropToBottomThird(dataUrl, function(cropped) {
-                        var results = [];
-                        var remaining = 2;
-                        function maybeFinish() {
-                            remaining--;
-                            if (remaining === 0) finish(results.filter(Boolean).join("\n"));
-                        }
-                        recognizeOne(cropped, "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<", function(t) { results[0] = t; maybeFinish(); });
-                        recognizeOne(dataUrl, null, function(t) { results[1] = t; maybeFinish(); });
+                    var mrzWhitelist = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<";
+                    __idwCropBand(dataUrl, 0.65, function(tightCrop) {
+                        recognizeOne(tightCrop, mrzWhitelist, function(tightText) {
+                            if (__idwLooksLikeMrz(tightText)) {
+                                // Good MRZ signal from the tight crop; still grab the
+                                // full-page pass in parallel for printed-label fallback.
+                                recognizeOne(dataUrl, null, function(fullText) {
+                                    finish([tightText, fullText].filter(Boolean).join("\n"));
+                                });
+                                return;
+                            }
+                            // Tight crop missed it -- retake with a wider band (bottom
+                            // half) in case the document sat higher in frame than the
+                            // guide box assumed, plus the full-page fallback.
+                            __idwCropBand(dataUrl, 0.45, function(wideCrop) {
+                                var results = [tightText];
+                                var remaining = 2;
+                                function maybeFinish() {
+                                    remaining--;
+                                    if (remaining === 0) finish(results.filter(Boolean).join("\n"));
+                                }
+                                recognizeOne(wideCrop, mrzWhitelist, function(t) { results.push(t); maybeFinish(); });
+                                recognizeOne(dataUrl, null, function(t) { results.push(t); maybeFinish(); });
+                            });
+                        });
                     });
                 }
 
@@ -1448,6 +1497,7 @@
 
                 if (photoIdRequired) {
                     var idwOcrText = "";
+                    var idwOcrAttempted = false;
 
                     function idwSetOcr(text) {
                         idwOcrText = text || "";
@@ -1462,6 +1512,15 @@
                             status.style.borderColor = "#bbf7d0";
                             status.style.color = "#166534";
                             status.textContent = "We read the details on your ID ✓";
+                        } else if (idwOcrAttempted) {
+                            // OCR ran (or timed out) and came back empty -- tell the guest
+                            // instead of just clearing the status silently, since a silent
+                            // clear looks identical to "nothing happened yet."
+                            status.classList.remove("hidden");
+                            status.style.background = "#fffbeb";
+                            status.style.borderColor = "#fde68a";
+                            status.style.color = "#92400e";
+                            status.textContent = "Couldn't automatically read this ID. You can still continue -- it will be reviewed manually.";
                         } else {
                             status.classList.add("hidden");
                             status.textContent = "";
@@ -1503,6 +1562,7 @@
                                         }
                                         ocrIdImage(dataUrl, function(text) {
                                             if (thisGen !== idwCaptureGeneration) return;
+                                            idwOcrAttempted = true;
                                             idwSetOcr(text);
                                             if (nextBtn) nextBtn.disabled = false;
                                         });
@@ -1535,6 +1595,7 @@
                         var ocr = document.getElementById("photo-id-ocr");
                         if (ocr) ocr.value = "";
                         idwOcrText = "";
+                        idwOcrAttempted = false;
                         var ocrStatus = document.getElementById("idw-ocr-status");
                         if (ocrStatus) ocrStatus.classList.add("hidden");
                         startCamera("front");
