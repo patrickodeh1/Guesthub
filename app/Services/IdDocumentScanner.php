@@ -274,20 +274,45 @@ class IdDocumentScanner
         ];
     }
 
+    /**
+     * Picks the best "<<"-containing line as the name, rather than the first
+     * one. As of the multi-pass OCR change (tight crop + wide crop +
+     * full-page joined into one text blob), several candidate lines can
+     * exist — a noisy line from the wide-crop or full-page pass can land
+     * before the clean tight-crop line and win by default under a
+     * first-match strategy. Score instead: reject lines with digits (a
+     * genuine MRZ name line is only letters and "<"), then prefer the
+     * highest ratio of clean [A-Z<] characters and the closest length match
+     * to a standard MRZ line (30/36/44).
+     */
     private function extractMrzName(string $text): ?string
     {
+        $best = null;
+        $bestScore = -INF;
+
         foreach (preg_split('/\r\n|\r|\n/', $text) ?: [] as $line) {
             $line = strtoupper(trim($line));
-            if ($line === '' || strpos($line, '<<') === false) {
+            if ($line === '' || strpos($line, '<<') === false || preg_match('/\d/', $line)) {
                 continue;
             }
+
             $name = $this->mrzName($line);
-            if ($name) {
-                return $name;
+            if (! $name) {
+                continue;
+            }
+
+            $len = strlen($line);
+            $cleanRatio = strlen(preg_replace('/[^A-Z<]/', '', $line)) / max($len, 1);
+            $lengthFit = -min(abs(30 - $len), abs(36 - $len), abs(44 - $len));
+            $score = ($cleanRatio * 100) + $lengthFit;
+
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $best = $name;
             }
         }
 
-        return null;
+        return $best;
     }
 
     /**
