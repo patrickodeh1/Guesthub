@@ -57,7 +57,7 @@
 
         <section class="card card-pad">
             <h2 class="section-title">Public legal content</h2>
-            <p class="section-copy">Update each public page, then link to the same content throughout the guest flow. Keep the live website copy aligned with the Twilio campaign submission.</p>
+            <p class="section-copy">Update each public page, then link to the same content throughout the guest flow. Keep the live website copy aligned with the Telnyx campaign submission.</p>
 
             @php
                 $legalFields = [

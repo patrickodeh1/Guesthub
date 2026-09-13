@@ -46,7 +46,7 @@
             <a href="{{ route('admin.guests.show', $booking) }}" class="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"><x-icon name="eye" class="h-4 w-4" />View / Edit</a>
             <button type="button" onclick="copyGuestUrl(this, '{{ $booking->publicUrl() }}')" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"><x-icon name="copy" class="h-4 w-4" /><span data-copy-label>Copy Guest URL</span></button>
 
-            @if(($booking->isApproved() && ! $booking->isBackgroundCheckComplete()) || ($booking->isBackgroundCheckComplete() && ! $booking->isDepositVerified()) || ! $booking->gps_verified)
+            @if(! $booking->isCancelled() && (($booking->isApproved() && ! $booking->isBackgroundCheckComplete()) || ($booking->isBackgroundCheckComplete() && ! $booking->isDepositVerified()) || ! $booking->gps_verified))
                 <div class="my-1 border-t border-slate-100"></div>
 
                 @if($booking->isApproved() && ! $booking->isBackgroundCheckComplete())

@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\ContentController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\EarlyAccessLeadController;
+use App\Http\Controllers\Admin\GuestNoticeController;
 use App\Http\Controllers\Admin\InstructionStepController;
 use App\Http\Controllers\Admin\LogController;
 use App\Http\Controllers\Admin\MediaController;
@@ -26,7 +27,7 @@ use App\Http\Controllers\LegalPageController;
 use App\Http\Controllers\PrivacyRequestController;
 use App\Http\Controllers\SeamWebhookController;
 use App\Http\Controllers\StripeWebhookController;
-use App\Http\Controllers\TwilioWebhookController;
+use App\Http\Controllers\TelnyxWebhookController;
 use App\Models\Booking;
 use App\Models\Category;
 use App\Models\Property;
@@ -51,7 +52,7 @@ Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 Route::post('/webhooks/seam', [SeamWebhookController::class, 'handle'])->name('webhooks.seam');
 Route::post('/webhooks/channex', [ChannexWebhookController::class, 'handle'])->name('webhooks.channex');
 Route::post('/webhooks/stripe', [StripeWebhookController::class, 'handle'])->name('webhooks.stripe');
-Route::post('/webhooks/twilio/sms', [TwilioWebhookController::class, 'handle'])->name('webhooks.twilio.sms');
+Route::post('/webhooks/telnyx/sms', [TelnyxWebhookController::class, 'handle'])->name('webhooks.telnyx.sms');
 
 Route::get('/checkin', [GuestController::class, 'checkinByReservation'])->name('checkin.rid');
 Route::post('/checkin/verify', [GuestController::class, 'verifyReservationLogin'])->name('checkin.verify');
@@ -59,6 +60,9 @@ Route::post('/checkin/verify', [GuestController::class, 'verifyReservationLogin'
 Route::prefix('guest/{booking_id}/{token}')->name('guest.')->group(function () {
     Route::get('/', [GuestController::class, 'show'])->name('show');
     Route::post('/identity', [GuestController::class, 'submitIdentity'])->name('identity');
+    Route::post('/arrival-agree', [GuestController::class, 'agreeToArrival'])->name('arrival-agree');
+    Route::get('/rental-agreement', [GuestController::class, 'rentalAgreement'])->name('rental-agreement');
+    Route::get('/rental-agreement/download', [GuestController::class, 'rentalAgreementPdf'])->name('rental-agreement.pdf');
     Route::post('/vehicle-info', [GuestController::class, 'submitVehicleInfo'])->name('vehicle-info');
     Route::post('/login', [GuestController::class, 'login'])->name('login');
     Route::post('/parking', [GuestController::class, 'parking'])->name('parking');
@@ -66,6 +70,7 @@ Route::prefix('guest/{booking_id}/{token}')->name('guest.')->group(function () {
     Route::post('/confirm-checkin', [GuestController::class, 'confirmCheckin'])->name('confirm-checkin');
     Route::post('/confirm-checkout', [GuestController::class, 'confirmCheckout'])->name('confirm-checkout');
     Route::post('/deposit/intent', [GuestController::class, 'createDepositIntent'])->name('deposit.intent');
+    Route::post('/deposit/platform', [GuestController::class, 'selectPlatformPayment'])->name('deposit.platform');
     Route::post('/deposit/confirm', [GuestController::class, 'confirmDepositPayment'])->name('deposit.confirm');
     Route::post('/charge/intent', [GuestController::class, 'createChargeIntent'])->name('charge.intent');
     Route::post('/charge/confirm', [GuestController::class, 'confirmChargePayment'])->name('charge.confirm');
@@ -145,6 +150,7 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     Route::post('guests/{booking}/approve', [BookingController::class, 'approveBooking'])->name('guests.approve');
     Route::post('guests/{booking}/background-check', [BookingController::class, 'markBackgroundCheckComplete'])->name('guests.background-check');
     Route::post('guests/{booking}/deposit-verified', [BookingController::class, 'markDepositVerified'])->name('guests.deposit-verified');
+    Route::post('guests/{booking}/approve-checkin', [BookingController::class, 'approveCheckin'])->name('guests.approve-checkin');
     Route::post('guests/{booking}/update-status', [BookingController::class, 'updateStatus'])->name('guests.update-status');
     Route::post('guests/{booking}/id/{side}/approve', [BookingController::class, 'approveIdSide'])->whereIn('side', ['front', 'back'])->name('guests.id.approve');
     Route::post('guests/{booking}/id/{side}/decline', [BookingController::class, 'declineIdSide'])->whereIn('side', ['front', 'back'])->name('guests.id.decline');
@@ -211,6 +217,9 @@ Route::middleware(['auth', 'role'])->prefix('admin')->name('admin.')->group(func
     Route::put('settings/legal', [SettingsController::class, 'legalUpdate'])->name('settings.legal.update');
     Route::get('settings/notifications', [NotificationSettingsController::class, 'edit'])->name('settings.notifications.edit');
     Route::put('settings/notifications', [NotificationSettingsController::class, 'update'])->name('settings.notifications.update');
+
+    // ─── Guest Notices (conditional pop-ups / check-in steps) ──────────────
+    Route::resource('notices', GuestNoticeController::class)->except(['show']);
 
     // ─── Notification bell ──────────────────────────────────────────────────
     Route::post('notifications/dismiss', [NotificationController::class, 'dismiss'])->name('notifications.dismiss');

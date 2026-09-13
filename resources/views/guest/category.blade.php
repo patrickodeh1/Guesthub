@@ -97,6 +97,8 @@
                             :lock-id="$entry['lock']->id"
                             :lock-label="$locks->count() > 1 ? $entry['lock']->label : null"
                             :lock-status="$entry['status']"
+                            :auto-checkin="! $booking->isMarkedCheckedIn()"
+                            :auto-checkout="$booking->isCheckoutDay()"
                         />
                     @endforeach
                 </div>

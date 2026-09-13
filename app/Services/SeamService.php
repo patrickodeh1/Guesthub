@@ -45,11 +45,18 @@ class SeamService
         $device = $this->client->devices->get(device_id: $deviceId);
         $level = $device->properties->battery->level ?? null;
 
-        if ($level === null) {
+        if ($level === null || ! is_numeric($level)) {
             return null;
         }
 
-        return (int) round($level * 100);
+        // Seam normalizes most locks' battery.level to a 0-1 ratio, but some
+        // (August included) already report a 0-100 percentage. Multiplying a
+        // percentage by 100 was showing absurd values; detect and convert only
+        // when it is actually a ratio.
+        $level = (float) $level;
+        $percent = $level <= 1.001 ? $level * 100 : $level;
+
+        return (int) max(0, min(100, round($percent)));
     }
 
     public function createGuestAccessGrant(string $deviceId, string $guestName, string $guestEmail, \DateTime $startsAt, \DateTime $endsAt): array

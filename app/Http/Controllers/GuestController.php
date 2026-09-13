@@ -12,6 +12,8 @@ use App\Services\ActivityLogService;
 use App\Services\SeamService;
 use App\Services\SmsConsentService;
 use App\Services\SmsNotificationService;
+use App\Services\RentalAgreementService;
+use App\Services\IdDocumentScanner;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -26,6 +28,11 @@ class GuestController extends Controller
     private function renderPortal(Booking $booking)
     {
         $booking->load(['property.categories', 'property.amenities', 'property.instructionSteps']);
+
+        // Auto-close a stay the guest never manually checked out of, once
+        // their checkout time has passed and the door is reported locked.
+        $this->autoCheckoutIfDue($booking);
+
         $state = $this->state($booking);
 
         ActivityLogService::guest('portal_viewed', "Guest {$booking->guest_name} viewed the portal (state: {$state}).", 'guest_portal', [
@@ -35,6 +42,25 @@ class GuestController extends Controller
             'actor_email'  => $booking->email,
             'metadata'     => ['state' => $state, 'booking_ref' => $booking->booking_id],
         ]);
+
+        // Conditional notices (Admin > Guest Notices): which phase are we in,
+        // and what pop-ups / wizard steps apply right now.
+        $noticePhase = ! $booking->isMarkedCheckedIn()
+            ? 'checkin'
+            : ($booking->isCheckoutDay() ? 'checkout' : 'guide');
+
+        $checkinSteps = ($state === 'guide' && ! $booking->instructionsCompleted()) ? $this->checkinSteps($booking) : [];
+        if ($noticePhase === 'checkin') {
+            $checkinSteps = collect($checkinSteps)->concat(\App\Services\GuestNoticeService::steps($booking, 'checkin'))->values()->all();
+        } else {
+            $checkinSteps = collect($checkinSteps)->values()->all();
+        }
+
+        $checkoutSteps = collect($this->checkoutSteps($booking));
+        if ($noticePhase === 'checkout') {
+            $checkoutSteps = $checkoutSteps->concat(\App\Services\GuestNoticeService::steps($booking, 'checkout'));
+        }
+        $checkoutSteps = $checkoutSteps->values()->all();
 
         return view('guest.show', [
             'booking'       => $booking,
@@ -47,9 +73,10 @@ class GuestController extends Controller
             'gpsVerifyMessage' => Setting::getValue('gps_verify_message', "It's Go Time!"),
             'backgroundCheckStepName' => Setting::getValue('background_check_step_name', 'Background Check'),
             'backgroundCheckStepInstructions' => Setting::getValue('background_check_step_instructions', 'Please be on the lookout for an email from Airbnb so that you can submit the required hold for incidentals. This hold is refunded after checkout.'),
-            'checkinSteps'  => ($state === 'guide' && ! $booking->instructionsCompleted()) ? $this->checkinSteps($booking) : [],
-            'checkoutSteps' => $this->checkoutSteps($booking),
+            'checkinSteps'  => $checkinSteps,
+            'checkoutSteps' => $checkoutSteps,
             'parkingSteps'  => ($state === 'guide' && ! $booking->instructionsCompleted()) ? $this->parkingSteps($booking) : [],
+            'guestNoticePopups' => \App\Services\GuestNoticeService::popups($booking, $noticePhase),
             'checkinTimeOptions' => $this->checkinTimeOptions(),
             'checkoutTimeOptions' => $this->checkoutTimeOptions(),
             // task: vehicle info is never required at Step 1 -- prompt for
@@ -121,8 +148,17 @@ class GuestController extends Controller
         // are all collected at Step 1 (login), not here in Step 2 (submitIdentity).
         $requiresTermsAcceptance = ! $booking->terms_accepted_at;
 
+        // The rental agreement is signed at Step 1 too: the guest must type
+        // their legal name exactly as it appears on their government ID. We
+        // compare it (case/whitespace-insensitively) to the name on file and
+        // capture the signature evidence for the PDF.
+        $needsContractSignature = filled(Setting::getValue('legal_rental_contract_content', '')) && ! $booking->contract_accepted_at;
+        $acceptingContract = $request->boolean('contract_accepted') && $needsContractSignature;
+
         $data = $request->validate([
             'guest_name' => ['required', 'string', 'max:255'],
+            'contract_signed_name' => [$acceptingContract ? 'required' : 'nullable', 'string', 'max:255'],
+            'contract_signed_device_id' => ['nullable', 'string', 'max:64'],
             'phone' => ['required', 'string', 'max:50'],
             'phone_country_code' => ['nullable', 'string', 'max:10'],
             'email' => ['required', 'email', 'max:255'],
@@ -184,9 +220,19 @@ class GuestController extends Controller
             $updates['terms_accepted_version'] = \App\Models\Setting::getValue('terms_version', '1');
         }
 
-        if ($request->boolean('contract_accepted') && filled(\App\Models\Setting::getValue('legal_rental_contract_content', '')) && ! $booking->contract_accepted_at) {
+        if ($acceptingContract) {
+            if ($this->normalizePersonName($data['contract_signed_name']) !== $this->normalizePersonName($booking->guest_name)) {
+                throw ValidationException::withMessages([
+                    'contract_signed_name' => 'This must match your name exactly as it appears on your government ID.',
+                ]);
+            }
+
             $updates['contract_accepted_at'] = now();
-            $updates['contract_version'] = \App\Models\Setting::getValue('legal_rental_contract_version', '1');
+            $updates['contract_version'] = Setting::getValue('legal_rental_contract_version', '1');
+            $updates['contract_signed_name'] = $data['contract_signed_name'];
+            $updates['contract_signed_ip'] = $request->ip();
+            $updates['contract_signed_user_agent'] = mb_substr((string) $request->userAgent(), 0, 1000);
+            $updates['contract_signed_device_id'] = $data['contract_signed_device_id'] ?? null;
         }
 
         $booking->update($updates);
@@ -256,37 +302,77 @@ class GuestController extends Controller
     public function confirmCheckin(string $bookingId, string $token)
     {
         $booking = $this->booking($bookingId, $token);
-        $booking->update([
-            'status'        => 'currently_hosting',
-            'checked_in_at' => now(),
-        ]);
-        \App\Services\GuestAlertService::send('checkin_completed', $booking);
-        ActivityLogService::guest('guest_confirmed_checkin', "Guest {$booking->guest_name} confirmed check-in.", 'check', [
-            'booking_id'  => $booking->id,
-            'property_id' => $booking->property_id,
-            'actor_name'  => $booking->guest_name,
-            'actor_email' => $booking->email,
-            'severity'    => 'success',
-        ]);
+
+        if (! $booking->isMarkedCheckedIn()) {
+            $booking->update([
+                'status'        => 'currently_hosting',
+                'checked_in_at' => now(),
+            ]);
+            \App\Services\GuestAlertService::send('checkin_completed', $booking);
+            ActivityLogService::guest('guest_confirmed_checkin', "Guest {$booking->guest_name} confirmed check-in.", 'check', [
+                'booking_id'  => $booking->id,
+                'property_id' => $booking->property_id,
+                'actor_name'  => $booking->guest_name,
+                'actor_email' => $booking->email,
+                'severity'    => 'success',
+            ]);
+        }
+
         return response()->json(['ok' => true]);
     }
 
     public function confirmCheckout(string $bookingId, string $token)
     {
         $booking = $this->booking($bookingId, $token);
-        $booking->update([
-            'status'         => 'checked_out',
-            'checked_out_at' => now(),
-        ]);
-        \App\Services\GuestAlertService::send('checkout_completed', $booking);
-        ActivityLogService::guest('guest_confirmed_checkout', "Guest {$booking->guest_name} confirmed check-out.", 'check', [
-            'booking_id'  => $booking->id,
-            'property_id' => $booking->property_id,
-            'actor_name'  => $booking->guest_name,
-            'actor_email' => $booking->email,
-            'severity'    => 'success',
-        ]);
+
+        $this->completeCheckout($booking);
+
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * Mark a booking checked out exactly once, firing the checkout alert and
+     * activity log. Shared by the guest's manual "I'm checked out" action and
+     * the automatic checkout that runs when the guest locks the door on
+     * checkout day / their checkout time has passed.
+     */
+    private function completeCheckout(Booking $booking, string $source = 'guest_confirmed_checkout'): void
+    {
+        $booking->completeCheckout($source);
+    }
+
+    /**
+     * Safety net for the "guests never press I'm checked out" problem: once a
+     * checked-in guest is past their effective checkout time on checkout day
+     * AND the door is reported locked, close the stay automatically instead of
+     * waiting for a press that never comes. Run on every portal render and by
+     * the bookings:auto-checkout scheduled command.
+     */
+    public function autoCheckoutIfDue(Booking $booking): bool
+    {
+        if ($booking->checked_out_at || ! $booking->isMarkedCheckedIn() || $booking->isCancelled()) {
+            return false;
+        }
+
+        // isPastCheckoutTime() already respects the property's timezone and
+        // returns false before checkout day, so it covers "checkout day and
+        // past the deadline" without a separate UTC-vs-local day comparison.
+        if (! $booking->isPastCheckoutTime()) {
+            return false;
+        }
+
+        $locks = $booking->property->locks;
+
+        // If the property has locks, require the door to actually be locked
+        // (don't boot a guest who's still inside). Properties without a lock
+        // fall back to time alone.
+        if ($locks->isNotEmpty() && ! $locks->contains(fn ($lock) => $lock->last_known_locked === true)) {
+            return false;
+        }
+
+        $this->completeCheckout($booking, 'guest_auto_checkout');
+
+        return true;
     }
 
     public function createDepositIntent(string $bookingId, string $token)
@@ -361,9 +447,45 @@ class GuestController extends Controller
             'metadata'    => ['amount_cents' => $charge->amount_cents, 'charge_id' => $charge->id],
         ]);
 
+        // A successful card payment is verified immediately so the guest
+        // advances to the next step without waiting for an admin to mark the
+        // deposit received. The background check is already complete by the
+        // time a guest reaches this screen.
+        if ($booking->isBackgroundCheckComplete() && ! $booking->isDepositVerified()) {
+            $booking->update([
+                'deposit_verified_at' => now(),
+                'status'              => 'guest_approved',
+            ]);
+        }
+
         \App\Services\GuestAlertService::send('deposit_paid', $booking);
 
         return response()->json(['ok' => true, 'message' => 'Deposit payment of $'.number_format($charge->amountDollars(), 2).' received.']);
+    }
+
+    /**
+     * The guest chose to pay the incidentals hold on their booking platform.
+     * No webhook confirms an off-platform payment, so we just record the
+     * choice: the portal then shows "pending approval" (never the amount) and
+     * keeps them there on every revisit until the admin verifies the deposit.
+     */
+    public function selectPlatformPayment(string $bookingId, string $token)
+    {
+        $booking = $this->booking($bookingId, $token);
+
+        if (! $booking->platformPaymentSelected()) {
+            $booking->update(['platform_payment_selected_at' => now()]);
+
+            ActivityLogService::guest('platform_payment_selected', "Guest {$booking->guest_name} chose to pay the incidentals hold on {$booking->platformLabel()}.", 'check', [
+                'booking_id'  => $booking->id,
+                'property_id' => $booking->property_id,
+                'actor_name'  => $booking->guest_name,
+                'actor_email' => $booking->email,
+                'severity'    => 'success',
+            ]);
+        }
+
+        return response()->json(['ok' => true]);
     }
 
     /**
@@ -475,6 +597,12 @@ class GuestController extends Controller
         $data = $request->validate([
             'photo_id' => [$frontRequired ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
             'photo_id_back' => [$backRequired ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
+            // PDF417 barcode text decoded on the device from the back of a US
+            // state ID (the reliable source for DOB / expiry).
+            'id_barcode_text' => ['nullable', 'string', 'max:4096'],
+            // Raw OCR text of the ID photos (Tesseract on the device) — a
+            // fallback for passports when the Vision provider is unavailable.
+            'id_ocr_text' => ['nullable', 'string', 'max:10000'],
         ]);
 
         $advancedStatuses = ['guest_approved', 'awaiting_deposit', 'currently_hosting', 'checked_out'];
@@ -510,19 +638,95 @@ class GuestController extends Controller
             $updates['photo_id_back_declined_reason'] = null;
         }
 
-        $isFirstCompletion = $booking->status === 'pending';
+        // Durable "registration completed" flag so a rejected/re-uploaded ID
+        // (which resets status to pending) never re-sends the registration
+        // alert — only one registration notification per guest.
+        $wasRegistrationNotified = filled($booking->registration_notified_at);
 
         $booking->update($updates);
 
-        if ($isFirstCompletion) {
-            \App\Services\GuestAlertService::send('registration_received', $booking);
+        // Scan the uploaded ID for date of birth / expiry / document number so
+        // we can catch an expired document and record the guest's age. Runs
+        // after the upload is stored so the scanner reads the saved file.
+        $frontUploaded = $request->hasFile('photo_id') && $booking->photo_id_path;
+        $backUploaded = $request->hasFile('photo_id_back') && $booking->photo_id_back_path;
+
+        // Set when the uploaded ID is auto-rejected so the AJAX flow can keep
+        // the guest on the ID step instead of advancing them.
+        $identityRejection = null;
+
+        if ($frontUploaded || $backUploaded) {
+            $scanner = app(IdDocumentScanner::class);
+            $barcodeText = $data['id_barcode_text'] ?? null;
+            $ocrText = $data['id_ocr_text'] ?? null;
+
+            // Confirm name + expiry on-device only (barcode + OCR text) — no
+            // cloud provider, no billing. The host still verifies the photo and
+            // age manually.
+            $scan = $scanner->scan($barcodeText, $booking->guest_name, $ocrText);
+
+            if ($scan !== null) {
+                $booking->update([
+                    'id_date_of_birth' => $scan['date_of_birth'],
+                    'id_age'           => $scan['age'],
+                    'id_expiry_date'   => $scan['expiry_date'],
+                    'id_number'        => $scan['number'],
+                    'id_name'          => $scan['name'],
+                    'id_scan_status'   => $scan['status'],
+                    'id_scanned_at'    => now(),
+                ]);
+
+                // Invalid IDs are rejected automatically with no admin review.
+                // Reasons are specific and quote whatever was actually read off
+                // the document, so the guest knows exactly what's wrong.
+                $expiry = $scan['expiry_date'] ? \Carbon\Carbon::parse($scan['expiry_date'])->format('M j, Y') : null;
+
+                $autoRejectReasons = [
+                    'name_mismatch' => $scan['name']
+                        ? "The name on this ID (\"{$scan['name']}\") doesn't match the name on the reservation (\"{$booking->guest_name}\"). Please upload an ID that matches the booking name exactly."
+                        : "The name on this ID doesn't match the name on the reservation. Please upload an ID that matches the booking name exactly.",
+                    'expired' => "This ID expired on {$expiry}. Please upload a current, unexpired government ID.",
+                    'underage' => "This reservation requires guests to be 18 or older. The date of birth on this ID indicates the guest does not meet that requirement.",
+                    // We could not read the name, date of birth, or expiry off this
+                    // ID at all, so none of those checks could actually run. Rather
+                    // than silently letting an unverified ID through, force a
+                    // retake -- better lighting, a flatter angle, and the ID filling
+                    // the frame usually fixes this.
+                    'unreadable' => "We couldn't clearly read the details on this ID. Please retake the photo with good lighting, avoiding glare, and make sure the entire document is in frame.",
+                ];
+
+                if (isset($autoRejectReasons[$scan['status']])) {
+                    $reason = $autoRejectReasons[$scan['status']];
+                    $identityRejection = $reason;
+
+                    $booking->update([
+                        'photo_id_path' => null,
+                        'photo_id_back_path' => null,
+                        'photo_id_front_declined_reason' => $reason,
+                        'photo_id_front_approved_at' => null,
+                        'photo_id_back_approved_at' => null,
+                        'photo_id_received' => false,
+                        'approved_at' => null,
+                        'status' => 'pending',
+                    ]);
+
+                    // No email is sent for an automatic rejection: the guest is
+                    // told in the portal (forced back to the ID step) and the
+                    // host doesn't need a notification for every bad upload.
+                }
+            }
         }
 
-        // Notify admin (and, per settings, the guest) every time a photo ID is
-        // submitted — including re-uploads after a decline — not just on the
-        // guest's very first completion.
-        if ($request->hasFile('photo_id') || $request->hasFile('photo_id_back')) {
-            \App\Services\GuestAlertService::send('photo_id_uploaded', $booking);
+        // Only a successful submission counts as registration/ID upload. On
+        // the guest's first success send "registration completed" once; later
+        // re-uploads send the ID-upload alert instead. Rejections send nothing.
+        if ($identityRejection === null) {
+            if (! $wasRegistrationNotified) {
+                \App\Services\GuestAlertService::send('registration_received', $booking);
+                $booking->update(['registration_notified_at' => now()]);
+            } elseif ($frontUploaded || $backUploaded) {
+                \App\Services\GuestAlertService::send('photo_id_uploaded', $booking);
+            }
         }
 
         ActivityLogService::guest('photo_id_uploaded', "Guest {$booking->guest_name} submitted photo ID and pre-arrival details.", 'photo_id', [
@@ -533,6 +737,24 @@ class GuestController extends Controller
             'severity'    => 'success',
             'metadata'    => ['email' => $booking->email, 'booking_ref' => $booking->booking_id],
         ]);
+
+        // The pre-check-in wizard submits this via AJAX: tell it whether to
+        // advance to the next step or stay on the ID step with the reason.
+        if ($request->expectsJson()) {
+            if ($identityRejection !== null) {
+                return response()->json([
+                    'ok' => false,
+                    'id_rejected' => true,
+                    'reason' => $identityRejection,
+                ], 422);
+            }
+
+            return response()->json(['ok' => true]);
+        }
+
+        if ($identityRejection !== null) {
+            return back()->withErrors(['photo_id' => $identityRejection]);
+        }
 
         return back()
             ->with('success', 'All complete. Your arrival information has been received securely.');
@@ -601,6 +823,57 @@ class GuestController extends Controller
         ]);
 
         return back()->with('success', 'Parking preference saved.');
+    }
+
+    /**
+     * Records that the guest read and accepted the arrival-day disclaimer, so
+     * the address/arrival details are revealed and it doesn't show again.
+     */
+    public function agreeToArrival(string $bookingId, string $token)
+    {
+        $booking = $this->booking($bookingId, $token);
+
+        $booking->update(['checkin_disclaimer_agreed_at' => now()]);
+
+        ActivityLogService::guest('arrival_disclaimer_agreed', "Guest {$booking->guest_name} agreed to the arrival instructions disclaimer.", 'check', [
+            'booking_id'  => $booking->id,
+            'property_id' => $booking->property_id,
+            'actor_name'  => $booking->guest_name,
+            'actor_email' => $booking->email,
+            'severity'    => 'success',
+        ]);
+
+        return back();
+    }
+
+    public function rentalAgreement(string $bookingId, string $token)
+    {
+        $booking = $this->booking($bookingId, $token);
+        abort_unless(filled($booking->contract_accepted_at), 404);
+
+        return view('agreements.rental-agreement', array_merge(
+            app(RentalAgreementService::class)->viewData($booking),
+            ['pdfMode' => false]
+        ));
+    }
+
+    public function rentalAgreementPdf(string $bookingId, string $token)
+    {
+        $booking = $this->booking($bookingId, $token);
+        abort_unless(filled($booking->contract_accepted_at), 404);
+
+        $service = app(RentalAgreementService::class);
+
+        // No PDF engine installed yet -- fall back to the printable page (the
+        // guest can still use the browser's "Save as PDF").
+        if (! $service->isPdfAvailable()) {
+            return redirect()->route('guest.rental-agreement', [$booking->booking_id, $booking->token]);
+        }
+
+        return response($service->renderPdf($booking), 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="rental-agreement-'.$booking->booking_id.'.pdf"',
+        ]);
     }
 
     public function verifyGps(Request $request, string $bookingId, string $token)
@@ -687,11 +960,18 @@ class GuestController extends Controller
     public function idStatus(string $bookingId, string $token)
     {
         $booking = $this->booking($bookingId, $token);
+
+        // Also gives the guest's browser a hook to auto-close the stay if the
+        // door is locked and their checkout time passed while the page sat open.
+        $this->autoCheckoutIfDue($booking);
+
         return response()->json([
             'id_approved' => (bool) ($booking->photo_id_received && $booking->isApproved()),
             'background_check_complete' => $booking->isBackgroundCheckComplete(),
             'deposit_verified' => $booking->isDepositVerified(),
+            'checkin_approved' => $booking->isCheckinApproved(),
             'vehicle_info_bypassed' => (bool) $booking->vehicle_info_bypassed_at,
+            'checked_out' => (bool) $booking->checked_out_at,
         ]);
     }
     public function category(string $bookingId, string $token, Category $category)
@@ -849,9 +1129,20 @@ class GuestController extends Controller
         $booking = $this->booking($bookingId, $token);
         abort_unless($lock->property_id === $booking->property_id, 404);
 
+        // Ask Seam for the live state rather than trusting the cached
+        // last_known_locked, which only webhooks refresh. This is what makes
+        // the confirmation poll accurate (and reliable for August locks whose
+        // webhook reporting was lagging), and it persists what we learn so the
+        // dashboard and auto-checkout see the same truth.
+        $locked = $this->lockStatusFor($booking, $lock);
+
+        if ($locked !== null && $lock->last_known_locked !== $locked) {
+            $lock->update(['last_known_locked' => $locked, 'last_status_at' => now()]);
+        }
+
         return response()->json([
             'ok' => true,
-            'locked' => $lock->last_known_locked,
+            'locked' => $locked,
             'updated_at' => optional($lock->last_status_at)->toIso8601String(),
         ]);
     }
@@ -907,11 +1198,21 @@ class GuestController extends Controller
         if (array_key_exists($lock->id, $this->lockStatusCache)) {
             return $this->lockStatusCache[$lock->id];
         }
-        try {
-            $status = app(SeamService::class)->getLockStatus($lock->seam_device_id);
-        } catch (\Throwable $e) {
-            $status = null;
-        }
+
+        // Tiny cache so the guest's 1-second confirmation poll doesn't hammer
+        // the Seam API, while still being fresh enough to catch a lock action.
+        $status = \Illuminate\Support\Facades\Cache::remember(
+            'seam_lock_status:'.$lock->id,
+            now()->addSeconds(2),
+            function () use ($lock) {
+                try {
+                    return app(SeamService::class)->getLockStatus($lock->seam_device_id);
+                } catch (\Throwable $e) {
+                    return null;
+                }
+            }
+        );
+
         return $this->lockStatusCache[$lock->id] = $status;
     }
     private function booking(string $bookingId, string $token): Booking
@@ -948,6 +1249,10 @@ class GuestController extends Controller
 
     private function state(Booking $booking): string
     {
+        if ($booking->isCancelled()) {
+            return 'cancelled';
+        }
+
         if ($booking->access_blocked_at) {
             return 'access_blocked';
         }
@@ -981,6 +1286,14 @@ class GuestController extends Controller
 
         if ($booking->isPastCheckoutDay()) {
             return 'post_checkout';
+        }
+
+        // Blocked by default: hold the guest on a "unit isn't quite ready yet"
+        // screen until the host marks the unit ready and approves check-in.
+        // Guests already let in (manual check-in or a successful GPS verify)
+        // skip this so nobody already inside gets locked back out.
+        if (! $booking->isCheckinApproved() && ! $booking->isMarkedCheckedIn() && ! $booking->gps_verified) {
+            return 'unit_not_ready';
         }
 
         if (! $booking->isCheckinDay() && $booking->needsVehicleInfoPrompt()) {
@@ -1103,6 +1416,16 @@ class GuestController extends Controller
         return $booking->property->categories
             ->filter(fn ($c) => $c->active && $c->pivot->active)
             ->values();
+    }
+
+    /**
+     * Normalize a person's name for comparison: trim, collapse internal
+     * whitespace, and lowercase, so "James  Smith" and "james smith" match
+     * (but "Jim" and "James" still don't).
+     */
+    private function normalizePersonName(?string $name): string
+    {
+        return strtolower(preg_replace('/\s+/', ' ', trim((string) $name)));
     }
 
     private function distanceMeters(float $lat1, float $lon1, float $lat2, float $lon2): float

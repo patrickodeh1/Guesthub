@@ -36,11 +36,12 @@ return [
         'webhook_secret' => env('SEAM_WEBHOOK_SECRET'),
     ],
 
-    'twilio' => [
-        'sid' => env('TWILIO_SID'),
-        'auth_token' => env('TWILIO_AUTH_TOKEN'),
-        'from_number' => env('TWILIO_FROM_NUMBER'),
-        'admin_notify_number' => env('TWILIO_ADMIN_NOTIFY_NUMBER'),
+    'telnyx' => [
+        'api_key' => env('TELNYX_API_KEY'),
+        'public_key' => env('TELNYX_PUBLIC_KEY'),
+        'from_number' => env('TELNYX_FROM_NUMBER'),
+        'messaging_profile_id' => env('TELNYX_MESSAGING_PROFILE_ID'),
+        'admin_notify_number' => env('TELNYX_ADMIN_NOTIFY_NUMBER'),
     ],
 
     'google_maps' => [

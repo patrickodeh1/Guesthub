@@ -32,6 +32,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'name',
+        'host_name',
         'email',
         'password',
         'role',
@@ -178,5 +179,20 @@ class User extends Authenticatable
     public function getFormattedPhoneAttribute(): ?string
     {
         return PhoneFormatter::format($this->phone);
+    }
+
+    /**
+     * The host / business name used as the host party on guest agreements.
+     * Prefers an owner's captured host_name, then any user's, then app name.
+     */
+    public static function agreementHostName(): string
+    {
+        $hostName = static::query()
+            ->whereNotNull('host_name')
+            ->where('host_name', '!=', '')
+            ->orderByRaw("case when role = 'owner' then 0 else 1 end")
+            ->value('host_name');
+
+        return $hostName ?: config('app.name');
     }
 }

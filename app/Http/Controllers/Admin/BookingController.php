@@ -352,6 +352,8 @@ class BookingController extends Controller
 
     public function update(Request $request, Booking $booking)
     {
+        $this->guardNotCancelled($booking);
+
         $oldStatus = $booking->status;
         $data = $this->validated($request, $booking);
         $this->enforcePreCheckinCap(array_merge($booking->only(['incidentals_charge', 'parking_needed', 'early_checkin_tier', 'early_checkin_charge_override', 'early_checkin_billing_mode']), $data));
@@ -394,6 +396,8 @@ class BookingController extends Controller
      */
     public function updateLedger(Request $request, Booking $booking)
     {
+        $this->guardNotCancelled($booking);
+
         $oldEarlyCheckinTier = $booking->early_checkin_tier;
         $oldLateCheckoutCharge = $booking->effectiveLateCheckoutCharge();
         $oldIncidentalsCharge = (float) ($booking->effectiveIncidentalsCharge() ?? 0);
@@ -511,6 +515,8 @@ class BookingController extends Controller
     }
     public function overrideGps(Booking $booking)
     {
+        $this->guardNotCancelled($booking);
+
         $booking->update(['gps_verified' => true]);
         ActivityLogService::security('gps_override', auth()->user()->name." overrode GPS verification for {$booking->guest_name} ({$booking->booking_id}).", [
             'subject_type' => Booking::class,
@@ -525,6 +531,8 @@ class BookingController extends Controller
 
     public function overrideCheckin(Booking $booking)
     {
+        $this->guardNotCancelled($booking);
+
         $booking->update([
             'manually_checked_in' => true,
             'checked_in_at'       => now(),
@@ -545,6 +553,8 @@ class BookingController extends Controller
 
     public function overrideCheckout(Booking $booking)
     {
+        $this->guardNotCancelled($booking);
+
         $booking->update([
             'checked_out_at' => now(),
             'status'         => 'checked_out',
@@ -598,6 +608,8 @@ class BookingController extends Controller
 
     public function approveBooking(Booking $booking)
     {
+        $this->guardNotCancelled($booking);
+
         $booking->update([
             'approved_at' => now(),
             'decline_reason' => null,
@@ -616,6 +628,8 @@ class BookingController extends Controller
 
     public function markBackgroundCheckComplete(Booking $booking)
     {
+        $this->guardNotCancelled($booking);
+
         if (! $booking->isApproved()) {
             return back()->with('error', 'Photo ID must be approved before marking the background check complete.');
         }
@@ -658,6 +672,8 @@ class BookingController extends Controller
 
     public function markDepositVerified(Booking $booking)
     {
+        $this->guardNotCancelled($booking);
+
         if (! $booking->isBackgroundCheckComplete()) {
             return back()->with('error', 'Background check must be completed before verifying the deposit.');
         }
@@ -680,6 +696,30 @@ class BookingController extends Controller
     }
 
     /**
+     * "The unit is ready and the guest may check in." Until this is set, a
+     * fully pre-checked-in guest is held on the "unit isn't quite ready yet"
+     * screen instead of seeing their arrival details.
+     */
+    public function approveCheckin(Booking $booking)
+    {
+        $this->guardNotCancelled($booking);
+
+        $booking->update(['checkin_approved_at' => now()]);
+
+        \App\Services\GuestAlertService::send('checkin_ready', $booking);
+
+        ActivityLogService::admin('checkin_approved', auth()->user()->name." marked the unit ready and approved check-in for {$booking->guest_name}.", 'guests', [
+            'subject_type' => Booking::class,
+            'subject_id'   => $booking->id,
+            'booking_id'   => $booking->id,
+            'property_id'  => $booking->property_id,
+            'severity'     => 'success',
+        ]);
+
+        return back()->with('success', 'Unit ready — guest approved to check in.');
+    }
+
+    /**
      * Approve a single side of the guest's ID (front or back) independently.
      * Overall booking approval (approved_at) is only set once every side on
      * file is approved.
@@ -693,6 +733,8 @@ class BookingController extends Controller
      */
     public function updateTimePreferenceStatus(Request $request, Booking $booking, string $type)
     {
+        $this->guardNotCancelled($booking);
+
         abort_unless(in_array($type, ['checkin', 'checkout'], true), 404);
 
         $data = $request->validate([
@@ -725,6 +767,8 @@ class BookingController extends Controller
 
     public function approveIdSide(Request $request, Booking $booking, string $side)
     {
+        $this->guardNotCancelled($booking);
+
         abort_unless(in_array($side, ['front', 'back'], true), 404);
 
         $field = $side === 'back' ? 'photo_id_back_approved_at' : 'photo_id_front_approved_at';
@@ -802,6 +846,8 @@ class BookingController extends Controller
 
     public function blockAccess(Request $request, Booking $booking)
     {
+        $this->guardNotCancelled($booking);
+
         $data = $request->validate([
             'access_blocked_reason' => ['required', 'string', 'max:1000'],
         ]);
@@ -1000,5 +1046,14 @@ class BookingController extends Controller
                 'incidentals_charge' => 'Incidentals, parking, and early check-in total cannot exceed the deposit threshold of $'.number_format($capCents / 100, 2).'.',
             ]);
         }
+    }
+
+    /**
+     * A guest-cancelled reservation is locked: no edits, approvals, or
+     * check-in actions, whether from the UI or a direct request.
+     */
+    private function guardNotCancelled(Booking $booking): void
+    {
+        abort_if($booking->isCancelled(), 403, 'This reservation was cancelled by the guest and is locked.');
     }
 }

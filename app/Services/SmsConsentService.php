@@ -90,7 +90,7 @@ class SmsConsentService
             'property_id' => $booking->property_id,
             'host_name' => $booking->property?->host_name ?? null,
             'ip_address' => request()->ip(),
-            'opt_in_method' => 'twilio_stop',
+            'opt_in_method' => 'telnyx_stop',
             'occurred_at' => $now,
         ]);
 
@@ -100,7 +100,7 @@ class SmsConsentService
         ])->save();
     }
 
-    public static function handleTwilioKeyword(?string $phone, string $body): void
+    public static function handleInboundKeyword(?string $phone, string $body): void
     {
         $phone = self::normalizePhone($phone);
         if (! $phone) {
@@ -124,7 +124,7 @@ class SmsConsentService
     }
 
     /**
-     * Normalizes to the last 10 digits of the number. Twilio sends inbound
+     * Normalizes to the last 10 digits of the number. Telnyx sends inbound
      * webhooks in E.164 (+1XXXXXXXXXX); guest-entered phone numbers are
      * often stored without the country code. Comparing on the last 10
      * digits means an opt-in recorded as "5551234567" and a STOP received

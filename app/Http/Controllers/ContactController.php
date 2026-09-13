@@ -53,7 +53,7 @@ class ContactController extends Controller
             }
         }
 
-        $adminPhone = config('services.twilio.admin_notify_number');
+        $adminPhone = config('services.telnyx.admin_notify_number');
         if ($adminPhone) {
             SmsNotificationService::guestAlert(
                 $adminPhone,

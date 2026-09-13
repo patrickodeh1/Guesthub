@@ -54,6 +54,14 @@
                     </div>
                 </div>
                 <div class="mt-4">
+                    <label class="field-label" for="host_name">Host / business name</label>
+                    <input id="host_name" name="host_name" type="text"
+                           value="{{ old('host_name', $user->host_name) }}"
+                           class="input" placeholder="e.g. Seaside Stays LLC">
+                    <p class="mt-1 text-xs text-slate-500">The host or business responsible for the listings. Shown as the host party on guest agreements.</p>
+                    @error('host_name') <p class="mt-1 text-xs text-red-600">{{ $message }}</p> @enderror
+                </div>
+                <div class="mt-4">
                     <label class="field-label" for="notes">Internal notes</label>
                     <textarea id="notes" name="notes" rows="3"
                               class="textarea" placeholder="Optional notes about this team member…">{{ old('notes', $user->notes) }}</textarea>

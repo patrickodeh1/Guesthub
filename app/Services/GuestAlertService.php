@@ -32,13 +32,13 @@ class GuestAlertService
 {
     public const EVENTS = [
         'registration_received' => [
-            'label' => 'Registration received',
+            'label' => 'Registration completed',
             'default_guest_message' => "Hi {guest_first_name}, thanks for registering for {property_name}! We're reviewing your details now and will let you know as soon as the next step is ready.",
             'default_staff_message' => 'New registration submitted for {property_name} by {guest_name}. Review it in the admin panel.',
         ],
         'background_check_complete' => [
             'label' => 'Background check complete',
-            'default_guest_message' => "Hi {guest_first_name}, good news! Your {step_name} for {property_name} is complete. We'll follow up with next steps shortly.",
+            'default_guest_message' => "Hi {guest_first_name}, good news! Your {step_name} for {property_name} is complete. Your incidentals hold is now ready — open your check-in link to see the amount and complete payment.",
             'default_staff_message' => "{guest_name}'s {step_name} for {property_name} came back complete.",
         ],
         'fully_approved' => [
@@ -51,10 +51,20 @@ class GuestAlertService
             'default_guest_message' => "Hi {guest_first_name}, today's the day! Check-in at {property_name} opens at {check_in_time}.",
             'default_staff_message' => '{guest_name} is due to check in today at {property_name}, opening at {check_in_time}. Make sure the unit is ready.',
         ],
+        'checkin_ready' => [
+            'label' => 'Unit ready to check in',
+            'default_guest_message' => "Hi {guest_first_name}, good news — your unit at {property_name} is ready! Open your check-in link to complete check-in and unlock your guide.",
+            'default_staff_message' => "{guest_name}'s unit at {property_name} is ready and they have been approved to check in.",
+        ],
         'checkin_completed' => [
             'label' => 'Check-in completed',
             'default_guest_message' => 'Hi {guest_first_name}, your check-in at {property_name} is complete. Enjoy your stay!',
             'default_staff_message' => 'Check-in has been completed and {guest_name} is successfully checked into {property_name}.',
+        ],
+        'checkout_reminder' => [
+            'label' => 'Check-out reminder',
+            'default_guest_message' => 'Hi {guest_first_name}, check-out for {property_name} is available tomorrow at {check_out_time}. Please wait until you are fully ready before starting check-out.',
+            'default_staff_message' => 'Reminder: {guest_name} checks out of {property_name} tomorrow at {check_out_time}.',
         ],
         'checkout_completed' => [
             'label' => 'Check-out completed',
@@ -100,6 +110,11 @@ class GuestAlertService
             'label' => 'Photo ID declined',
             'default_guest_message' => 'Hi {guest_first_name}, the {id_side} of your ID for {property_name} was not approved. Reason: {decline_reason}. Please log back in to re-upload it.',
             'default_staff_message' => 'The {id_side} of {guest_name}\'s ID for {property_name} was declined. Reason: {decline_reason}. Guest has been asked to re-upload.',
+        ],
+        'photo_id_expired' => [
+            'label' => 'Photo ID expired',
+            'default_guest_message' => 'Hi {guest_first_name}, the ID you uploaded for {property_name} appears to be expired. Please log back in and upload a current, unexpired government ID so we can finish your check-in.',
+            'default_staff_message' => 'The ID {guest_name} uploaded for {property_name} appears to be expired. They have been asked to re-upload a valid ID.',
         ],
     ];
 
@@ -353,11 +368,11 @@ class GuestAlertService
         $emails = collect();
 
         if ($row['contact_sms'] ?? false) {
-            // The .env Twilio admin number is kept as a legacy fallback
+            // The .env Telnyx admin number is kept as a legacy fallback
             // recipient alongside the Contact desk toggle, for installs that
             // never moved their admin number into Settings.
             $phones->push(self::normalizePhoneForSms(Setting::getValue('contact_phone')));
-            $phones->push(config('services.twilio.admin_notify_number'));
+            $phones->push(config('services.telnyx.admin_notify_number'));
         }
         if ($row['contact_email'] ?? false) {
             $emails->push(Setting::getValue('contact_email'));
@@ -408,7 +423,7 @@ class GuestAlertService
 
     /**
      * Strip formatting characters (spaces, dashes, parens) from a phone number
-     * pulled from Settings/users so it's in a Twilio-friendly format. Returns
+     * pulled from Settings/users so it's in a Telnyx-friendly format. Returns
      * null if the input is empty so callers can skip sending cleanly.
      */
     protected static function normalizePhoneForSms(?string $number): ?string

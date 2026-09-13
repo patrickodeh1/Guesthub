@@ -9,7 +9,81 @@
     $siteLogo = \App\Models\Setting::getValue('site_logo');
     $categoryColor = ['#eef2ff', '#3b65ce'];
     $guideCats = $categories;
+    // Which pre-check-in wizard step to render server-side so a reload doesn't
+    // flash the welcome screen (step 0) before JS restores the real step.
+    $idwStartStep = (
+        $booking->photo_id_received
+        || $booking->needsIdApproval()
+        || (filled($booking->email) && filled($booking->phone) && ! is_null($booking->parking_needed))
+    ) ? 2 : 0;
+    // If the ID isn't fully approved yet, never let the wizard sit on the final
+    // "get the August app" step (3) — the guest must be shown the ID step so a
+    // required re-upload is obvious.
+    $idwNeedsId = ! $booking->isIdFullyApproved();
+    $idwIdRejected = filled($booking->photo_id_front_declined_reason) || filled($booking->photo_id_back_declined_reason);
 @endphp
+
+{{-- Conditional guest notices (Admin > Guest Notices). Rendered once per
+     page load for the current phase; "once per booking" notices remember
+     dismissal in localStorage. --}}
+@if(($guestNoticePopups ?? collect())->isNotEmpty())
+<div id="guest-notice-overlay" class="hidden fixed inset-0 z-[60] flex items-end justify-center bg-black/50 p-4 sm:items-center">
+    <div class="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+        <div id="guest-notice-content"></div>
+        <button type="button" id="guest-notice-dismiss" class="guest-primary-btn mt-6 w-full">Got it</button>
+    </div>
+</div>
+<div id="guest-notice-source" class="hidden">
+    @foreach($guestNoticePopups as $notice)
+        <div class="guest-notice" data-notice-id="{{ $notice->id }}" data-once="{{ $notice->once_per_booking ? '1' : '0' }}" data-storage-key="guest_notice_{{ $booking->booking_id }}_{{ $notice->id }}">
+            <h2 class="text-lg font-extrabold text-slate-950">{{ $notice->title }}</h2>
+            <div class="mt-3 text-sm leading-6 text-slate-600">{!! nl2br(e($notice->body)) !!}</div>
+        </div>
+    @endforeach
+</div>
+<script>
+(function () {
+    var source = document.getElementById("guest-notice-source");
+    var overlay = document.getElementById("guest-notice-overlay");
+    if (!source || !overlay) return;
+
+    var content = document.getElementById("guest-notice-content");
+    var dismissBtn = document.getElementById("guest-notice-dismiss");
+
+    var pending = Array.prototype.slice.call(source.querySelectorAll(".guest-notice")).filter(function (node) {
+        if (node.dataset.once !== "1") return true;
+        try { return !localStorage.getItem(node.dataset.storageKey); } catch (e) { return true; }
+    });
+
+    if (!pending.length) return;
+
+    var index = 0;
+    function show() {
+        var node = pending[index];
+        if (!node) { overlay.classList.add("hidden"); return; }
+        content.innerHTML = "";
+        var clone = node.cloneNode(true);
+        content.appendChild(clone);
+        overlay.classList.remove("hidden");
+    }
+
+    dismissBtn.addEventListener("click", function () {
+        var node = pending[index];
+        if (node && node.dataset.once === "1") {
+            try { localStorage.setItem(node.dataset.storageKey, "1"); } catch (e) {}
+        }
+        index += 1;
+        show();
+    });
+
+    show();
+})();
+</script>
+@endif
+
+@if($state === 'identity')
+    @vite('resources/js/id-scan.js')
+@endif
 
 @if(! empty($previewMode))
     <div class="mb-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-800">
@@ -41,6 +115,67 @@
                 <div class="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center md:py-24">
                     <h1 class="guest-status-title">Access unavailable</h1>
                     <p class="max-w-md text-sm leading-6 text-slate-600">{!! nl2br(e(strip_tags($booking->access_blocked_reason))) !!}</p>
+                </div>
+            </div>
+        @elseif($state === 'cancelled')
+            <div class="guest-portal-card">
+                <div class="guest-status-bar">
+                    <div>
+                        @if($siteLogo)
+                            <img src="{{ url('/img/'.$siteLogo) }}" alt="" class="h-8 max-w-[140px] w-auto object-contain">
+                        @endif
+                    </div>
+                    <span class="guest-status-pill" style="background:#fef2f2;color:#991b1b;">
+                        <x-icon name="x-circle" class="h-4 w-4" />
+                        Cancelled
+                    </span>
+                </div>
+                <div class="flex flex-col items-center justify-center gap-4 px-6 py-16 text-center md:py-24">
+                    <div class="guest-big-check" style="background:#fef2f2;color:#991b1b;">
+                        <x-icon name="x-circle" class="h-8 w-8" />
+                    </div>
+                    <h1 class="guest-status-title">This reservation was cancelled</h1>
+                    <p class="max-w-md text-sm leading-6 text-slate-600">This stay has been cancelled, so check-in is no longer available. If you believe this is a mistake or have questions, please contact your host.</p>
+                </div>
+            </div>
+        @elseif($state === 'unit_not_ready')
+            <div data-poll-id-status="{{ route('guest.id-status', [$booking->booking_id, $booking->token]) }}" data-poll-fields="checkin_approved"></div>
+            <div class="guest-portal-card">
+                <div class="guest-status-bar">
+                    <div>
+                        @if($siteLogo)
+                            <img src="{{ url('/img/'.$siteLogo) }}" alt="" class="h-8 max-w-[140px] w-auto object-contain">
+                        @endif
+                    </div>
+                    <span class="guest-status-pill">
+                        <x-icon name="clock" class="h-4 w-4" />
+                        Not checked in
+                    </span>
+                </div>
+                <img src="{{ $heroImg }}" alt="{{ $property->name }}" class="guest-hero-img w-full rounded-xl mt-4">
+                <div class="p-6 md:p-10 text-center">
+                    <div class="guest-big-check">
+                        <x-icon name="clock" class="h-8 w-8" />
+                    </div>
+                    <h1 class="guest-status-title">Your unit isn't quite ready yet</h1>
+                    <p class="mt-3 text-sm leading-6 text-slate-600">
+                        We're putting the finishing touches on your unit. There's nothing you need to do — this page refreshes on its own, and as soon as it's ready you'll be approved to check in and your arrival details will appear here.
+                    </p>
+                    <div class="guest-stay-grid mt-6">
+                        <div class="guest-stay-tile">
+                            <div class="guest-stay-tile-icon"><x-icon name="calendar" class="h-5 w-5" /></div>
+                            <p class="guest-stay-tile-label">Check-In</p>
+                            <p class="guest-stay-tile-date">{{ $booking->check_in_date->format('M d, Y') }}</p>
+                            <p class="guest-stay-tile-time">{{ $booking->effectiveCheckinTimeFormatted() }}</p>
+                        </div>
+                        <div class="guest-stay-tile">
+                            <div class="guest-stay-tile-icon"><x-icon name="calendar" class="h-5 w-5" /></div>
+                            <p class="guest-stay-tile-label">Check-Out</p>
+                            <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }}</p>
+                            <p class="guest-stay-tile-time">{{ $booking->effectiveCheckoutTimeFormatted() }}</p>
+                        </div>
+                    </div>
+                    <p class="mt-5 text-xs leading-5 text-slate-500">Please don't head to the property until this screen unlocks — that's when the address and entry steps appear.</p>
                 </div>
             </div>
         @elseif($state === 'identity' && $booking->isIdentityComplete() && $booking->photo_id_received && ($booking->needsIdApproval() || ! $booking->isBackgroundCheckComplete()))
@@ -95,9 +230,9 @@
                     @csrf
 
                     {{-- ══════════════════ STEP 1 — Welcome + Booking details (read-only) ══════════════════ --}}
-                    <div class="idw-step" data-step="0">
+                    <div class="idw-step{{ $idwStartStep === 0 ? '' : ' hidden' }}" data-step="0">
                         <div class="px-0 pb-2">
-                            <h2 class="text-xl font-extrabold text-slate-950">Welcome, {{ explode(' ', trim($booking->guest_name))[0] }}!</h2>
+                            <h2 class="text-xl font-extrabold text-slate-950">{{ explode(' ', trim($booking->guest_name))[0] }}, we can't wait to see you!</h2>
                         </div>
                         <div class="guest-stay-grid mt-5">
                             <div class="guest-stay-tile">
@@ -295,15 +430,26 @@
                             $termsUrl = route('legal.terms');
                             $privacyUrl = route('legal.privacy');
                             $rentalContractUrl = route('legal.rental-contract');
+                            $needsContractSignature = filled(\App\Models\Setting::getValue('legal_rental_contract_content', '')) && ! $booking->contract_accepted_at;
                         @endphp
 
-                        @if(! $booking->terms_accepted_at || (\App\Models\Setting::getValue('legal_rental_contract_content') && ! $booking->contract_accepted_at))
+                        @if(! $booking->terms_accepted_at || $needsContractSignature)
                         <div class="mt-6 rounded-xl border border-slate-200 p-4">
                             <p class="mb-2 text-sm font-semibold text-slate-900">Terms of Service, Privacy Policy &amp; Rental Contract</p>
                             <label class="mt-3 flex items-start gap-2 text-sm text-slate-700">
                                 <input type="checkbox" name="terms_accepted" id="terms-accepted-checkbox" value="1" required class="mt-0.5 rounded border-slate-300">
                                 <span>I agree to the <a href="{{ $termsUrl }}" class="font-medium underline" target="_blank" rel="noopener">Terms of Service</a>, <a href="{{ $privacyUrl }}" class="font-medium underline" target="_blank" rel="noopener">Privacy Policy</a>, and the <a href="{{ $rentalContractUrl }}" class="font-medium underline" target="_blank" rel="noopener">Rental Contract</a>.</span>
                             </label>
+                            @if($needsContractSignature)
+                            <div class="mt-4 border-t border-slate-100 pt-4">
+                                <label class="field-label" for="contract-signed-name">Sign the rental agreement — type your full legal name exactly as it appears on your government ID <span class="text-red-600">*</span></label>
+                                <input id="contract-signed-name" name="contract_signed_name" type="text"
+                                       value="{{ old('contract_signed_name') }}"
+                                       class="guest-input mt-2" autocomplete="off" spellcheck="false"
+                                       placeholder="Full legal name" data-legal-name="{{ $booking->guest_name }}">
+                                <span id="contract-name-error" class="guest-field-error" style="display:none">This must match your name exactly as it appears on your government ID.</span>
+                            </div>
+                            @endif
                         </div>
                         @endif
 
@@ -323,7 +469,7 @@
                     </div>
 
                     {{-- ══════════════════ STEP 2 — ID capture ══════════════════ --}}
-                    <div class="idw-step hidden" data-step="2">
+                    <div class="idw-step{{ $idwStartStep === 2 ? '' : ' hidden' }}" data-step="2">
                         @php
                             // Only require (and show a capture tile for) a side that's actually
                             // missing — cleared by an admin decline, never uploaded, or the
@@ -390,10 +536,6 @@
                             </div>
                             <div id="capture-btn-wrapper" class="hidden mt-3 flex flex-col items-center gap-2">
                                 <p id="idw-capture-status" class="text-sm font-semibold text-slate-700 text-center">Loading camera…</p>
-                                <button type="button" id="capture-btn" class="hidden bg-slate-900 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-xl border-4 border-white mx-auto">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>
-                                </button>
-                                <span id="capture-btn-fallback-label" class="hidden text-xs font-semibold text-slate-600">Tap to capture</span>
                             </div>
                             <div id="front-preview-block" class="hidden mt-3">
                                 <p class="text-xs font-semibold text-slate-500 mb-1">Front of ID</p>
@@ -425,6 +567,9 @@
                             <p id="upload-zone-trigger-back-label" class="mt-2 text-center font-bold{{ $idwBackRequired && ! $idwFrontRequired ? '' : ' hidden' }}">Tap to take photo of back of ID</p>
                             <input type="hidden" name="photo_id" id="photo-id-data">
                             <input type="hidden" name="photo_id_back" id="photo-id-back-data">
+                            <input type="hidden" name="id_barcode_text" id="photo-id-barcode">
+                            <input type="hidden" name="id_ocr_text" id="photo-id-ocr">
+                            <p id="idw-ocr-status" class="hidden mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"></p>
                             </div>
                         </div>
                         @endif
@@ -449,6 +594,40 @@
                     </div>
 
                 </form>
+
+                {{-- Runs immediately after the steps are parsed (before paint)
+                     so a reload restores the saved step without flashing the
+                     welcome screen. --}}
+                <script>
+                (function () {
+                    try {
+                        var step = "{{ $idwStartStep }}";
+                        try {
+                            var saved = JSON.parse(sessionStorage.getItem("idw_form_state_{{ $booking->booking_id }}") || "null");
+                            if (saved && saved.step !== undefined && saved.step !== null) {
+                                step = String(saved.step);
+                            }
+                        } catch (e) {}
+
+                        // Never leave the guest on the final "get the August app"
+                        // step while their ID still needs uploading/re-uploading.
+                        var needsId = {{ $idwNeedsId ? 'true' : 'false' }};
+                        var idRejected = {{ $idwIdRejected ? 'true' : 'false' }};
+                        if (idRejected || (needsId && step === "3")) {
+                            step = "2";
+                        }
+
+                        document.querySelectorAll(".idw-step").forEach(function (s) {
+                            s.classList.toggle("hidden", s.getAttribute("data-step") !== step);
+                        });
+                        var indicator = document.getElementById("step-indicator-wrapper");
+                        if (indicator) indicator.classList.toggle("hidden", step === "0");
+                        document.querySelectorAll(".step-num").forEach(function (el) {
+                            el.classList.toggle("is-current", el.getAttribute("data-num") === step);
+                        });
+                    } catch (e) {}
+                })();
+                </script>
 
                 <script src="{{ asset('js/guest-phone-country.js') }}"></script>
                 <script>
@@ -518,6 +697,22 @@
                     }
                     window.idwSaveState = idwSaveState;
 
+                    function decodeIdBarcode(dataUrl) {
+                        if (!window.GuestIdBarcode || !dataUrl) return;
+                        var nextBtn = document.getElementById("id-capture-next-btn");
+                        if (nextBtn) nextBtn.disabled = true;
+                        var finish = function() { if (nextBtn) nextBtn.disabled = false; };
+                        window.GuestIdBarcode.decode(dataUrl)
+                            .then(function(text) {
+                                if (text) {
+                                    var el = document.getElementById("photo-id-barcode");
+                                    if (el) { el.value = text; idwSaveState({ id_barcode: text }); }
+                                }
+                            })
+                            .then(finish, finish);
+                    }
+                    window.idwDecodeBarcode = decodeIdBarcode;
+
                     function idwClearState() {
                         try { sessionStorage.removeItem(IDW_STORAGE_KEY); } catch (_) {}
                     }
@@ -571,8 +766,18 @@
                                 document.getElementById("back-preview-block").classList.remove("hidden");
                             }
                         }
+                        var barcodeEl = document.getElementById("photo-id-barcode");
+                        if (barcodeEl && saved.id_barcode) {
+                            barcodeEl.value = saved.id_barcode;
+                        }
                         if (saved.step) {
-                            goToStep(saved.step);
+                            var restoreStep = String(saved.step);
+                            var needsIdRestore = {{ $idwNeedsId ? 'true' : 'false' }};
+                            var idRejectedRestore = {{ $idwIdRejected ? 'true' : 'false' }};
+                            if (idRejectedRestore || (needsIdRestore && restoreStep === "3")) {
+                                restoreStep = "2";
+                            }
+                            goToStep(restoreStep);
                         }
                         return true;
                     }
@@ -699,6 +904,7 @@
 
                 var currentSide = "front";
                 var stream = null;
+                var idwCaptureGeneration = 0;
                 var photoIdRequired = {{ $booking->photo_id_received ? 'false' : 'true' }};
                 var isPassport = {{ $booking->id_type === 'passport' ? 'true' : 'false' }};
                 // Which side(s) actually need a (re)capture right now — a side that's
@@ -823,6 +1029,113 @@
                             }
                         }
                     }, 100);
+                }
+
+                // ── On-device OCR (Tesseract.js) ───────────────────────────────
+                // Reads the text off the captured ID in the browser, so the guest
+                // gets "we read your ID" feedback before submitting, and the raw
+                // text is sent to the server to verify name/DOB/expiry even when
+                // the cloud Vision provider is down. Loaded lazily like OpenCV.
+                var IDW_TESSERACT_SRC = "https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
+                var idwTesseractReady = false;
+                var idwTesseractLoading = false;
+                var idwTesseractFailed = false;
+
+                function loadTesseract(onReady, onFail) {
+                    if (window.Tesseract) { idwTesseractReady = true; onReady(); return; }
+                    if (idwTesseractFailed) { if (onFail) onFail(); return; }
+                    if (!idwTesseractLoading) {
+                        idwTesseractLoading = true;
+                        var s = document.createElement("script");
+                        s.src = IDW_TESSERACT_SRC;
+                        s.async = true;
+                        s.onload = function() { idwTesseractReady = true; onReady(); };
+                        s.onerror = function() { idwTesseractLoading = false; idwTesseractFailed = true; if (onFail) onFail(); };
+                        document.head.appendChild(s);
+                    }
+                    setTimeout(function() {
+                        if (!idwTesseractReady && !idwTesseractFailed) {
+                            idwTesseractFailed = true;
+                            if (onFail) onFail();
+                        }
+                    }, 8000);
+                }
+
+                // Crops the captured photo down to roughly the bottom band where a
+                // passport's machine-readable zone (MRZ) sits -- the two/three fixed
+                // width OCR-B lines at the very bottom of the data page. Cropping out
+                // the header text, photo, and other printed fields before OCR is what
+                // actually makes Tesseract usable here: without this it tries to read
+                // everything on the page (headers, photo edges, etc.) and produces
+                // mostly noise. A standard passport data page (ID-3, ISO/IEC 7810) has
+                // its MRZ occupying about the bottom 20% of the page height, spanning
+                // nearly the full width.
+                // Wide, generous crop of the bottom third of the page -- deliberately
+                // NOT tuned tight to the MRZ, since exact MRZ position varies enough
+                // across countries' passport layouts and capture angles that a tight
+                // crop risks cutting off the name line. Grabbing extra blank margin
+                // above the MRZ costs OCR almost nothing; cutting off the name line
+                // loses the one field we most need.
+                function __idwCropToBottomThird(dataUrl, cb) {
+                    var img = new Image();
+                    img.onload = function() {
+                        var bandTop = Math.round(img.naturalHeight * 0.65);
+                        var bandHeight = img.naturalHeight - bandTop;
+                        var canvas = document.createElement("canvas");
+                        var scale = 1.5;
+                        canvas.width = Math.round(img.naturalWidth * scale);
+                        canvas.height = Math.round(bandHeight * scale);
+                        var ctx = canvas.getContext("2d");
+                        ctx.drawImage(
+                            img,
+                            0, bandTop, img.naturalWidth, bandHeight,
+                            0, 0, canvas.width, canvas.height
+                        );
+                        cb(canvas.toDataURL("image/jpeg", 0.95));
+                    };
+                    img.onerror = function() { cb(dataUrl); };
+                    img.src = dataUrl;
+                }
+
+                function ocrIdImage(dataUrl, cb) {
+                    var called = false;
+                    function finish(text) { if (called) return; called = true; cb(text); }
+
+                    function recognizeOne(image, whitelist, onDone) {
+                        loadTesseract(function() {
+                            if (!window.Tesseract || !window.Tesseract.recognize) { onDone(null); return; }
+                            var opts = { logger: null };
+                            if (whitelist) opts.tessedit_char_whitelist = whitelist;
+                            window.Tesseract.recognize(image, "eng", opts)
+                                .then(function(r) { onDone(r && r.data && r.data.text ? r.data.text : null); })
+                                .catch(function() { onDone(null); });
+                        }, function() { onDone(null); });
+                    }
+
+                    if (!isPassport) {
+                        recognizeOne(dataUrl, null, finish);
+                        return;
+                    }
+
+                    // Passports: run OCR twice and combine the text -- once on a wide
+                    // bottom-third crop with the MRZ character set (best chance at a
+                    // clean MRZ read regardless of exact line position), and once on
+                    // the full page with no restriction (catches printed labelled
+                    // fields, and acts as a fallback if the crop missed the MRZ
+                    // entirely). The scanner on the server tries multiple parsing
+                    // strategies against whatever text it's given, so combining
+                    // sources here only helps -- it can't produce a false positive,
+                    // it just gives it more to work with.
+                    __idwCropToBottomThird(dataUrl, function(cropped) {
+                        var results = [];
+                        var remaining = 2;
+                        function maybeFinish() {
+                            remaining--;
+                            if (remaining === 0) finish(results.filter(Boolean).join("\n"));
+                        }
+                        recognizeOne(cropped, "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789<", function(t) { results[0] = t; maybeFinish(); });
+                        recognizeOne(dataUrl, null, function(t) { results[1] = t; maybeFinish(); });
+                    });
                 }
 
                 // Downsamples the captured image, computes a Laplacian-based sharpness
@@ -993,6 +1306,7 @@
                 var idwDetectionTimer = null;
                 var idwStableFrameCount = 0;
                 var idwAutoCaptureInFlight = false;
+                var idwCaptureTimer = null;
 
                 function stopDetectionLoop() {
                     if (idwDetectionTimer) { clearInterval(idwDetectionTimer); idwDetectionTimer = null; }
@@ -1065,8 +1379,6 @@
                     container.classList.remove("hidden");
                     btnWrapper.classList.remove("hidden");
                     document.getElementById("idw-capture-status").textContent = "Loading camera…";
-                    document.getElementById("capture-btn").classList.add("hidden");
-                    document.getElementById("capture-btn-fallback-label").classList.add("hidden");
 
                     navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false })
                         .then(function(s) {
@@ -1084,11 +1396,15 @@
                                 document.getElementById("idw-capture-status").textContent = "Position the ID within the frame";
                                 startDetectionLoop();
                             }, function() {
-                                // OpenCV unavailable — fall back to manual capture so the
-                                // guest isn't stuck.
-                                document.getElementById("idw-capture-status").textContent = "Position the ID within the frame, then tap to capture";
-                                document.getElementById("capture-btn").classList.remove("hidden");
-                                document.getElementById("capture-btn-fallback-label").classList.remove("hidden");
+                                // OpenCV unavailable — still auto-capture (there is
+                                // no manual shutter button): hold for a moment, then
+                                // snap automatically.
+                                document.getElementById("idw-capture-status").textContent = "Hold steady — capturing automatically…";
+                                if (idwCaptureTimer) clearTimeout(idwCaptureTimer);
+                                idwCaptureTimer = setTimeout(function() {
+                                    idwCaptureTimer = null;
+                                    performCapture();
+                                }, 3500);
                             });
                         })
                         .catch(function() { alert("Camera access denied. Please allow camera permissions and try again."); });
@@ -1096,6 +1412,7 @@
 
                 function stopCamera() {
                     stopDetectionLoop();
+                    if (idwCaptureTimer) { clearTimeout(idwCaptureTimer); idwCaptureTimer = null; }
                     if (stream) { stream.getTracks().forEach(function(t){ t.stop(); }); stream = null; }
                     document.getElementById("camera-container").classList.add("hidden");
                     document.getElementById("capture-btn-wrapper").classList.add("hidden");
@@ -1130,6 +1447,27 @@
                 }
 
                 if (photoIdRequired) {
+                    var idwOcrText = "";
+
+                    function idwSetOcr(text) {
+                        idwOcrText = text || "";
+                        var el = document.getElementById("photo-id-ocr");
+                        if (el) el.value = idwOcrText;
+                        if (window.idwSaveState) { window.idwSaveState({ id_ocr_text: idwOcrText }); }
+                        var status = document.getElementById("idw-ocr-status");
+                        if (!status) return;
+                        if (idwOcrText.trim()) {
+                            status.classList.remove("hidden");
+                            status.style.background = "#f0fdf4";
+                            status.style.borderColor = "#bbf7d0";
+                            status.style.color = "#166534";
+                            status.textContent = "We read the details on your ID ✓";
+                        } else {
+                            status.classList.add("hidden");
+                            status.textContent = "";
+                        }
+                    }
+
                     function performCapture() {
                         var video = document.getElementById("camera-stream");
                         var crop = __idwGetGuideCropRect(video);
@@ -1149,6 +1487,26 @@
                                 if (ok) {
                                     document.getElementById("photo-id-data").value = dataUrl;
                                     idwSaveState({ photo_id: dataUrl });
+                                    idwSetOcr("");
+                                    idwCaptureGeneration++;
+                                    (function() {
+                                        var thisGen = idwCaptureGeneration;
+                                        var nextBtn = document.getElementById("id-capture-next-btn");
+                                        if (nextBtn) nextBtn.disabled = true;
+                                        var status = document.getElementById("idw-ocr-status");
+                                        if (status) {
+                                            status.classList.remove("hidden");
+                                            status.style.background = "#f8fafc";
+                                            status.style.borderColor = "#e2e8f0";
+                                            status.style.color = "#475569";
+                                            status.textContent = "Reading your ID…";
+                                        }
+                                        ocrIdImage(dataUrl, function(text) {
+                                            if (thisGen !== idwCaptureGeneration) return;
+                                            idwSetOcr(text);
+                                            if (nextBtn) nextBtn.disabled = false;
+                                        });
+                                    })();
                                     if (!isPassport && idwBackRequired) {
                                         document.getElementById("upload-zone-trigger-back").classList.remove("hidden");
                                         document.getElementById("upload-zone-trigger-back-label").classList.remove("hidden");
@@ -1161,19 +1519,24 @@
                             document.getElementById("back-preview-block").classList.remove("hidden");
                             img.onload = function() {
                                 var ok = checkBlur(img, document.getElementById("back-blur-warning"));
-                                if (ok) { document.getElementById("photo-id-back-data").value = dataUrl; idwSaveState({ photo_id_back: dataUrl }); }
+                                if (ok) { document.getElementById("photo-id-back-data").value = dataUrl; idwSaveState({ photo_id_back: dataUrl }); window.idwDecodeBarcode(dataUrl); }
                             };
                         }
                     }
 
-                    // Manual fallback button — only shown if OpenCV.js fails to load.
-                    document.getElementById("capture-btn").addEventListener("click", performCapture);
-
                     document.getElementById("retake-front-btn").addEventListener("click", function() {
+                        idwCaptureGeneration++;
+                        var idwNextBtn = document.getElementById("id-capture-next-btn");
+                        if (idwNextBtn) idwNextBtn.disabled = false;
                         document.getElementById("front-preview-block").classList.add("hidden");
                         document.getElementById("upload-zone-trigger-back").classList.add("hidden");
                         document.getElementById("upload-zone-trigger-back-label").classList.add("hidden");
                         document.getElementById("photo-id-data").value = "";
+                        var ocr = document.getElementById("photo-id-ocr");
+                        if (ocr) ocr.value = "";
+                        idwOcrText = "";
+                        var ocrStatus = document.getElementById("idw-ocr-status");
+                        if (ocrStatus) ocrStatus.classList.add("hidden");
                         startCamera("front");
                     });
 
@@ -1182,6 +1545,28 @@
                         document.getElementById("photo-id-back-data").value = "";
                         startCamera("back");
                     });
+                }
+
+                function resetIdCapture() {
+                    var frontData = document.getElementById("photo-id-data");
+                    var backData = document.getElementById("photo-id-back-data");
+                    var barcode = document.getElementById("photo-id-barcode");
+                    var ocr = document.getElementById("photo-id-ocr");
+                    if (frontData) frontData.value = "";
+                    if (backData) backData.value = "";
+                    if (barcode) barcode.value = "";
+                    if (ocr) ocr.value = "";
+                    idwOcrText = "";
+                    var ocrStatus = document.getElementById("idw-ocr-status");
+                    if (ocrStatus) ocrStatus.classList.add("hidden");
+                    var frontBlock = document.getElementById("front-preview-block");
+                    var backBlock = document.getElementById("back-preview-block");
+                    if (frontBlock) frontBlock.classList.add("hidden");
+                    if (backBlock) backBlock.classList.add("hidden");
+                    var frontTrigger = document.getElementById("upload-zone-trigger");
+                    var frontLabel = document.getElementById("upload-zone-trigger-front-label");
+                    if (frontTrigger) frontTrigger.classList.remove("hidden");
+                    if (frontLabel) frontLabel.classList.remove("hidden");
                 }
 
                 function withButtonBusy(btn, busyLabel, fn) {
@@ -1263,11 +1648,37 @@
                         return;
                     }
 
+                    var contractNameInput = document.getElementById("contract-signed-name");
+                    if (contractNameInput && step1TermsCheckbox && step1TermsCheckbox.checked) {
+                        var contractNameError = document.getElementById("contract-name-error");
+                        var normalizeName = function (v) { return (v || "").replace(/\s+/g, " ").trim().toLowerCase(); };
+                        if (normalizeName(contractNameInput.value) !== normalizeName(contractNameInput.dataset.legalName)) {
+                            if (contractNameError) contractNameError.style.display = "block";
+                            contractNameInput.classList.add("border-red-400");
+                            contractNameInput.scrollIntoView({ behavior: "smooth", block: "center" });
+                            contractNameInput.focus();
+                            return;
+                        }
+                    }
+
                     var loginFd = new FormData();
                     loginFd.append("_token", document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : "");
                     if (step1TermsCheckbox) {
                         loginFd.append("terms_accepted", step1TermsCheckbox.checked ? "1" : "0");
                         loginFd.append("contract_accepted", step1TermsCheckbox.checked ? "1" : "0");
+                    }
+                    if (contractNameInput) loginFd.append("contract_signed_name", contractNameInput.value);
+                    if (contractNameInput) {
+                        var deviceId = "";
+                        try {
+                            var dk = "gh_device_id";
+                            deviceId = window.localStorage.getItem(dk) || "";
+                            if (!deviceId) {
+                                deviceId = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : (Date.now().toString(36) + Math.random().toString(36).slice(2));
+                                window.localStorage.setItem(dk, deviceId);
+                            }
+                        } catch (e) {}
+                        loginFd.append("contract_signed_device_id", deviceId);
                     }
                     ["guest_name", "phone", "email", "checkin_time_preference", "checkout_time_preference"].forEach(function(name) {
                         var input = step.querySelector('[name="' + name + '"]');
@@ -1294,6 +1705,14 @@
                                 if (r.status === 422) {
                                     return r.json().then(function(body) {
                                         restore();
+                                        if (body.errors && body.errors.contract_signed_name && contractNameInput) {
+                                            var contractNameError = document.getElementById("contract-name-error");
+                                            if (contractNameError) contractNameError.style.display = "block";
+                                            contractNameInput.classList.add("border-red-400");
+                                            contractNameInput.scrollIntoView({ behavior: "smooth", block: "center" });
+                                            contractNameInput.focus();
+                                            return;
+                                        }
                                         var messages = body.errors ? Object.values(body.errors).flat().join("\n") : "Please check the form and try again.";
                                         alert(messages);
                                     });
@@ -1312,6 +1731,15 @@
                             });
                     });
                 });
+
+                var contractNameField = document.getElementById("contract-signed-name");
+                if (contractNameField) {
+                    contractNameField.addEventListener("input", function () {
+                        var err = document.getElementById("contract-name-error");
+                        if (err) err.style.display = "none";
+                        contractNameField.classList.remove("border-red-400");
+                    });
+                }
 
                 // ── Step 2 "Next": validate + AJAX-submit photos via submitIdentity, then advance to Step 3 ──
                 document.getElementById("id-capture-next-btn").addEventListener("click", function() {
@@ -1342,6 +1770,14 @@
                         if (!isPassport && idwBackRequired) {
                             fd.set("photo_id_back", b64toBlob(document.getElementById("photo-id-back-data").value), "back.jpg");
                         }
+                        var barcodeValue = document.getElementById("photo-id-barcode");
+                        if (barcodeValue && barcodeValue.value) {
+                            fd.set("id_barcode_text", barcodeValue.value);
+                        }
+                        var ocrValue = document.getElementById("photo-id-ocr");
+                        if (ocrValue && ocrValue.value) {
+                            fd.set("id_ocr_text", ocrValue.value);
+                        }
                     }
 
                     withButtonBusy(btn, "Uploading…", function(restore) {
@@ -1354,6 +1790,15 @@
                                 if (r.status === 422) {
                                     return r.json().then(function(body) {
                                         restore();
+                                        if (body.id_rejected) {
+                                            // Invalid ID: force the guest back to the ID
+                                            // step to re-upload instead of advancing.
+                                            resetIdCapture();
+                                            idwClearState();
+                                            goToStep(2);
+                                            alert(body.reason || "Your ID could not be accepted. Please upload a valid government ID.");
+                                            return;
+                                        }
                                         var messages = body.errors ? Object.values(body.errors).flat().join("\n") : "Please check the form and try again.";
                                         alert(messages);
                                     });
@@ -1436,7 +1881,7 @@
                         </span>
                         <div>
                             <p class="guest-detail-banner-title">Check In Details Available</p>
-                            <p class="guest-detail-banner-sub">{{ $booking->check_in_date->format('M d, Y') }} at {{ $booking->effectiveCheckinTimeFormatted() }}</p>
+                            <p class="guest-detail-banner-sub">{{ $booking->check_in_date->format('M d, Y') }} at {{ $booking->addressAvailableAtFormatted() }}</p>
                             <p class="guest-detail-banner-sub mt-1">Please come back then for property address and check in details.</p>
                         </div>
                     </div>
@@ -1500,7 +1945,16 @@
                 </div>
             </div>
         @elseif($state === 'arrival')
-            <div data-poll-gps-status="{{ route('guest.gps-status', [$booking->booking_id, $booking->token]) }}"></div>
+            @php
+                $arrivalAgreed = $booking->hasAgreedToArrivalDisclaimer();
+                $arrivalDisclaimer = \App\Models\Setting::getValue(
+                    'arrival_disclaimer',
+                    "<p><strong>Before you start navigating to the property, please read your arrival instructions.</strong> Guests who arrive without reading them often end up waiting outside and messaging us for entry. Please go through every step first, then type <strong>agree</strong> below to continue.</p>"
+                );
+            @endphp
+            @if($arrivalAgreed)
+                <div data-poll-gps-status="{{ route('guest.gps-status', [$booking->booking_id, $booking->token]) }}"></div>
+            @endif
             <div class="guest-portal-card">
                 <div class="guest-status-bar">
                     <div>
@@ -1535,7 +1989,23 @@
                     </div>
                 </div>
 
-                @if($booking->canViewAddress())
+                @if(! $arrivalAgreed)
+                    <div class="mt-5 rounded-xl border-2 border-amber-300 bg-amber-50 p-5 text-left">
+                        <div class="flex items-center gap-2 text-amber-900">
+                            <x-icon name="alert-triangle" class="h-5 w-5 shrink-0" />
+                            <p class="font-bold">Please read this before you travel</p>
+                        </div>
+                        <div class="mt-3 text-sm leading-6 text-amber-900">{!! $arrivalDisclaimer !!}</div>
+                        <div class="mt-5">
+                            <label class="block text-sm font-semibold text-amber-900" for="arrival-agree-input">Type <span class="font-mono font-bold">agree</span> to continue</label>
+                            <input id="arrival-agree-input" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" disabled placeholder="agree" class="guest-input mt-2">
+                        </div>
+                        <form id="arrival-agree-form" method="post" action="{{ route('guest.arrival-agree', [$booking->booking_id, $booking->token]) }}" class="mt-4">
+                            @csrf
+                            <button type="submit" id="arrival-agree-btn" class="guest-primary-btn w-full" disabled>Continue (<span id="arrival-agree-countdown">20</span>s)</button>
+                        </form>
+                    </div>
+                @elseif($booking->canViewAddress())
                     <div class="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-sm">
                         <p class="font-semibold text-slate-800 mb-2">Property Address</p>
                         <p class="text-slate-600">{{ $property->shortAddress() }}</p>
@@ -1567,7 +2037,7 @@
             </div>
             </div>
 
-            @if($booking->canViewAddress())
+            @if($arrivalAgreed && $booking->canViewAddress())
             <div class="guest-portal-card mt-4">
                 <div class="p-6 md:p-8 text-center text-xl text-slate-950">{!! $gpsVerifyMessage !!}</div>
             </div>
@@ -1604,6 +2074,43 @@
                 </div>
             </div>
             @endif
+
+            @if(! $arrivalAgreed)
+            <script>
+            (function () {
+                var input = document.getElementById('arrival-agree-input');
+                var btn = document.getElementById('arrival-agree-btn');
+                var countdownEl = document.getElementById('arrival-agree-countdown');
+                var form = document.getElementById('arrival-agree-form');
+                if (!input || !btn || !form) return;
+
+                var seconds = 20;
+                var ready = false;
+
+                function refresh() {
+                    var typed = (input.value || '').trim().toLowerCase() === 'agree';
+                    btn.disabled = !(ready && typed);
+                }
+
+                var timer = window.setInterval(function () {
+                    seconds -= 1;
+                    if (seconds <= 0) {
+                        window.clearInterval(timer);
+                        ready = true;
+                        if (countdownEl) countdownEl.textContent = '0';
+                        input.disabled = false;
+                        input.focus();
+                        btn.textContent = 'Continue';
+                        refresh();
+                        return;
+                    }
+                    if (countdownEl) countdownEl.textContent = String(seconds);
+                }, 1000);
+
+                input.addEventListener('input', refresh);
+            })();
+            </script>
+            @endif
         @elseif($state === 'awaiting_deposit')
             <div data-poll-id-status="{{ route('guest.id-status', [$booking->booking_id, $booking->token]) }}" data-poll-fields="deposit_verified"></div>
             <div class="guest-portal-card">
@@ -1614,8 +2121,13 @@
                         @endif
                     </div>
                     <span class="guest-status-pill{{ $booking->isDepositCaptured() ? ' is-ready' : '' }}">
-                        <x-icon name="{{ $booking->isDepositCaptured() ? 'check' : 'clock' }}" class="h-4 w-4" />
-                        {{ $booking->isDepositCaptured() ? 'Deposit paid' : 'Awaiting deposit' }}
+                        @if($booking->platformPaymentSelected() && ! $booking->isDepositCaptured())
+                            <x-icon name="clock" class="h-4 w-4" />
+                            Pending approval
+                        @else
+                            <x-icon name="{{ $booking->isDepositCaptured() ? 'check' : 'clock' }}" class="h-4 w-4" />
+                            {{ $booking->isDepositCaptured() ? 'Deposit paid' : 'Awaiting deposit' }}
+                        @endif
                     </span>
                 </div>
                 <div class="px-6 pt-5">
@@ -1626,6 +2138,15 @@
                     @php
                         $depositAmountCents = $booking->calculatePreCheckinChargeCents();
                         $stripeConfigured = filled(config('services.stripe.key')) && filled(config('services.stripe.secret'));
+                        $platformLabel = $booking->platformLabel();
+                        $otaInstructions = str_replace(
+                            '[[platform]]',
+                            $platformLabel,
+                            \App\Models\Setting::getValue(
+                                'airbnb_payment_instructions',
+                                "<p>We'll send you a payment request through [[platform]]. Once it's completed, we'll confirm and send your check-in details.</p>"
+                            )
+                        );
                     @endphp
                     @if($booking->isDepositCaptured())
                         <div class="text-center">
@@ -1635,15 +2156,18 @@
                             <h2 class="mt-4 text-xl font-extrabold text-slate-950">Payment received</h2>
                             <p class="mt-3 text-sm leading-6 text-slate-600">Thank you. Your payment has been received. We are confirming your deposit now, and you will receive a message with your check-in details once it has been verified.</p>
                         </div>
+                    @elseif($booking->platformPaymentSelected())
+                        <div class="text-center">
+                            <div class="guest-big-check mx-auto" style="background:#fef3c7;color:#b45309;">
+                                <x-icon name="clock" class="h-8 w-8" />
+                            </div>
+                            <h2 class="mt-4 text-xl font-extrabold text-slate-950">Pending approval</h2>
+                            <p class="mt-3 text-sm leading-6 text-slate-600">We've received your registration. Your incidentals hold is being handled through {{ $platformLabel }}, so there's nothing more you need to do right now. We'll message you as soon as your reservation is approved and the next step is ready.</p>
+                        </div>
+                        <div class="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4 text-left text-sm leading-6 text-slate-600">
+                            {!! $otaInstructions !!}
+                        </div>
                     @elseif($stripeConfigured && $depositAmountCents > 0)
-                        @php
-                            $platformLabel = $booking->platformLabel();
-                            $otaInstructions = \App\Models\Setting::getValue(
-                                'airbnb_payment_instructions',
-                                "<p>We'll send you a payment request through [[platform]]. Once it's completed, we'll confirm and send your check-in details.</p>"
-                            );
-                            $otaInstructions = str_replace('[[platform]]', $platformLabel, $otaInstructions);
-                        @endphp
                         <div class="text-center">
                             <h2 class="text-xl font-extrabold text-slate-950">Incidentals payment</h2>
                             <p class="mt-3 text-sm leading-6 text-slate-600">A payment of <strong>${{ number_format($depositAmountCents / 100, 2) }}</strong> is required before check-in.</p>
@@ -1651,12 +2175,7 @@
 
                         <div id="deposit-payment-choice" class="mt-5">
                             <button type="button" id="deposit-pay-here-btn" class="guest-primary-btn w-full">Pay Here with Card</button>
-                            <button type="button" id="deposit-pay-airbnb-btn" class="guest-outline-btn w-full mt-3">Pay on {{ $platformLabel }}</button>
-                        </div>
-
-                        <div id="deposit-airbnb-instructions" class="mt-5 hidden text-left text-sm leading-6 text-slate-600 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                            {!! $otaInstructions !!}
-                            <button type="button" id="deposit-airbnb-back-btn" class="mt-4 text-xs font-semibold text-blue-600 underline">Back</button>
+                            <button type="button" id="deposit-pay-airbnb-btn" class="guest-outline-btn w-full mt-3 js-select-platform" data-platform-url="{{ route('guest.deposit.platform', [$booking->booking_id, $booking->token]) }}">Pay on {{ $platformLabel }}</button>
                         </div>
 
                         <div id="deposit-card-section" class="hidden">
@@ -1688,11 +2207,8 @@
                         <script>
                         (function() {
                             var choiceBlock = document.getElementById("deposit-payment-choice");
-                            var airbnbBlock = document.getElementById("deposit-airbnb-instructions");
                             var cardSection = document.getElementById("deposit-card-section");
                             var payHereBtn = document.getElementById("deposit-pay-here-btn");
-                            var airbnbBtn = document.getElementById("deposit-pay-airbnb-btn");
-                            var airbnbBackBtn = document.getElementById("deposit-airbnb-back-btn");
                             var stripeInitStarted = false;
 
                             var form = document.getElementById("deposit-payment-form");
@@ -1889,18 +2405,6 @@
                                     initStripeCardForm();
                                 });
                             }
-                            if (airbnbBtn) {
-                                airbnbBtn.addEventListener("click", function() {
-                                    choiceBlock.classList.add("hidden");
-                                    airbnbBlock.classList.remove("hidden");
-                                });
-                            }
-                            if (airbnbBackBtn) {
-                                airbnbBackBtn.addEventListener("click", function() {
-                                    airbnbBlock.classList.add("hidden");
-                                    choiceBlock.classList.remove("hidden");
-                                });
-                            }
 
                             if (form) {
                                 form.addEventListener("submit", function(e) {
@@ -1940,6 +2444,9 @@
                                                 .then(function(confirmData) {
                                                     if (confirmData.ok) {
                                                         showSuccess(confirmData.message);
+                                                        // Deposit is auto-verified server-side now,
+                                                        // so reload to advance past this screen.
+                                                        setTimeout(function() { window.location.reload(); }, 1200);
                                                     } else {
                                                         showError(confirmData.error || "Payment could not be confirmed. Please contact us.");
                                                         payBtn.disabled = false;
@@ -1961,12 +2468,36 @@
                         <h2 class="text-xl font-extrabold text-slate-950">Pre-check in completed!</h2>
                         <p class="mt-3 text-sm leading-6 text-slate-600">Please submit your required incidentals hold payment on the booking platform. This hold is refundable after check out.</p>
                         </div>
+                        <button type="button" class="guest-primary-btn mt-5 w-full js-select-platform" data-platform-url="{{ route('guest.deposit.platform', [$booking->booking_id, $booking->token]) }}">I'll pay on {{ $platformLabel }}</button>
                     @else
                         <div class="text-center">
                         <h2 class="text-xl font-extrabold text-slate-950">Pending incidentals hold payment</h2>
                         <p class="mt-3 text-sm leading-6 text-slate-600">If you have already submitted the payment, please send us a message so that we can expedite this for you. It usually doesn't take that long.</p>
                         </div>
+                        <button type="button" class="guest-primary-btn mt-5 w-full js-select-platform" data-platform-url="{{ route('guest.deposit.platform', [$booking->booking_id, $booking->token]) }}">I'll pay on {{ $platformLabel }}</button>
                     @endif
+                    <script>
+                    (function () {
+                        // "I'll pay on <platform>" — records the off-platform
+                        // choice, then reloads into the pending-approval screen.
+                        document.querySelectorAll(".js-select-platform").forEach(function (btn) {
+                            btn.addEventListener("click", function () {
+                                if (btn.disabled) return;
+                                btn.disabled = true;
+                                btn.textContent = "Saving…";
+                                fetch(btn.dataset.platformUrl, {
+                                    method: "POST",
+                                    headers: {
+                                        "Accept": "application/json",
+                                        "Content-Type": "application/json",
+                                        "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : ""
+                                    }
+                                }).then(function () { window.location.reload(); })
+                                  .catch(function () { window.location.reload(); });
+                            });
+                        });
+                    })();
+                    </script>
                 </div>
             </div>
         @elseif($state === 'checkout_notice')
@@ -2002,6 +2533,8 @@
                                     :lock-id="$entry['lock']->id"
                                     :lock-label="$locks->count() > 1 ? $entry['lock']->label : null"
                                     :lock-status="$entry['status']"
+                                    :auto-checkin="! $booking->isMarkedCheckedIn()"
+                                    :auto-checkout="$booking->isCheckoutDay()"
                                 />
                             @endforeach
                         </div>
@@ -2028,6 +2561,7 @@
                 </div>
             </div>
         @elseif($state === 'checkout_available')
+            <div data-poll-id-status="{{ route('guest.id-status', [$booking->booking_id, $booking->token]) }}" data-poll-fields="checked_out" class="hidden"></div>
             @if(count($checkoutSteps) > 0)
                 <div id="checkout-wizard-wrapper" style="display:none">
                     <x-step-wizard :steps="$checkoutSteps" type="checkout" next-section="checkout-guide-section" :booking-id="$booking->booking_id" :token="$booking->token" :show-back-link="true" />
@@ -2064,6 +2598,8 @@
                                     :lock-id="$entry['lock']->id"
                                     :lock-label="$locks->count() > 1 ? $entry['lock']->label : null"
                                     :lock-status="$entry['status']"
+                                    :auto-checkin="! $booking->isMarkedCheckedIn()"
+                                    :auto-checkout="$booking->isCheckoutDay()"
                                 />
                             @endforeach
                         </div>
@@ -2187,6 +2723,7 @@
                                 $displayTitle = $category->pivot->custom_title ?: $category->title;
                                 $displayDescription = $category->pivot->custom_description ?: $category->description;
                             @endphp
+
                             <x-guide-panel
                                 :href="route('guest.category', [$booking->booking_id, $booking->token, $category])"
                                 :icon="$category->slug"
@@ -2244,6 +2781,8 @@
                                     :lock-id="$entry['lock']->id"
                                     :lock-label="$locks->count() > 1 ? $entry['lock']->label : null"
                                     :lock-status="$entry['status']"
+                                    :auto-checkin="! $booking->isMarkedCheckedIn()"
+                                    :auto-checkout="$booking->isCheckoutDay()"
                                 />
                             @endforeach
                         </div>
@@ -2296,6 +2835,10 @@
                 <a href="{{ route('legal.terms') }}" class="underline hover:text-slate-600">Terms of Service</a>
                 &middot;
                 <a href="{{ route('legal.privacy') }}" class="underline hover:text-slate-600">Privacy Policy</a>
+                @if($booking->contract_accepted_at)
+                &middot;
+                <a href="{{ route('guest.rental-agreement', [$booking->booking_id, $booking->token]) }}" class="underline hover:text-slate-600" target="_blank" rel="noopener">Rental Agreement</a>
+                @endif
                 &middot;
                 <a href="{{ route('contact') }}" class="underline hover:text-slate-600">Contact</a>
             </p>

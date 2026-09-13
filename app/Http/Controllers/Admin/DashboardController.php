@@ -17,6 +17,19 @@ class DashboardController extends Controller
         $seam = app(SeamService::class);
 
         return PropertyLock::with('property')->get()->map(function (PropertyLock $lock) use ($seam) {
+            // Live lock state. last_known_locked is only refreshed by Seam
+            // webhooks, so if webhooks are down or a delivery is missed the
+            // dashboard kept showing a stale state that didn't match the
+            // actual door. Query Seam directly and persist what we learn.
+            try {
+                $live = $seam->getLockStatus($lock->seam_device_id);
+                if ($live !== null && $lock->last_known_locked !== $live) {
+                    $lock->update(['last_known_locked' => $live, 'last_status_at' => now()]);
+                }
+            } catch (\Throwable $e) {
+                report($e);
+            }
+
             $cacheKey = "lock_battery_fetched:{$lock->id}";
 
             if (! Cache::has($cacheKey)) {
@@ -67,17 +80,7 @@ class DashboardController extends Controller
             ->map(function (Property $property) use ($today) {
                 $property->setRelation('bookings', $property->bookings
                     ->sortBy(function (Booking $booking) use ($today) {
-                        $checkIn = $booking->check_in_date?->toDateString();
-                        $checkOut = $booking->check_out_date?->toDateString();
-
-                        $group = match (true) {
-                            $checkIn === $today => 0,
-                            $checkOut === $today => 1,
-                            $booking->status === 'currently_hosting' => 2,
-                            default => 3,
-                        };
-
-                        return sprintf('%d|%s|%s', $group, $checkIn, $booking->guest_name);
+                        return $this->dashboardSortKey($booking, $today);
                     })
                     ->values());
 
@@ -86,12 +89,51 @@ class DashboardController extends Controller
             ->filter(fn (Property $property) => $property->bookings->isNotEmpty())
             ->values();
 
+        // Flat priority lists for the "Today" and "Upcoming" cards: pending
+        // check-ins first, then approved/checked-in guests, then check-outs.
+        $todayGuests = Booking::with('property')
+            ->notArchived()
+            ->where(fn ($q) => $q->whereDate('check_in_date', $today)->orWhereDate('check_out_date', $today))
+            ->get()
+            ->sortBy(fn (Booking $booking) => $this->dashboardSortKey($booking, $today))
+            ->values();
+
+        $upcomingGuests = Booking::with('property')
+            ->notArchived()
+            ->whereNull('checked_out_at')
+            ->whereDate('check_in_date', '>', $today)
+            ->get()
+            ->sortBy(fn (Booking $booking) => $this->dashboardSortKey($booking, $today))
+            ->values();
+
         return view('admin.dashboard', [
             'overview'       => $overview,
             'properties'     => $properties,
+            'todayGuests'    => $todayGuests,
+            'upcomingGuests' => $upcomingGuests,
             'today'          => $today,
             'recentActivity' => ActivityLog::with('user')->latest()->take(8)->get(),
             'propertyLocks'  => $this->lockStatuses(),
         ]);
+    }
+
+    /**
+     * Urgency ordering for today's and upcoming guests: pending check-ins
+     * first, then approved/checked-in guests, then check-outs, with earlier
+     * check-in dates ahead of later ones.
+     */
+    private function dashboardSortKey(Booking $booking, string $today): string
+    {
+        $checkIn = $booking->check_in_date?->toDateString();
+        $checkOut = $booking->check_out_date?->toDateString();
+
+        $group = match (true) {
+            $checkIn === $today && ! $booking->isMarkedCheckedIn() => 0,
+            $checkIn === $today => 1,
+            $checkOut === $today => 2,
+            default => 3,
+        };
+
+        return sprintf('%d|%s|%s', $group, $checkIn, $booking->guest_name);
     }
 }

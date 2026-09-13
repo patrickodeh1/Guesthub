@@ -116,8 +116,14 @@ class BookingImportService
             $arrivesCancelled = in_array($pmsBooking->status, ['cancelled', 'declined'], true);
             $attributes['status'] = $arrivesCancelled ? 'cancelled' : 'pending';
             if ($arrivesCancelled) {
+                $feeApplies = $this->cancellationFeeApplies($pmsBooking->checkInDate);
+
                 $attributes['cancelled_at'] = now();
-                $attributes['archived_at'] = now();
+                $attributes['cancelled_by_guest'] = true;
+                $attributes['cancellation_fee_applies'] = $feeApplies;
+                // Inside the 30-day window we're owed money, so keep it on the
+                // active list (read-only) instead of archiving.
+                $attributes['archived_at'] = $feeApplies ? null : now();
             }
 
             if ($pmsBooking->guestEmail) {
@@ -165,20 +171,24 @@ class BookingImportService
             }
 
             if (in_array($pmsBooking->status, ['cancelled', 'declined'], true)) {
+                $feeApplies = $this->cancellationFeeApplies($booking->check_in_date?->toDateString() ?: $pmsBooking->checkInDate);
+
                 $booking->update([
                     'status' => 'cancelled',
                     'cancelled_at' => now(),
-                    // Archived immediately rather than waiting for the
-                    // original checkout date to pass (archiveOverdue()'s
-                    // usual path) -- staff are notified via
-                    // pms_booking_cancelled below, so there's no need to
-                    // keep it cluttering the active list until then.
-                    'archived_at' => now(),
+                    'cancelled_by_guest' => true,
+                    'cancellation_fee_applies' => $feeApplies,
+                    // Inside the 30-day pre-arrival window we're owed money, so
+                    // keep it unarchived (read-only) rather than filing it away.
+                    // Outside that window, archive immediately rather than
+                    // waiting for the checkout date to pass (archiveOverdue()).
+                    'archived_at' => $feeApplies ? null : now(),
                 ]);
 
                 Log::info('PMS booking marked cancelled', [
                     'booking_id' => $booking->id,
                     'external_booking_id' => $pmsBooking->externalBookingId,
+                    'cancellation_fee_applies' => $feeApplies,
                 ]);
 
                 \App\Services\GuestAlertService::send('pms_booking_cancelled', $booking);
@@ -244,5 +254,21 @@ class BookingImportService
         }
 
         return $booking->fresh();
+    }
+
+    /**
+     * Whether a guest cancellation falls inside the 30-day window before
+     * arrival (or after the stay was due to start), where we're still owed
+     * money and the booking must not be archived.
+     */
+    private function cancellationFeeApplies($checkInDate): bool
+    {
+        if (! $checkInDate) {
+            return false;
+        }
+
+        $today = now()->setTimezone(config('app.display_timezone'))->startOfDay();
+
+        return \Carbon\Carbon::parse($checkInDate)->startOfDay()->lte($today->copy()->addDays(30));
     }
 }

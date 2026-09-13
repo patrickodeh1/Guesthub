@@ -36,7 +36,7 @@ class EarlyAccessController extends Controller
             Mail::to($adminEmail)->send(new EarlyAccessAdminNotificationMail($lead));
         }
 
-        $adminPhone = config('services.twilio.admin_notify_number');
+        $adminPhone = config('services.telnyx.admin_notify_number');
         if ($adminPhone) {
             SmsNotificationService::guestAlert(
                 $adminPhone,

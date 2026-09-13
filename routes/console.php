@@ -24,6 +24,11 @@ Schedule::command('bookings:archive-overdue')->everyFiveMinutes();
 // times; the whereNull(checkin_reminder_sent_at) guard makes re-runs safe.
 Schedule::command('bookings:send-checkin-reminders')->dailyAt('08:00');
 
+// "Check-out is available tomorrow" alert, sent once per booking the evening
+// before check-out (task 30). The whereNull(checkout_reminder_sent_at) guard
+// makes re-runs safe.
+Schedule::command('bookings:send-checkout-reminders')->dailyAt('18:00');
+
 // Polls the active PMS provider (Channex now, NextPax later — see
 // App\Services\Pms) for new/changed bookings. Cadence follows Channex's own
 // recommended poll interval; webhooks (routes/web.php) supplement this for

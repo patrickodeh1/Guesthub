@@ -1,4 +1,4 @@
-@props(['bookingId', 'token', 'lockId', 'lockLabel' => null, 'lockStatus' => null])
+@props(['bookingId', 'token', 'lockId', 'lockLabel' => null, 'lockStatus' => null, 'autoCheckin' => false, 'autoCheckout' => false])
 @php $uid = 'lockcard-' . \Illuminate\Support\Str::random(8); @endphp
 <div id="{{ $uid }}" class="guest-lock-card flex flex-col items-center gap-3 p-4">
     @if($lockLabel)
@@ -11,6 +11,10 @@
         data-locked="{{ $lockStatus === true ? 'true' : ($lockStatus === false ? 'false' : '') }}"
         data-unlock-url="{{ route('guest.unlock-door', [$bookingId, $token, $lockId]) }}"
         data-lock-url="{{ route('guest.lock-door', [$bookingId, $token, $lockId]) }}"
+        data-auto-checkin="{{ $autoCheckin ? 'true' : 'false' }}"
+        data-auto-checkout="{{ $autoCheckout ? 'true' : 'false' }}"
+        data-confirm-checkin-url="{{ route('guest.confirm-checkin', [$bookingId, $token]) }}"
+        data-confirm-checkout-url="{{ route('guest.confirm-checkout', [$bookingId, $token]) }}"
     >
         <svg class="lock-toggle-icon" width="48" height="48" viewBox="0 0 48 48" fill="none">
             @if($lockStatus === false)
@@ -168,6 +172,31 @@
         card.querySelectorAll(".lock-toggle-keyhole").forEach(function(el) { el.setAttribute("fill", color); });
     }
 
+    // When the guest unlocks to enter (check-in) or locks to leave
+    // (check-out), close out the stay for them instead of waiting for the
+    // "I'm checked in / checked out" button that so many guests never press.
+    // Reloads so the server recomputes the portal state and shows the next
+    // screen (the guide on arrival, the thank-you page at checkout).
+    function autoTransitionIfNeeded(lockedNow) {
+        var wantCheckin = lockedNow === false && btn.dataset.autoCheckin === "true";
+        var wantCheckout = lockedNow === true && btn.dataset.autoCheckout === "true";
+        if (!wantCheckin && !wantCheckout) return false;
+
+        var url = wantCheckin ? btn.dataset.confirmCheckinUrl : btn.dataset.confirmCheckoutUrl;
+        progressMsg.className = "lock-progress-message mt-2 text-sm text-center text-emerald-600";
+        progressMsg.textContent = wantCheckin
+            ? "Checked in! Loading your welcome guide..."
+            : "Checked out! Thank you for staying with us...";
+
+        fetch(url, {
+            method: "POST",
+            headers: { "X-CSRF-TOKEN": "{{ csrf_token() }}", "Content-Type": "application/json", "Accept": "application/json" }
+        }).then(function() { window.location.reload(); })
+          .catch(function() { window.location.reload(); });
+
+        return true;
+    }
+
     function renderButtonState(locked) {
         if (locked === true) {
             btn.dataset.locked = "true";
@@ -205,6 +234,9 @@
                     progressMsg.className = "lock-progress-message mt-2 text-sm text-center text-emerald-600";
                     setStepDone("confirmed", "Confirmed: door is " + (expectedLocked ? "locked" : "unlocked") + ".");
                     hideTrackerAfter(4000);
+                    if (autoTransitionIfNeeded(expectedLocked)) {
+                        return;
+                    }
                     startCooldown(COOLDOWN_SECONDS, function() {
                         renderButtonState(expectedLocked);
                     });

@@ -64,6 +64,10 @@
             <span class="grid h-5 w-5 shrink-0 place-items-center"><x-icon name="calendar" class="h-4 w-4" /></span>
             <span class="font-medium">Guests</span>
         </a>
+        <a href="{{ route('admin.notices.index') }}" class="flex items-center gap-2.5 rounded-sm px-3 py-2.5 transition focus:outline-none focus:ring-2 focus:ring-white/30 {{ request()->routeIs('admin.notices.*') ? 'bg-white/10 text-white' : 'text-slate-200 hover:bg-white/10 hover:text-white' }}">
+            <span class="grid h-5 w-5 shrink-0 place-items-center"><x-icon name="bell" class="h-4 w-4" /></span>
+            <span class="font-medium">Guest Notices</span>
+        </a>
 
         {{-- Properties: expandable --}}
         <div>

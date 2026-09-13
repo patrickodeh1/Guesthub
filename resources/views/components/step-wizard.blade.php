@@ -44,7 +44,7 @@
                 <div class="wizard-text-card">
                     <div class="prose-welcome text-base text-slate-700">{!! $step['content'] !!}</div>
                     @if(($step['action'] ?? 'content') === 'door_lock' && ($step['lock_id'] ?? null))
-                        <x-lock-card class="mt-5" :booking-id="$bookingId" :token="$token" :lock-id="$step['lock_id']" :lock-status="$step['lock_status'] ?? null" />
+                        <x-lock-card class="mt-5" :booking-id="$bookingId" :token="$token" :lock-id="$step['lock_id']" :lock-status="$step['lock_status'] ?? null" :auto-checkin="$type === 'checkin'" :auto-checkout="$type === 'checkout'" />
                     @elseif(($step['action'] ?? 'content') === 'door_lock')
                         <p class="mt-5 text-sm font-bold text-slate-500 text-center">No lock is configured for this property yet.</p>
                     @endif

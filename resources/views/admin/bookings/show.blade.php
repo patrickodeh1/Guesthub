@@ -4,6 +4,11 @@
         Back to Guests
     </a>
 
+    @php
+        $checkinNeedsReview = $booking->checkin_time_status === 'pending';
+        $checkoutNeedsReview = $booking->checkout_time_status === 'pending';
+    @endphp
+
     <div class="grid grid-cols-1 gap-3 lg:grid-cols-4 lg:items-start">
     <div class="lg:col-span-3">
     <section class="card card-pad mb-6">
@@ -12,14 +17,64 @@
                 <h1 class="page-title !mt-0.5 text-2xl font-bold">{{ $booking->guest_name }}</h1>
                 <p class="page-subtitle !mt-1">{{ $booking->property->name }}</p>
                 <p class="page-subtitle !mt-1">{{ $booking->stayRangeLabel() }}</p>
+                @if($booking->checkinTimePreferenceFormatted() || $booking->checkoutTimePreferenceFormatted() || $checkinNeedsReview || $checkoutNeedsReview)
+                    <div class="mt-3 flex flex-col gap-2 text-sm">
+                        @if($booking->checkinTimePreferenceFormatted() || $checkinNeedsReview)
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Requested check-in</span>
+                                <span class="font-semibold text-slate-950">{{ $booking->checkinTimePreferenceFormatted() ?? 'Not set' }}</span>
+                                @if($checkinNeedsReview)
+                                    <span class="badge badge-pending">Needs review</span>
+                                    <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkin']) }}" class="inline">@csrf<input type="hidden" name="decision" value="approved"><button type="submit" title="Approve check-in time" class="inline-flex h-7 w-7 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"><x-icon name="check" class="h-3.5 w-3.5" /></button></form>
+                                    <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkin']) }}" class="inline">@csrf<input type="hidden" name="decision" value="denied"><button type="submit" title="Reject check-in time" class="inline-flex h-7 w-7 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"><x-icon name="x" class="h-3.5 w-3.5" /></button></form>
+                                @elseif($booking->checkin_time_status === 'approved')
+                                    <span class="badge badge-active">Approved</span>
+                                @elseif($booking->checkin_time_status === 'denied')
+                                    <span class="badge badge-danger">Declined</span>
+                                @endif
+                            </div>
+                        @endif
+                        @if($booking->checkoutTimePreferenceFormatted() || $checkoutNeedsReview)
+                            <div class="flex flex-wrap items-center gap-2">
+                                <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">Requested check-out</span>
+                                <span class="font-semibold text-slate-950">{{ $booking->checkoutTimePreferenceFormatted() ?? 'Not set' }}</span>
+                                @if($checkoutNeedsReview)
+                                    <span class="badge badge-pending">Needs review</span>
+                                    <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkout']) }}" class="inline">@csrf<input type="hidden" name="decision" value="approved"><button type="submit" title="Approve check-out time" class="inline-flex h-7 w-7 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100"><x-icon name="check" class="h-3.5 w-3.5" /></button></form>
+                                    <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkout']) }}" class="inline">@csrf<input type="hidden" name="decision" value="denied"><button type="submit" title="Reject check-out time" class="inline-flex h-7 w-7 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-700 hover:bg-red-100"><x-icon name="x" class="h-3.5 w-3.5" /></button></form>
+                                @elseif($booking->checkout_time_status === 'approved')
+                                    <span class="badge badge-active">Approved</span>
+                                @elseif($booking->checkout_time_status === 'denied')
+                                    <span class="badge badge-danger">Declined</span>
+                                @endif
+                            </div>
+                        @endif
+                    </div>
+                @endif
             </div>
             <div class="flex flex-wrap items-center gap-3">
                 <span class="badge badge-{{ $booking->effectiveStatus() }} px-3 py-1 text-sm">{{ $booking->statusLabel() }}</span>
+                @unless($booking->isCancelled())
                 <button type="button" title="Edit Guest Details" aria-label="Edit Guest Details" aria-expanded="false" onclick="toggleGuestDetailsEdit(this)" class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-800">
                     <x-icon name="edit" class="h-4 w-4" />
                 </button>
+                @endunless
             </div>
         </div>
+
+        @if($booking->isCancelled())
+            <div class="mt-5 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800">
+                <p class="font-bold">Cancelled by guest</p>
+                <p class="mt-1">
+                    Cancelled {{ $booking->localTimestamp($booking->cancelled_at)?->format('M j, Y g:i A') ?? '' }}.
+                    @if($booking->cancellationFeeApplies())
+                        This falls within the 30-day window before arrival, so a cancellation fee is owed. The reservation is locked — no edits, approvals, or check-in actions — until it is settled.
+                    @else
+                        Outside the 30-day window; the reservation is archived and no fee is owed.
+                    @endif
+                </p>
+            </div>
+        @endif
 
         {{-- Expandable edit section: replaces the old separate /edit page for
              existing bookings. Everything below is hidden by default so the
@@ -33,6 +88,7 @@
             $guestDetailsErrorFields = ['reservation_id', 'booking_platform', 'guest_name', 'phone', 'email', 'check_in_date', 'check_out_date', 'property_id', 'id_type', 'checkin_time_preference', 'checkout_time_preference', 'status', 'photo_id_received', 'notes'];
             $hasGuestDetailsErrors = $errors->hasAny($guestDetailsErrorFields);
         @endphp
+        @unless($booking->isCancelled())
         <div id="guest-details-edit-panel" class="{{ $hasGuestDetailsErrors ? '' : 'hidden' }} mt-6 border-t border-slate-100 pt-6">
             <form method="post" action="{{ route('admin.guests.update', $booking) }}">
                 @csrf @method('put')
@@ -61,6 +117,7 @@
                 </div>
             </form>
         </div>
+        @endunless
     </section>
     </div>
 
@@ -70,10 +127,6 @@
                 <div class="flex items-center justify-between">
                     <h2 class="section-title">Guest Details</h2>
                 </div>
-                @php
-                    $checkinNeedsReview = $booking->checkin_time_status === 'pending';
-                    $checkoutNeedsReview = $booking->checkout_time_status === 'pending';
-                @endphp
                 <dl class="mt-4 grid gap-x-10 text-sm sm:grid-cols-2">
                     @foreach([
                         ['receipt', 'Incidentals Charge', $booking->effectiveIncidentalsCharge() !== null ? '$'.number_format($booking->effectiveIncidentalsCharge(), 2) : 'Not set', 'The refundable hold charged to the guest before check-in. Uses this booking\'s override if set below, otherwise the property\'s default hold amount.'],
@@ -97,6 +150,7 @@
                          you actually edited -- disabled inputs are dropped
                          from form submission entirely, which would silently
                          wipe every other field). --}}
+                    @unless($booking->isCancelled())
                     <form method="post" action="{{ route('admin.guests.ledger.update', $booking) }}" class="contents">
                         @csrf @method('put')
 
@@ -210,6 +264,7 @@
                             </span>
                         </div>
                     </form>
+                    @endunless
                     <div class="flex flex-col gap-1 border-b border-slate-100 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
                         <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="contact-guest-services" class="h-4 w-4 shrink-0 text-slate-400" />Checked In At</span>
                         <span class="font-semibold sm:text-right">{{ $booking->localTimestamp($booking->checked_in_at)?->format('M j, Y g:i A') ?? 'Not yet' }}</span>
@@ -218,59 +273,6 @@
                         <span class="flex items-center gap-2.5 text-slate-500"><x-icon name="contact-guest-services" class="h-4 w-4 shrink-0 text-slate-400" />Checked Out At</span>
                         <span class="font-semibold sm:text-right">{{ $booking->localTimestamp($booking->checked_out_at)?->format('M j, Y g:i A') ?? 'Not yet' }}</span>
                     </div>
-                    @if($checkinNeedsReview || $checkoutNeedsReview)
-                    <div class="border-b border-slate-100 py-3 sm:col-start-2">
-                        <p class="text-xs font-semibold uppercase tracking-wide text-slate-500">Requested times</p>
-                        @if($checkinNeedsReview)
-                        <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <p class="text-sm text-slate-500">Check-in</p>
-                                <p class="font-semibold text-slate-950">{{ $booking->checkinTimePreferenceFormatted() }}</p>
-                            </div>
-                            <div class="flex shrink-0 gap-2">
-                                <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkin']) }}" data-confirm-title="Approve this check-in time?" data-confirm="{{ $booking->isDepositCaptured() ? 'This lets the guest arrive at this time. The guest has already paid, so set the Early check-in window in Guest Details so the ledger computes correctly.' : 'This lets the guest arrive at this time. The guest hasn\'t paid yet, so set the Early check-in window in Guest Details and choose whether to charge them upfront or deduct it from their incidentals hold.' }}">
-                                    @csrf
-                                    <input type="hidden" name="decision" value="approved">
-                                    <button type="submit" title="Approve check-in time" aria-label="Approve check-in time" class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2">
-                                        <x-icon name="check-circle" class="h-4 w-4" />
-                                    </button>
-                                </form>
-                                <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkin']) }}">
-                                    @csrf
-                                    <input type="hidden" name="decision" value="denied">
-                                    <button type="submit" title="Reject check-in time" aria-label="Reject check-in time" class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-300 focus:ring-offset-2">
-                                        <x-icon name="x-circle" class="h-4 w-4" />
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                        @endif
-                        @if($checkoutNeedsReview)
-                        <div class="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between {{ $checkinNeedsReview ? 'border-t border-slate-100 pt-3' : '' }}">
-                            <div>
-                                <p class="text-sm text-slate-500">Check-out</p>
-                                <p class="font-semibold text-slate-950">{{ $booking->checkoutTimePreferenceFormatted() }}</p>
-                            </div>
-                            <div class="flex shrink-0 gap-2">
-                                <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkout']) }}" data-confirm-title="Approve this check-out time?" data-confirm="This lets the guest leave at this time. Late checkout is never billed to the guest as a separate charge -- it's deducted from the incidentals hold after checkout instead. If you want it tracked in the Ledger, set Late checkout billing type and hours in Guest Details.">
-                                    @csrf
-                                    <input type="hidden" name="decision" value="approved">
-                                    <button type="submit" title="Approve check-out time" aria-label="Approve check-out time" class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100 focus:outline-none focus:ring-2 focus:ring-emerald-300 focus:ring-offset-2">
-                                        <x-icon name="check-circle" class="h-4 w-4" />
-                                    </button>
-                                </form>
-                                <form method="POST" action="{{ route('admin.guests.time-preference.update', [$booking, 'checkout']) }}">
-                                    @csrf
-                                    <input type="hidden" name="decision" value="denied">
-                                    <button type="submit" title="Reject check-out time" aria-label="Reject check-out time" class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-red-200 bg-red-50 text-red-700 transition hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-300 focus:ring-offset-2">
-                                        <x-icon name="x-circle" class="h-4 w-4" />
-                                    </button>
-                                </form>
-                            </div>
-                        </div>
-                        @endif
-                    </div>
-                    @endif
                 </dl>
                 @if($booking->photo_id_front_declined_reason)
                     <div class="mt-4 rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800"><span class="font-semibold">Front ID decline reason:</span> {{ $booking->photo_id_front_declined_reason }}</div>
@@ -361,6 +363,8 @@
                                     <div class="mt-4 border-t border-slate-100 pt-4">
                                         @if($booking->isFrontIdApproved())
                                             <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">Front approved {{ $booking->localTimestamp($booking->photo_id_front_approved_at)->format('M j, Y g:i A') }}</div>
+                                        @elseif($booking->isCancelled())
+                                            <div class="rounded-lg bg-slate-50 border border-slate-200 p-3 text-sm text-slate-500">ID actions are disabled for a cancelled reservation.</div>
                                         @else
                                             <div class="flex gap-2">
                                                 <form method="post" action="{{ route('admin.guests.id.approve', [$booking, 'front']) }}" class="flex-1">@csrf<button class="btn-primary w-full gap-2"><x-icon name="check" class="h-4 w-4" />Approve Front</button></form>
@@ -387,6 +391,8 @@
                                     <div class="mt-4 border-t border-slate-100 pt-4">
                                         @if($booking->isBackIdApproved())
                                             <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">Back approved {{ $booking->localTimestamp($booking->photo_id_back_approved_at)->format('M j, Y g:i A') }}</div>
+                                        @elseif($booking->isCancelled())
+                                            <div class="rounded-lg bg-slate-50 border border-slate-200 p-3 text-sm text-slate-500">ID actions are disabled for a cancelled reservation.</div>
                                         @else
                                             <div class="flex gap-2">
                                                 <form method="post" action="{{ route('admin.guests.id.approve', [$booking, 'back']) }}" class="flex-1">@csrf<button class="btn-primary w-full gap-2"><x-icon name="check" class="h-4 w-4" />Approve Back</button></form>
@@ -404,6 +410,33 @@
                         </div>
                     @else
                         <p class="mt-4 font-semibold text-slate-950">Not uploaded</p>
+                    @endif
+
+                    @if($booking->id_scanned_at || $booking->id_scan_status)
+                        <div class="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
+                            <p class="mb-2 flex items-center gap-2 font-semibold text-slate-800"><x-icon name="security" class="h-4 w-4 text-slate-400" />Scanned ID details</p>
+                            @if($booking->isIdExpired())
+                                <div class="mb-2 rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700">This ID appears to be expired — do not approve until a valid, unexpired document is provided.</div>
+                            @endif
+                            @if($booking->isUnderage(18))
+                                <div class="mb-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-800">Guest is under 18 — check your minimum-age requirement before approving.</div>
+                            @endif
+                            @if($booking->id_scan_status === 'name_mismatch')
+                                <div class="mb-2 rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700">Auto-rejected: the name on the ID did not match the reservation name.</div>
+                            @endif
+                            <dl class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600">
+                                <div class="flex items-center justify-between gap-2"><dt class="text-slate-500">Date of birth</dt><dd class="font-semibold text-slate-900">{{ $booking->id_date_of_birth?->format('M j, Y') ?? '—' }}</dd></div>
+                                <div class="flex items-center justify-between gap-2"><dt class="text-slate-500">Age</dt><dd class="font-semibold text-slate-900">{{ $booking->id_age !== null ? $booking->id_age : '—' }}</dd></div>
+                                <div class="flex items-center justify-between gap-2"><dt class="text-slate-500">Expires</dt><dd class="font-semibold {{ $booking->isIdExpired() ? 'text-red-700' : 'text-slate-900' }}">{{ $booking->id_expiry_date?->format('M j, Y') ?? '—' }}</dd></div>
+                                <div class="flex items-center justify-between gap-2"><dt class="text-slate-500">Scan</dt><dd class="font-semibold text-slate-900">{{ ucfirst(str_replace('_', ' ', $booking->id_scan_status ?? 'unknown')) }}</dd></div>
+                                @if($booking->id_name)
+                                    <div class="col-span-2 flex items-center justify-between gap-2"><dt class="text-slate-500">Name on ID</dt><dd class="font-semibold text-slate-900">{{ $booking->id_name }}</dd></div>
+                                @endif
+                                @if($booking->id_number)
+                                    <div class="col-span-2 flex items-center justify-between gap-2"><dt class="text-slate-500">Document number</dt><dd class="font-semibold text-slate-900">{{ $booking->id_number }}</dd></div>
+                                @endif
+                            </dl>
+                        </div>
                     @endif
 
                     @if($booking->isIdFullyApproved())
@@ -462,6 +495,9 @@
                 <p class="section-copy">Take action on this booking.</p>
 
 
+                @if($booking->isCancelled())
+                    <div class="mt-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800">This reservation was cancelled by the guest and is locked. All actions are disabled.</div>
+                @else
                 <div class="mt-5 grid gap-2.5">
                     {{-- Item 6: exactly 3, in order: Background Passed -> Deposit Verified -> Override GPS --}}
                     @if(! $booking->isApproved())
@@ -478,6 +514,12 @@
                         @else
                             <form method="post" action="{{ route('admin.guests.deposit-verified', $booking) }}" data-confirm-title="Mark Deposit Verified?" data-confirm="This will fully approve the guest. Before continuing, verify the guest has actually paid everything owed on / outside the platform: incidentals, parking, and early check-in (if applicable). This action does not check or record any of those payments itself.">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="lock" class="h-4 w-4" />Deposit Verified</button></form>
                         @endif
+                    @endif
+
+                    @if($booking->isCheckinApproved())
+                        <div class="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">Unit ready / check-in approved {{ $booking->localTimestamp($booking->checkin_approved_at)->format('M j, Y g:i A') }}</div>
+                    @else
+                        <form method="post" action="{{ route('admin.guests.approve-checkin', $booking) }}" data-confirm-title="Approve check-in?" data-confirm="Confirm the unit is ready and the guest may check in. This is what releases them from the 'unit isn't quite ready yet' screen and reveals their arrival details.">@csrf<button class="btn-primary w-full gap-2"><x-icon name="check-circle" class="h-4 w-4" />Unit Ready — Approve Check-In</button></form>
                     @endif
 
                     <form method="post" action="{{ route('admin.guests.override-gps', $booking) }}">@csrf<button class="btn-secondary w-full gap-2"><x-icon name="map" class="h-4 w-4" />Override GPS</button></form>
@@ -515,6 +557,7 @@
                         </div>
                     </div>
                 </div>
+                @endif
             </section>
 
             <section class="card card-pad order-4 lg:order-none">
@@ -526,6 +569,7 @@
                         'Photo ID Approval' => $booking->isApproved(),
                         \App\Models\Setting::getValue('background_check_step_name', 'Background Check') => $booking->isBackgroundCheckComplete(),
                         'Deposit Verified' => $booking->isDepositVerified(),
+                        'Unit Ready / Check-In Approved' => $booking->isCheckinApproved(),
                         'GPS Verified' => $booking->gps_verified,
                         'Currently Hosting' => $booking->isCheckedIn(),
                         'Checked Out' => filled($booking->checked_out_at),
@@ -627,7 +671,7 @@
                 <img id="photo-id-modal-img" src="" alt="" class="h-full w-full select-none object-contain" style="transform-origin: center center; transition: transform 0.08s ease-out; user-select:none; -webkit-user-drag:none;" draggable="false">
             </div>
 
-            @if(($booking->photo_id_path || $booking->photo_id_back_path) && !$booking->isApproved())
+            @if(($booking->photo_id_path || $booking->photo_id_back_path) && !$booking->isApproved() && ! $booking->isCancelled())
                 <div class="mt-4 flex gap-2 border-t border-slate-100 pt-4">
                     <form method="post" action="{{ route('admin.guests.approve', $booking) }}" class="flex-1">@csrf<button class="btn-primary w-full gap-2"><x-icon name="check" class="h-4 w-4" />Approve</button></form>
                     <button type="button" class="btn-danger flex-1 gap-2" onclick="document.getElementById('decline-form-{{ $booking->id }}').classList.toggle('hidden'); closePhotoIdModal();"><x-icon name="x" class="h-4 w-4" />Decline</button>

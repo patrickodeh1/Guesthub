@@ -1,11 +1,16 @@
 <?php
 namespace App\Services;
 use App\Models\Booking;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Twilio\Rest\Client;
 
 class SmsNotificationService
 {
+    /**
+     * Telnyx Messaging API endpoint.
+     */
+    private const TELNYX_MESSAGES_URL = 'https://api.telnyx.com/v2/messages';
+
     /**
      * Send an SMS to an arbitrary number (e.g. the guest's phone), as opposed to
      * the fixed admin-notify number used by the existing admin-facing alerts.
@@ -20,21 +25,33 @@ class SmsNotificationService
             }
         }
 
-        $sid = config('services.twilio.sid');
-        $authToken = config('services.twilio.auth_token');
-        $from = config('services.twilio.from_number');
+        $apiKey = config('services.telnyx.api_key');
+        $from = config('services.telnyx.from_number');
 
-        if (! $sid || ! $authToken || ! $from || ! $to) {
-            Log::warning("SMS notification skipped ({$context}): Twilio not fully configured or recipient missing.");
+        if (! $apiKey || ! $from || ! $to) {
+            Log::warning("SMS notification skipped ({$context}): Telnyx not fully configured or recipient missing.");
             return;
         }
 
+        $payload = [
+            'from' => $from,
+            'to' => $to,
+            'text' => $message,
+        ];
+
+        if ($profileId = config('services.telnyx.messaging_profile_id')) {
+            $payload['messaging_profile_id'] = $profileId;
+        }
+
         try {
-            $client = new Client($sid, $authToken);
-            $client->messages->create($to, [
-                'from' => $from,
-                'body' => $message,
-            ]);
+            $response = Http::withToken($apiKey)
+                ->acceptJson()
+                ->post(self::TELNYX_MESSAGES_URL, $payload);
+
+            if (! $response->successful()) {
+                Log::error("SMS notification failed ({$context}) to {$to}: HTTP {$response->status()} ".$response->body());
+                return;
+            }
 
             Log::info("SMS notification sent ({$context}) to {$to}.");
         } catch (\Throwable $e) {

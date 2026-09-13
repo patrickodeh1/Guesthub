@@ -32,7 +32,7 @@
                         <span class="text-slate-500">
                             {{ $propertyName }} &middot;
                             {{ is_null($lock->last_known_locked) ? 'Unknown' : ($lock->last_known_locked ? 'Locked' : 'Unlocked') }}
-                            @if(! is_null($lock->battery_level)) &middot; {{ $lock->battery_level }}% @endif
+                            @if(! is_null($lock->battery_level)) &middot; <span class="{{ $lock->battery_level <= 20 ? 'font-semibold text-red-600' : ($lock->battery_level <= 50 ? 'font-medium text-amber-600' : 'text-slate-500') }}">Battery {{ $lock->battery_level }}%</span>@endif
                         </span>
                     </span>
                 @endforeach
@@ -77,29 +77,56 @@
         </div>
     </div>
 
-    {{-- Guests by property: today + upcoming --}}
-    <div id="guests-today" class="flex scroll-mt-24 flex-col gap-4" data-tour="guests-today">
-        @forelse($properties as $property)
-            <section class="card overflow-hidden">
-                <div class="flex items-center gap-3 border-b border-slate-100 p-4">
-                    <img src="{{ $property->heroImageUrl() }}" alt="" class="h-10 w-14 shrink-0 rounded-lg object-cover">
-                    <h2 class="truncate font-bold text-slate-950">{{ $property->name }}</h2>
-                </div>
-                <div class="divide-y divide-slate-100">
-                    @foreach($property->bookings as $booking)
-                        <a href="{{ route('admin.guests.show', $booking) }}" class="flex items-center justify-between gap-4 px-4 py-3 transition hover:bg-slate-50">
-                            <div class="min-w-0">
-                                <p class="truncate font-semibold text-slate-950">{{ $booking->guest_name }}</p>
-                                <p class="truncate text-sm text-slate-600">{!! $booking->dashboardArrivalLine($today) !!}</p>
-                            </div>
-                            <span class="badge badge-{{ $booking->status }} shrink-0">{{ $booking->statusLabel() }}</span>
-                        </a>
-                    @endforeach
-                </div>
-            </section>
-        @empty
-            <div class="card card-pad text-center text-slate-500">No guests arriving, staying, or checking out right now, and no upcoming arrivals.</div>
-        @endforelse
+    {{-- Today + Upcoming, priority-ordered (pending check-ins first, then
+         approved/checked-in guests, then check-outs) --}}
+    <div class="flex flex-col gap-4">
+        <section id="guests-today" class="card scroll-mt-24 overflow-hidden" data-tour="guests-today">
+            <div class="flex items-center justify-between border-b border-slate-100 p-4">
+                <h2 class="font-bold text-slate-950">Today</h2>
+                <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $todayGuests->count() }} guest{{ $todayGuests->count() === 1 ? '' : 's' }}</span>
+            </div>
+            <div class="divide-y divide-slate-100">
+                @forelse($todayGuests as $booking)
+                    <a href="{{ route('admin.guests.show', $booking) }}" class="block px-4 py-3 transition hover:bg-slate-50">
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="flex min-w-0 items-center gap-2">
+                                <img src="{{ $booking->property->heroImageUrl() }}" alt="" class="h-6 w-9 shrink-0 rounded object-cover">
+                                <span class="truncate text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $booking->property->name }}</span>
+                            </span>
+                            <span class="badge badge-{{ $booking->effectiveStatus() }} shrink-0">{{ $booking->statusLabel() }}</span>
+                        </div>
+                        <p class="mt-1 truncate font-semibold text-slate-950">{{ $booking->guest_name }}</p>
+                        <p class="truncate text-sm text-slate-600">{!! $booking->dashboardArrivalLine($today) !!}</p>
+                    </a>
+                @empty
+                    <p class="p-4 text-sm text-slate-500">No guests arriving, staying, or checking out today.</p>
+                @endforelse
+            </div>
+        </section>
+
+        <section class="card overflow-hidden">
+            <div class="flex items-center justify-between border-b border-slate-100 p-4">
+                <h2 class="font-bold text-slate-950">Upcoming</h2>
+                <span class="text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $upcomingGuests->count() }} guest{{ $upcomingGuests->count() === 1 ? '' : 's' }}</span>
+            </div>
+            <div class="divide-y divide-slate-100">
+                @forelse($upcomingGuests as $booking)
+                    <a href="{{ route('admin.guests.show', $booking) }}" class="block px-4 py-3 transition hover:bg-slate-50">
+                        <div class="flex items-center justify-between gap-3">
+                            <span class="flex min-w-0 items-center gap-2">
+                                <img src="{{ $booking->property->heroImageUrl() }}" alt="" class="h-6 w-9 shrink-0 rounded object-cover">
+                                <span class="truncate text-xs font-semibold uppercase tracking-wide text-slate-500">{{ $booking->property->name }}</span>
+                            </span>
+                            <span class="badge badge-{{ $booking->effectiveStatus() }} shrink-0">{{ $booking->statusLabel() }}</span>
+                        </div>
+                        <p class="mt-1 truncate font-semibold text-slate-950">{{ $booking->guest_name }}</p>
+                        <p class="truncate text-sm text-slate-600">{!! $booking->dashboardArrivalLine($today) !!}</p>
+                    </a>
+                @empty
+                    <p class="p-4 text-sm text-slate-500">No upcoming arrivals yet.</p>
+                @endforelse
+            </div>
+        </section>
     </div>
 
     {{-- Recent activity --}}

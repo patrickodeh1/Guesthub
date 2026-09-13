@@ -17,10 +17,10 @@ class Booking extends Model
 
     protected $fillable = [
         'booking_id', 'reservation_id', 'source', 'booking_platform', 'channex_booking_id', 'guest_name', 'phone', 'email', 'check_in_date', 'check_out_date',
-        'property_id', 'id_type', 'token', 'photo_id_path', 'photo_id_back_path', 'photo_id_received', 'parking_needed', 'early_checkin_tier', 'checkin_time_preference', 'checkout_time_preference', 'checkin_time_status', 'checkout_time_status', 'gps_verified', 'guest_authenticated_at',
-        'manually_checked_in', 'checked_in_at', 'checked_out_at', 'late_checkout_type', 'late_checkout_hours', 'late_checkout_actual_time', 'gps_overridden', 'status', 'cancelled_at', 'notes', 'welcome_message', 'identity_confirmed_at',
-        'approved_at', 'decline_reason', 'archived_at', 'background_check_completed_at', 'deposit_verified_at',
-        'contract_version', 'contract_accepted_at',
+        'property_id', 'id_type', 'id_date_of_birth', 'id_age', 'id_expiry_date', 'id_number', 'id_name', 'id_scan_status', 'id_scanned_at', 'token', 'photo_id_path', 'photo_id_back_path', 'photo_id_received', 'parking_needed', 'early_checkin_tier', 'checkin_time_preference', 'checkout_time_preference', 'checkin_time_status', 'checkout_time_status', 'gps_verified', 'guest_authenticated_at', 'checkin_disclaimer_agreed_at',
+        'manually_checked_in', 'checked_in_at', 'checked_out_at', 'late_checkout_type', 'late_checkout_hours', 'late_checkout_actual_time', 'gps_overridden', 'status', 'cancelled_at', 'cancelled_by_guest', 'cancellation_fee_applies', 'notes', 'welcome_message', 'identity_confirmed_at', 'registration_notified_at',
+        'approved_at', 'decline_reason', 'archived_at', 'background_check_completed_at', 'deposit_verified_at', 'platform_payment_selected_at', 'checkin_approved_at',
+        'contract_version', 'contract_accepted_at', 'contract_signed_name', 'contract_signed_ip', 'contract_signed_user_agent', 'contract_signed_device_id',
         'sms_consent_at', 'sms_consent_version', 'sms_consent_opted_in',
         'terms_accepted_at', 'terms_accepted_version',
         'deposit_payment_status', 'deposit_stripe_payment_intent_id', 'deposit_amount_cents',
@@ -28,7 +28,7 @@ class Booking extends Model
         'access_blocked_at', 'access_blocked_reason',
         'photo_id_front_approved_at', 'photo_id_front_declined_reason',
         'photo_id_back_approved_at', 'photo_id_back_declined_reason',
-        'parking_charge', 'parking_charge_override', 'incidentals_charge', 'checkin_reminder_sent_at',
+        'parking_charge', 'parking_charge_override', 'incidentals_charge', 'checkin_reminder_sent_at', 'checkout_reminder_sent_at',
         'early_checkin_charge_override', 'early_checkin_billing_mode', 'late_checkout_charge_override', 'ledger_published_at',
         'vehicle_make_model', 'license_plate_photo_path', 'vehicle_info_bypassed_at',
     ];
@@ -38,6 +38,9 @@ class Booking extends Model
         return [
             'check_in_date' => 'date',
             'check_out_date' => 'date',
+            'id_date_of_birth' => 'date',
+            'id_expiry_date' => 'date',
+            'id_scanned_at' => 'datetime',
             'parking_needed' => 'boolean',
             'photo_id_received' => 'boolean',
             'gps_verified' => 'boolean',
@@ -47,12 +50,18 @@ class Booking extends Model
             'late_checkout_hours' => 'decimal:2',
             'late_checkout_actual_time' => 'datetime',
             'guest_authenticated_at' => 'datetime',
+            'checkin_disclaimer_agreed_at' => 'datetime',
             'approved_at' => 'datetime',
             'identity_confirmed_at' => 'datetime',
             'archived_at' => 'datetime',
             'cancelled_at' => 'datetime',
+            'cancelled_by_guest' => 'boolean',
+            'cancellation_fee_applies' => 'boolean',
             'background_check_completed_at' => 'datetime',
             'deposit_verified_at' => 'datetime',
+            'platform_payment_selected_at' => 'datetime',
+            'registration_notified_at' => 'datetime',
+            'checkin_approved_at' => 'datetime',
             'contract_accepted_at' => 'datetime',
             'sms_consent_at' => 'datetime',
             'sms_consent_opted_in' => 'boolean',
@@ -71,6 +80,7 @@ class Booking extends Model
             'late_checkout_charge_override' => 'decimal:2',
             'ledger_published_at' => 'datetime',
             'checkin_reminder_sent_at' => 'datetime',
+            'checkout_reminder_sent_at' => 'datetime',
             'vehicle_info_bypassed_at' => 'datetime',
                     ];
     }
@@ -259,6 +269,26 @@ class Booking extends Model
         return filled($this->identity_confirmed_at);
     }
 
+    public function hasAgreedToArrivalDisclaimer(): bool
+    {
+        return filled($this->checkin_disclaimer_agreed_at);
+    }
+
+    public function isIdExpired(): bool
+    {
+        return $this->id_scan_status === 'expired';
+    }
+
+    public function isIdScanValid(): bool
+    {
+        return $this->id_scan_status === 'valid';
+    }
+
+    public function isUnderage(int $minimum = 18): bool
+    {
+        return $this->id_age !== null && (int) $this->id_age < $minimum;
+    }
+
     public function isCheckedIn(): bool
     {
         return !is_null($this->checked_in_at);
@@ -279,9 +309,57 @@ class Booking extends Model
         return filled($this->deposit_verified_at);
     }
 
+    /**
+     * The guest chose to pay the incidentals hold on their booking platform
+     * (Airbnb/VRBO/etc.) rather than by card. There is no webhook to confirm
+     * an off-platform payment, so this flag lets the portal move them past the
+     * payment screen to "pending approval" and keep them there on revisit.
+     */
+    public function platformPaymentSelected(): bool
+    {
+        return filled($this->platform_payment_selected_at);
+    }
+
+    /**
+     * The host has confirmed the unit is ready and approved this guest to
+     * check in. Until then, a pre-checked-in guest is held on the "unit isn't
+     * quite ready yet" screen.
+     */
+    public function isCheckinApproved(): bool
+    {
+        return filled($this->checkin_approved_at);
+    }
+
     public function isDeclined(): bool
     {
         return $this->status === 'declined';
+    }
+
+    public function isCancelled(): bool
+    {
+        return $this->status === 'cancelled';
+    }
+
+    public function isCancelledByGuest(): bool
+    {
+        return $this->isCancelled() && (bool) $this->cancelled_by_guest;
+    }
+
+    /**
+     * A cancelled booking inside the 30-day pre-arrival window: we're owed
+     * money, so it stays unarchived and read-only rather than being filed away.
+     */
+    public function cancellationFeeApplies(): bool
+    {
+        return $this->isCancelled() && (bool) $this->cancellation_fee_applies;
+    }
+
+    /**
+     * Cancelled bookings are locked: no editing, approvals, GPS override, etc.
+     */
+    public function isReadOnly(): bool
+    {
+        return $this->isCancelled();
     }
 
     public function needsIdApproval(): bool
@@ -829,6 +907,11 @@ class Booking extends Model
      */
     public function weekCardSortTier(): int
     {
+        // Cancelled reservations sit at the bottom of the operational lists.
+        if ($this->isCancelled()) {
+            return 9;
+        }
+
         // Compare plain date strings against the host's local day instead of
         // Carbon's isToday(), which uses the UTC app timezone and can push a
         // "tomorrow" arrival into "today".
@@ -1079,7 +1162,9 @@ class Booking extends Model
         $count = 0;
         static::notArchived()->chunkById(100, function ($bookings) use (&$count) {
             foreach ($bookings as $booking) {
-                if (! $booking->isPastCheckoutTime()) {
+                // Guest cancellations are archived (or kept) at the moment of
+                // cancellation, not by this checkout-date sweep.
+                if ($booking->isCancelled() || ! $booking->isPastCheckoutTime()) {
                     continue;
                 }
                 $updates = ['archived_at' => now()];
@@ -1091,26 +1176,46 @@ class Booking extends Model
     }
 
     /**
-     * Auto-checkout bookings whose guests never pressed "All Done", once the
-     * configured grace period after their checkout time has elapsed (task 23).
-     * Intentionally separate from archiveOverdue(): archiving is cosmetic/admin
-     * housekeeping and can happen immediately at checkout time, but flipping a
-     * booking's status to checked_out is a real state change the guest should
-     * get a grace window for.
+     * Mark this booking checked out exactly once, firing the guest alert and
+     * an activity log entry. Shared by the guest's manual action and both
+     * automatic checkout paths (the grace-period overdue sweep and the
+     * lock-based auto-close in GuestController).
      */
+    public function completeCheckout(string $source = 'guest_confirmed_checkout'): bool
+    {
+        if ($this->checked_out_at) {
+            return false;
+        }
+
+        $this->update([
+            'status'         => 'checked_out',
+            'checked_out_at' => now(),
+        ]);
+
+        \App\Services\GuestAlertService::send('checkout_completed', $this);
+
+        \App\Services\ActivityLogService::guest($source, "Guest {$this->guest_name} checked out ({$source}).", 'check', [
+            'booking_id'  => $this->id,
+            'property_id' => $this->property_id,
+            'actor_name'  => $this->guest_name,
+            'actor_email' => $this->email,
+            'severity'    => 'success',
+        ]);
+
+        return true;
+    }
+
     public static function autoCheckoutOverdue(int $graceMinutes = 30): int
     {
         $count = 0;
         static::where('status', '!=', 'checked_out')->chunkById(100, function ($bookings) use (&$count, $graceMinutes) {
             foreach ($bookings as $booking) {
-                if (! $booking->isPastCheckoutGracePeriod($graceMinutes)) {
+                if ($booking->isCancelled() || ! $booking->isPastCheckoutGracePeriod($graceMinutes)) {
                     continue;
                 }
-                $booking->update([
-                    'status' => 'checked_out',
-                    'checked_out_at' => now(),
-                ]);
-                $count++;
+                if ($booking->completeCheckout('guest_auto_checkout_overdue')) {
+                    $count++;
+                }
             }
         });
         return $count;
@@ -1134,6 +1239,10 @@ class Booking extends Model
 
     public function statusLabel(): string
     {
+        if ($this->isCancelledByGuest()) {
+            return 'Cancelled by Guest';
+        }
+
         return str($this->effectiveStatus())->replace('_', ' ')->title()->toString();
     }
 
