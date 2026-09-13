@@ -342,11 +342,16 @@ class IdDocumentScanner
     /**
      * Parse a machine-readable zone (TD1 3x30, TD2 2x36, TD3 2x44) including
      * the holder's name. DOB and expiry are only trusted when their ICAO
-     * check digit actually verifies (see mrzCheckDigit) — OCR misreads a
+     * check digit actually verifies (see mrzDateChecked) -- OCR misreads a
      * character just as often inside a date as anywhere else, and a wrong
      * DOB/expiry that happens to parse is worse than one we flag as unread,
      * since a wrong-but-plausible date would sail through the age/expiry
      * checks instead of forcing a retake.
+     *
+     * Tries the mustelaitatsi/mrzparser package first (maintained, tested
+     * ICAO check-digit validation) and only falls back to the hand-rolled
+     * parser below if the package isn't installed yet or throws on this
+     * particular read -- run `composer update` to pull it in.
      */
     private function parseMrz(array $lines): ?array
     {
@@ -358,6 +363,11 @@ class IdDocumentScanner
             // TD1: three consecutive 30-char lines; name is the 3rd, data 2nd.
             if (strlen($line) === 30 && ($i + 2) < $count
                 && strlen($lines[$i + 1]) === 30 && strlen($lines[$i + 2]) === 30) {
+                $viaLibrary = $this->parseMrzViaLibrary($line.$lines[$i + 1].$lines[$i + 2]);
+                if ($viaLibrary) {
+                    return $viaLibrary;
+                }
+
                 $data = $lines[$i + 1];
 
                 return [
@@ -370,6 +380,11 @@ class IdDocumentScanner
 
             // TD2: two consecutive 36-char lines; name is the 1st, data 2nd.
             if (strlen($line) === 36 && ($i + 1) < $count && strlen($lines[$i + 1]) === 36) {
+                $viaLibrary = $this->parseMrzViaLibrary($line.$lines[$i + 1]);
+                if ($viaLibrary) {
+                    return $viaLibrary;
+                }
+
                 $data = $lines[$i + 1];
 
                 return [
@@ -382,6 +397,11 @@ class IdDocumentScanner
 
             // TD3: two consecutive 44-char lines; name is the 1st, data 2nd.
             if (strlen($line) === 44 && ($i + 1) < $count && strlen($lines[$i + 1]) === 44) {
+                $viaLibrary = $this->parseMrzViaLibrary($line.$lines[$i + 1]);
+                if ($viaLibrary) {
+                    return $viaLibrary;
+                }
+
                 $data = $lines[$i + 1];
 
                 return [
@@ -394,6 +414,47 @@ class IdDocumentScanner
         }
 
         return null;
+    }
+
+    /**
+     * Delegate MRZ parsing to mustelaitatsi/mrzparser when it's installed.
+     * Only DOB/expiry that the library's own check-digit validation marks
+     * `isValid` are trusted -- same "don't guess, flag as unreadable
+     * instead" principle as mrzDateChecked() below, just backed by a
+     * maintained implementation instead of our own.
+     */
+    private function parseMrzViaLibrary(string $joinedLines): ?array
+    {
+        if (! class_exists(\MustelaItatsi\MrzParser\Facades\ParserFacade::class)) {
+            return null;
+        }
+
+        try {
+            $doc = \MustelaItatsi\MrzParser\Facades\ParserFacade::parseMrz($joinedLines);
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        if (! $doc) {
+            return null;
+        }
+
+        $checks = method_exists($doc, 'getCheckDigits') ? $doc->getCheckDigits() : [];
+        $dobValid = $checks['dateOfBirth']['isValid'] ?? false;
+        $expiryValid = $checks['dateOfExpiry']['isValid'] ?? false;
+
+        $surname = method_exists($doc, 'getPrimaryIdentifier') ? $doc->getPrimaryIdentifier() : null;
+        $given = method_exists($doc, 'getSecondaryIdentifier') ? $doc->getSecondaryIdentifier() : null;
+        $name = trim(($surname ?? '').' '.($given ?? ''));
+
+        return [
+            'date_of_birth' => $dobValid && method_exists($doc, 'getDateOfBirthWithEstimatedEpoch')
+                ? $doc->getDateOfBirthWithEstimatedEpoch() : null,
+            'expiry_date' => $expiryValid && method_exists($doc, 'getDateOfExpiryWithEstimatedEpoch')
+                ? $doc->getDateOfExpiryWithEstimatedEpoch() : null,
+            'number' => method_exists($doc, 'getDocumentNumber') ? $this->mrzNumber($doc->getDocumentNumber()) : null,
+            'name' => $name !== '' ? $name : null,
+        ];
     }
 
     /**

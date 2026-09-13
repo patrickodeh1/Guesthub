@@ -1132,16 +1132,41 @@
                         cb(text);
                     }
 
-                    function recognizeOne(image, whitelist, onDone) {
+                    // The "mrz" language model (bundled at /tessdata/mrz.traineddata,
+                    // BSD-3 licensed, trained by DoubangoTelecom specifically on the
+                    // OCR-B font MRZs use) reads the MRZ character set far more
+                    // reliably than the generic "eng" prose model -- "eng" was never
+                    // trained on this font, which is the root cause behind most of the
+                    // "<" -> random-letter misreads we've been patching around in the
+                    // parser. Only use it for the whitelisted MRZ-crop passes; the
+                    // full-page fallback pass (labels like "DOB", "EXP" on state IDs)
+                    // stays on "eng" since that's prose text, not MRZ.
+                    function recognizeOne(image, whitelist, onDone, useMrzModel) {
                         var done = false;
                         function once(v) { if (done) return; done = true; onDone(v); }
                         loadTesseract(function() {
                             if (!window.Tesseract || !window.Tesseract.recognize) { once(null); return; }
                             var opts = { logger: null };
                             if (whitelist) opts.tessedit_char_whitelist = whitelist;
-                            window.Tesseract.recognize(image, "eng", opts)
+                            var lang = "eng";
+                            if (useMrzModel) {
+                                lang = "mrz";
+                                opts.langPath = "/tessdata";
+                            }
+                            window.Tesseract.recognize(image, lang, opts)
                                 .then(function(r) { once(r && r.data && r.data.text ? r.data.text : null); })
-                                .catch(function() { once(null); });
+                                .catch(function() {
+                                    // If the mrz model fails to load (e.g. static asset
+                                    // missing), fall back to eng rather than losing the
+                                    // read entirely.
+                                    if (useMrzModel) {
+                                        window.Tesseract.recognize(image, "eng", { logger: null, tessedit_char_whitelist: whitelist })
+                                            .then(function(r) { once(r && r.data && r.data.text ? r.data.text : null); })
+                                            .catch(function() { once(null); });
+                                    } else {
+                                        once(null);
+                                    }
+                                });
                         }, function() { once(null); });
                     }
 
@@ -1180,10 +1205,10 @@
                                     remaining--;
                                     if (remaining === 0) finish(results.filter(Boolean).join("\n"));
                                 }
-                                recognizeOne(wideCrop, mrzWhitelist, function(t) { results.push(t); maybeFinish(); });
+                                recognizeOne(wideCrop, mrzWhitelist, function(t) { results.push(t); maybeFinish(); }, true);
                                 recognizeOne(dataUrl, null, function(t) { results.push(t); maybeFinish(); });
                             });
-                        });
+                        }, true);
                     });
                 }
 
