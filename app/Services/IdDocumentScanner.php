@@ -144,6 +144,30 @@ class IdDocumentScanner
         }
 
         $overlap = count(array_intersect($id, $expected));
+
+        // Exact matching alone only survives a clean OCR read. In practice a
+        // token is often one character off (e.g. a misread MRZ filler
+        // character glued onto a name, giving "PATRICKS" instead of
+        // "PATRICK") -- close enough that a human reviewing the photo would
+        // call it a match, but exact string equality won't. Fuzzy-match any
+        // expected token that didn't already match exactly, tolerating a
+        // small edit distance relative to token length.
+        if ($overlap < count($expected)) {
+            foreach ($expected as $expToken) {
+                if (in_array($expToken, $id, true)) {
+                    continue;
+                }
+                foreach ($id as $idToken) {
+                    $maxLen = max(strlen($expToken), strlen($idToken));
+                    $tolerance = $maxLen <= 4 ? 1 : (int) floor($maxLen * 0.2);
+                    if (levenshtein($expToken, $idToken) <= max(1, $tolerance)) {
+                        $overlap++;
+                        break;
+                    }
+                }
+            }
+        }
+
         $required = min(2, count($id), count($expected));
 
         return $overlap >= max(1, $required);
@@ -420,12 +444,28 @@ class IdDocumentScanner
             return null;
         }
 
-        // Strip a leading document-type + issuing-country prefix, e.g. "P<USA".
-        $raw = preg_replace('/^[A-Z0-9]{1,2}<[A-Z]{3}/', '', $raw);
+        // Strip a leading document-type + issuing-country prefix (fixed
+        // ICAO width of 5 chars, e.g. "P<USA"). Positional, not
+        // pattern-matched on a literal "<" -- OCR often misreads that
+        // separator as a letter (e.g. "P<NGA" -> "PCNGA"), which used to
+        // leave the misread character glued onto the front of the name.
+        if (strlen($raw) >= 20 && preg_match('/^[A-Z][A-Z0-9<]{4}/', $raw)) {
+            $raw = substr($raw, 5);
+        }
 
-        $parts = explode('<<', $raw, 2);
+        // Strip trailing filler padding: a run of 3+ identical characters
+        // at the end of the line. Normally "<" repeated, but a misread
+        // filler character reads as a *consistent* wrong letter (e.g.
+        // "SSSS"), not literal "<"s, so match by repetition rather than by
+        // character.
+        $raw = preg_replace('/(.)\1{2,}$/', '', $raw);
+
+        // Split surname from given name(s) on the first run of 2+ identical
+        // characters (normally "<<"), again by repetition rather than
+        // requiring a literal "<<", for the same reason.
+        $parts = preg_split('/(.)\1{1,}/', $raw, 2);
         $name = count($parts) === 2
-            ? str_replace('<', ' ', $parts[0]).' '.str_replace('<', ' ', $parts[1])
+            ? trim(str_replace('<', ' ', $parts[0])).' '.trim(str_replace('<', ' ', $parts[1]))
             : str_replace('<', ' ', $raw);
 
         $name = trim(preg_replace('/\s+/', ' ', $name));
