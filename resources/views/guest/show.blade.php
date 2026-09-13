@@ -20,7 +20,6 @@
     // "get the August app" step (3) — the guest must be shown the ID step so a
     // required re-upload is obvious.
     $idwNeedsId = ! $booking->isIdFullyApproved();
-    $idwIdRejected = filled($booking->photo_id_front_declined_reason) || filled($booking->photo_id_back_declined_reason);
 @endphp
 
 {{-- Conditional guest notices (Admin > Guest Notices). Rendered once per
@@ -82,7 +81,6 @@
 @endif
 
 @if($state === 'identity')
-    @vite('resources/js/id-scan.js')
 @endif
 
 @if(! empty($previewMode))
@@ -492,28 +490,6 @@
                         </div>
                         @else
                         <div class="mt-5" id="id-capture-section">
-                            @if($booking->photo_id_front_declined_reason)
-                                <div class="guest-detail-banner mb-4" style="background:#fef3c7;border-color:#fde68a;">
-                                    <span class="guest-detail-banner-icon" style="color:#92400e;">
-                                        <x-icon name="alert-triangle" class="h-5 w-5" />
-                                    </span>
-                                    <div>
-                                        <p class="guest-detail-banner-title" style="color:#92400e;">Front of ID needs to be re-uploaded</p>
-                                        <p class="guest-detail-banner-sub">{{ $booking->photo_id_front_declined_reason }}</p>
-                                    </div>
-                                </div>
-                            @endif
-                            @if($booking->photo_id_back_declined_reason)
-                                <div class="guest-detail-banner mb-4" style="background:#fef3c7;border-color:#fde68a;">
-                                    <span class="guest-detail-banner-icon" style="color:#92400e;">
-                                        <x-icon name="alert-triangle" class="h-5 w-5" />
-                                    </span>
-                                    <div>
-                                        <p class="guest-detail-banner-title" style="color:#92400e;">Back of ID needs to be re-uploaded</p>
-                                        <p class="guest-detail-banner-sub">{{ $booking->photo_id_back_declined_reason }}</p>
-                                    </div>
-                                </div>
-                            @endif
                             <p class="text-sm font-bold mb-3">Photo ID <span class="text-red-500">*</span></p>
 
                             <div id="idw-desktop-notice" class="hidden rounded-xl border border-slate-200 bg-slate-50 p-4 text-center">
@@ -567,9 +543,6 @@
                             <p id="upload-zone-trigger-back-label" class="mt-2 text-center font-bold{{ $idwBackRequired && ! $idwFrontRequired ? '' : ' hidden' }}">Tap to take photo of back of ID</p>
                             <input type="hidden" name="photo_id" id="photo-id-data">
                             <input type="hidden" name="photo_id_back" id="photo-id-back-data">
-                            <input type="hidden" name="id_barcode_text" id="photo-id-barcode">
-                            <input type="hidden" name="id_ocr_text" id="photo-id-ocr">
-                            <p id="idw-ocr-status" class="hidden mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600"></p>
                             </div>
                         </div>
                         @endif
@@ -612,7 +585,6 @@
                         // Never leave the guest on the final "get the August app"
                         // step while their ID still needs uploading/re-uploading.
                         var needsId = {{ $idwNeedsId ? 'true' : 'false' }};
-                        var idRejected = {{ $idwIdRejected ? 'true' : 'false' }};
                         if (idRejected || (needsId && step === "3")) {
                             step = "2";
                         }
@@ -697,22 +669,6 @@
                     }
                     window.idwSaveState = idwSaveState;
 
-                    function decodeIdBarcode(dataUrl) {
-                        if (!window.GuestIdBarcode || !dataUrl) return;
-                        var nextBtn = document.getElementById("id-capture-next-btn");
-                        if (nextBtn) nextBtn.disabled = true;
-                        var finish = function() { if (nextBtn) nextBtn.disabled = false; };
-                        window.GuestIdBarcode.decode(dataUrl)
-                            .then(function(text) {
-                                if (text) {
-                                    var el = document.getElementById("photo-id-barcode");
-                                    if (el) { el.value = text; idwSaveState({ id_barcode: text }); }
-                                }
-                            })
-                            .then(finish, finish);
-                    }
-                    window.idwDecodeBarcode = decodeIdBarcode;
-
                     function idwClearState() {
                         try { sessionStorage.removeItem(IDW_STORAGE_KEY); } catch (_) {}
                     }
@@ -766,15 +722,10 @@
                                 document.getElementById("back-preview-block").classList.remove("hidden");
                             }
                         }
-                        var barcodeEl = document.getElementById("photo-id-barcode");
-                        if (barcodeEl && saved.id_barcode) {
-                            barcodeEl.value = saved.id_barcode;
-                        }
                         if (saved.step) {
                             var restoreStep = String(saved.step);
                             var needsIdRestore = {{ $idwNeedsId ? 'true' : 'false' }};
-                            var idRejectedRestore = {{ $idwIdRejected ? 'true' : 'false' }};
-                            if (idRejectedRestore || (needsIdRestore && restoreStep === "3")) {
+                            if (needsIdRestore && restoreStep === "3") {
                                 restoreStep = "2";
                             }
                             goToStep(restoreStep);
@@ -1031,6 +982,7 @@
                     }, 100);
                 }
 
+                /*
                 // ── On-device OCR (Tesseract.js) ───────────────────────────────
                 // Reads the text off the captured ID in the browser, so the guest
                 // gets "we read your ID" feedback before submitting, and the raw
@@ -1211,6 +1163,8 @@
                         }, true);
                     });
                 }
+
+                */
 
                 // Downsamples the captured image, computes a Laplacian-based sharpness
                 // score (real focus/blur detection, not just brightness contrast), and a
@@ -1521,37 +1475,6 @@
                 }
 
                 if (photoIdRequired) {
-                    var idwOcrText = "";
-                    var idwOcrAttempted = false;
-
-                    function idwSetOcr(text) {
-                        idwOcrText = text || "";
-                        var el = document.getElementById("photo-id-ocr");
-                        if (el) el.value = idwOcrText;
-                        if (window.idwSaveState) { window.idwSaveState({ id_ocr_text: idwOcrText }); }
-                        var status = document.getElementById("idw-ocr-status");
-                        if (!status) return;
-                        if (idwOcrText.trim()) {
-                            status.classList.remove("hidden");
-                            status.style.background = "#f0fdf4";
-                            status.style.borderColor = "#bbf7d0";
-                            status.style.color = "#166534";
-                            status.textContent = "We read the details on your ID ✓";
-                        } else if (idwOcrAttempted) {
-                            // OCR ran (or timed out) and came back empty -- tell the guest
-                            // instead of just clearing the status silently, since a silent
-                            // clear looks identical to "nothing happened yet."
-                            status.classList.remove("hidden");
-                            status.style.background = "#fffbeb";
-                            status.style.borderColor = "#fde68a";
-                            status.style.color = "#92400e";
-                            status.textContent = "Couldn't automatically read this ID. You can still continue -- it will be reviewed manually.";
-                        } else {
-                            status.classList.add("hidden");
-                            status.textContent = "";
-                        }
-                    }
-
                     function performCapture() {
                         var video = document.getElementById("camera-stream");
                         var crop = __idwGetGuideCropRect(video);
@@ -1571,27 +1494,6 @@
                                 if (ok) {
                                     document.getElementById("photo-id-data").value = dataUrl;
                                     idwSaveState({ photo_id: dataUrl });
-                                    idwSetOcr("");
-                                    idwCaptureGeneration++;
-                                    (function() {
-                                        var thisGen = idwCaptureGeneration;
-                                        var nextBtn = document.getElementById("id-capture-next-btn");
-                                        if (nextBtn) nextBtn.disabled = true;
-                                        var status = document.getElementById("idw-ocr-status");
-                                        if (status) {
-                                            status.classList.remove("hidden");
-                                            status.style.background = "#f8fafc";
-                                            status.style.borderColor = "#e2e8f0";
-                                            status.style.color = "#475569";
-                                            status.textContent = "Reading your ID…";
-                                        }
-                                        ocrIdImage(dataUrl, function(text) {
-                                            if (thisGen !== idwCaptureGeneration) return;
-                                            idwOcrAttempted = true;
-                                            idwSetOcr(text);
-                                            if (nextBtn) nextBtn.disabled = false;
-                                        });
-                                    })();
                                     if (!isPassport && idwBackRequired) {
                                         document.getElementById("upload-zone-trigger-back").classList.remove("hidden");
                                         document.getElementById("upload-zone-trigger-back-label").classList.remove("hidden");
@@ -1604,25 +1506,16 @@
                             document.getElementById("back-preview-block").classList.remove("hidden");
                             img.onload = function() {
                                 var ok = checkBlur(img, document.getElementById("back-blur-warning"));
-                                if (ok) { document.getElementById("photo-id-back-data").value = dataUrl; idwSaveState({ photo_id_back: dataUrl }); window.idwDecodeBarcode(dataUrl); }
+                                if (ok) { document.getElementById("photo-id-back-data").value = dataUrl; idwSaveState({ photo_id_back: dataUrl }); }
                             };
                         }
                     }
 
                     document.getElementById("retake-front-btn").addEventListener("click", function() {
-                        idwCaptureGeneration++;
-                        var idwNextBtn = document.getElementById("id-capture-next-btn");
-                        if (idwNextBtn) idwNextBtn.disabled = false;
                         document.getElementById("front-preview-block").classList.add("hidden");
                         document.getElementById("upload-zone-trigger-back").classList.add("hidden");
                         document.getElementById("upload-zone-trigger-back-label").classList.add("hidden");
                         document.getElementById("photo-id-data").value = "";
-                        var ocr = document.getElementById("photo-id-ocr");
-                        if (ocr) ocr.value = "";
-                        idwOcrText = "";
-                        idwOcrAttempted = false;
-                        var ocrStatus = document.getElementById("idw-ocr-status");
-                        if (ocrStatus) ocrStatus.classList.add("hidden");
                         startCamera("front");
                     });
 
@@ -1636,15 +1529,8 @@
                 function resetIdCapture() {
                     var frontData = document.getElementById("photo-id-data");
                     var backData = document.getElementById("photo-id-back-data");
-                    var barcode = document.getElementById("photo-id-barcode");
-                    var ocr = document.getElementById("photo-id-ocr");
                     if (frontData) frontData.value = "";
                     if (backData) backData.value = "";
-                    if (barcode) barcode.value = "";
-                    if (ocr) ocr.value = "";
-                    idwOcrText = "";
-                    var ocrStatus = document.getElementById("idw-ocr-status");
-                    if (ocrStatus) ocrStatus.classList.add("hidden");
                     var frontBlock = document.getElementById("front-preview-block");
                     var backBlock = document.getElementById("back-preview-block");
                     if (frontBlock) frontBlock.classList.add("hidden");
@@ -1856,14 +1742,6 @@
                         if (!isPassport && idwBackRequired) {
                             fd.set("photo_id_back", b64toBlob(document.getElementById("photo-id-back-data").value), "back.jpg");
                         }
-                        var barcodeValue = document.getElementById("photo-id-barcode");
-                        if (barcodeValue && barcodeValue.value) {
-                            fd.set("id_barcode_text", barcodeValue.value);
-                        }
-                        var ocrValue = document.getElementById("photo-id-ocr");
-                        if (ocrValue && ocrValue.value) {
-                            fd.set("id_ocr_text", ocrValue.value);
-                        }
                     }
 
                     withButtonBusy(btn, "Uploading…", function(restore) {
@@ -1876,15 +1754,6 @@
                                 if (r.status === 422) {
                                     return r.json().then(function(body) {
                                         restore();
-                                        if (body.id_rejected) {
-                                            // Invalid ID: force the guest back to the ID
-                                            // step to re-upload instead of advancing.
-                                            resetIdCapture();
-                                            idwClearState();
-                                            goToStep(2);
-                                            alert(body.reason || "Your ID could not be accepted. Please upload a valid government ID.");
-                                            return;
-                                        }
                                         var messages = body.errors ? Object.values(body.errors).flat().join("\n") : "Please check the form and try again.";
                                         alert(messages);
                                     });

@@ -13,7 +13,6 @@ use App\Services\SeamService;
 use App\Services\SmsConsentService;
 use App\Services\SmsNotificationService;
 use App\Services\RentalAgreementService;
-use App\Services\IdDocumentScanner;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -597,12 +596,6 @@ class GuestController extends Controller
         $data = $request->validate([
             'photo_id' => [$frontRequired ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
             'photo_id_back' => [$backRequired ? 'required' : 'nullable', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:5120'],
-            // PDF417 barcode text decoded on the device from the back of a US
-            // state ID (the reliable source for DOB / expiry).
-            'id_barcode_text' => ['nullable', 'string', 'max:4096'],
-            // Raw OCR text of the ID photos (Tesseract on the device) — a
-            // fallback for passports when the Vision provider is unavailable.
-            'id_ocr_text' => ['nullable', 'string', 'max:10000'],
         ]);
 
         $advancedStatuses = ['guest_approved', 'awaiting_deposit', 'currently_hosting', 'checked_out'];
@@ -645,88 +638,14 @@ class GuestController extends Controller
 
         $booking->update($updates);
 
-        // Scan the uploaded ID for date of birth / expiry / document number so
-        // we can catch an expired document and record the guest's age. Runs
-        // after the upload is stored so the scanner reads the saved file.
         $frontUploaded = $request->hasFile('photo_id') && $booking->photo_id_path;
         $backUploaded = $request->hasFile('photo_id_back') && $booking->photo_id_back_path;
 
-        // Set when the uploaded ID is auto-rejected so the AJAX flow can keep
-        // the guest on the ID step instead of advancing them.
-        $identityRejection = null;
-
-        if ($frontUploaded || $backUploaded) {
-            $scanner = app(IdDocumentScanner::class);
-            $barcodeText = $data['id_barcode_text'] ?? null;
-            $ocrText = $data['id_ocr_text'] ?? null;
-
-            // Confirm name + expiry on-device only (barcode + OCR text) — no
-            // cloud provider, no billing. The host still verifies the photo and
-            // age manually.
-            $scan = $scanner->scan($barcodeText, $booking->guest_name, $ocrText);
-
-            if ($scan !== null) {
-                $booking->update([
-                    'id_date_of_birth' => $scan['date_of_birth'],
-                    'id_age'           => $scan['age'],
-                    'id_expiry_date'   => $scan['expiry_date'],
-                    'id_number'        => $scan['number'],
-                    'id_name'          => $scan['name'],
-                    'id_scan_status'   => $scan['status'],
-                    'id_scanned_at'    => now(),
-                ]);
-
-                // Invalid IDs are rejected automatically with no admin review.
-                // Reasons are specific and quote whatever was actually read off
-                // the document, so the guest knows exactly what's wrong.
-                $expiry = $scan['expiry_date'] ? \Carbon\Carbon::parse($scan['expiry_date'])->format('M j, Y') : null;
-
-                $autoRejectReasons = [
-                    'name_mismatch' => $scan['name']
-                        ? "The name on this ID (\"{$scan['name']}\") doesn't match the name on the reservation (\"{$booking->guest_name}\"). Please upload an ID that matches the booking name exactly."
-                        : "The name on this ID doesn't match the name on the reservation. Please upload an ID that matches the booking name exactly.",
-                    'expired' => "This ID expired on {$expiry}. Please upload a current, unexpired government ID.",
-                    'underage' => "This reservation requires guests to be 18 or older. The date of birth on this ID indicates the guest does not meet that requirement.",
-                    // We could not read the name, date of birth, or expiry off this
-                    // ID at all, so none of those checks could actually run. Rather
-                    // than silently letting an unverified ID through, force a
-                    // retake -- better lighting, a flatter angle, and the ID filling
-                    // the frame usually fixes this.
-                    'unreadable' => "We couldn't clearly read the details on this ID. Please retake the photo with good lighting, avoiding glare, and make sure the entire document is in frame.",
-                ];
-
-                if (isset($autoRejectReasons[$scan['status']])) {
-                    $reason = $autoRejectReasons[$scan['status']];
-                    $identityRejection = $reason;
-
-                    $booking->update([
-                        'photo_id_path' => null,
-                        'photo_id_back_path' => null,
-                        'photo_id_front_declined_reason' => $reason,
-                        'photo_id_front_approved_at' => null,
-                        'photo_id_back_approved_at' => null,
-                        'photo_id_received' => false,
-                        'approved_at' => null,
-                        'status' => 'pending',
-                    ]);
-
-                    // No email is sent for an automatic rejection: the guest is
-                    // told in the portal (forced back to the ID step) and the
-                    // host doesn't need a notification for every bad upload.
-                }
-            }
-        }
-
-        // Only a successful submission counts as registration/ID upload. On
-        // the guest's first success send "registration completed" once; later
-        // re-uploads send the ID-upload alert instead. Rejections send nothing.
-        if ($identityRejection === null) {
-            if (! $wasRegistrationNotified) {
-                \App\Services\GuestAlertService::send('registration_received', $booking);
-                $booking->update(['registration_notified_at' => now()]);
-            } elseif ($frontUploaded || $backUploaded) {
-                \App\Services\GuestAlertService::send('photo_id_uploaded', $booking);
-            }
+        if (! $wasRegistrationNotified) {
+            \App\Services\GuestAlertService::send('registration_received', $booking);
+            $booking->update(['registration_notified_at' => now()]);
+        } elseif ($frontUploaded || $backUploaded) {
+            \App\Services\GuestAlertService::send('photo_id_uploaded', $booking);
         }
 
         ActivityLogService::guest('photo_id_uploaded', "Guest {$booking->guest_name} submitted photo ID and pre-arrival details.", 'photo_id', [
@@ -738,22 +657,8 @@ class GuestController extends Controller
             'metadata'    => ['email' => $booking->email, 'booking_ref' => $booking->booking_id],
         ]);
 
-        // The pre-check-in wizard submits this via AJAX: tell it whether to
-        // advance to the next step or stay on the ID step with the reason.
         if ($request->expectsJson()) {
-            if ($identityRejection !== null) {
-                return response()->json([
-                    'ok' => false,
-                    'id_rejected' => true,
-                    'reason' => $identityRejection,
-                ], 422);
-            }
-
             return response()->json(['ok' => true]);
-        }
-
-        if ($identityRejection !== null) {
-            return back()->withErrors(['photo_id' => $identityRejection]);
         }
 
         return back()

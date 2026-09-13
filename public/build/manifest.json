@@ -1,6 +1,6 @@
 {
   "resources/css/app.css": {
-    "file": "assets/app-CqzPtdH2.css",
+    "file": "assets/app-DVAJjMtn.css",
     "src": "resources/css/app.css",
     "isEntry": true,
     "name": "app",
@@ -12,12 +12,6 @@
     "file": "assets/app-CJO8bMHs.js",
     "name": "app",
     "src": "resources/js/app.js",
-    "isEntry": true
-  },
-  "resources/js/id-scan.js": {
-    "file": "assets/id-scan-XbZ7vJB_.js",
-    "name": "id-scan",
-    "src": "resources/js/id-scan.js",
     "isEntry": true
   }
 }

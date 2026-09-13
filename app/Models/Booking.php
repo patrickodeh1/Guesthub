@@ -17,7 +17,7 @@ class Booking extends Model
 
     protected $fillable = [
         'booking_id', 'reservation_id', 'source', 'booking_platform', 'channex_booking_id', 'guest_name', 'phone', 'email', 'check_in_date', 'check_out_date',
-        'property_id', 'id_type', 'id_date_of_birth', 'id_age', 'id_expiry_date', 'id_number', 'id_name', 'id_scan_status', 'id_scanned_at', 'token', 'photo_id_path', 'photo_id_back_path', 'photo_id_received', 'parking_needed', 'early_checkin_tier', 'checkin_time_preference', 'checkout_time_preference', 'checkin_time_status', 'checkout_time_status', 'gps_verified', 'guest_authenticated_at', 'checkin_disclaimer_agreed_at',
+        'property_id', 'id_type', 'token', 'photo_id_path', 'photo_id_back_path', 'photo_id_received', 'parking_needed', 'early_checkin_tier', 'checkin_time_preference', 'checkout_time_preference', 'checkin_time_status', 'checkout_time_status', 'gps_verified', 'guest_authenticated_at', 'checkin_disclaimer_agreed_at',
         'manually_checked_in', 'checked_in_at', 'checked_out_at', 'late_checkout_type', 'late_checkout_hours', 'late_checkout_actual_time', 'gps_overridden', 'status', 'cancelled_at', 'cancelled_by_guest', 'cancellation_fee_applies', 'notes', 'welcome_message', 'identity_confirmed_at', 'registration_notified_at',
         'approved_at', 'decline_reason', 'archived_at', 'background_check_completed_at', 'deposit_verified_at', 'platform_payment_selected_at', 'checkin_approved_at',
         'contract_version', 'contract_accepted_at', 'contract_signed_name', 'contract_signed_ip', 'contract_signed_user_agent', 'contract_signed_device_id',
@@ -38,9 +38,6 @@ class Booking extends Model
         return [
             'check_in_date' => 'date',
             'check_out_date' => 'date',
-            'id_date_of_birth' => 'date',
-            'id_expiry_date' => 'date',
-            'id_scanned_at' => 'datetime',
             'parking_needed' => 'boolean',
             'photo_id_received' => 'boolean',
             'gps_verified' => 'boolean',
@@ -272,21 +269,6 @@ class Booking extends Model
     public function hasAgreedToArrivalDisclaimer(): bool
     {
         return filled($this->checkin_disclaimer_agreed_at);
-    }
-
-    public function isIdExpired(): bool
-    {
-        return $this->id_scan_status === 'expired';
-    }
-
-    public function isIdScanValid(): bool
-    {
-        return $this->id_scan_status === 'valid';
-    }
-
-    public function isUnderage(int $minimum = 18): bool
-    {
-        return $this->id_age !== null && (int) $this->id_age < $minimum;
     }
 
     public function isCheckedIn(): bool

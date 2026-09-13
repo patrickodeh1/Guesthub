@@ -412,33 +412,6 @@
                         <p class="mt-4 font-semibold text-slate-950">Not uploaded</p>
                     @endif
 
-                    @if($booking->id_scanned_at || $booking->id_scan_status)
-                        <div class="mt-5 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm">
-                            <p class="mb-2 flex items-center gap-2 font-semibold text-slate-800"><x-icon name="security" class="h-4 w-4 text-slate-400" />Scanned ID details</p>
-                            @if($booking->isIdExpired())
-                                <div class="mb-2 rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700">This ID appears to be expired — do not approve until a valid, unexpired document is provided.</div>
-                            @endif
-                            @if($booking->isUnderage(18))
-                                <div class="mb-2 rounded-md border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-800">Guest is under 18 — check your minimum-age requirement before approving.</div>
-                            @endif
-                            @if($booking->id_scan_status === 'name_mismatch')
-                                <div class="mb-2 rounded-md border border-red-200 bg-red-50 px-2.5 py-1.5 text-xs font-semibold text-red-700">Auto-rejected: the name on the ID did not match the reservation name.</div>
-                            @endif
-                            <dl class="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-slate-600">
-                                <div class="flex items-center justify-between gap-2"><dt class="text-slate-500">Date of birth</dt><dd class="font-semibold text-slate-900">{{ $booking->id_date_of_birth?->format('M j, Y') ?? '—' }}</dd></div>
-                                <div class="flex items-center justify-between gap-2"><dt class="text-slate-500">Age</dt><dd class="font-semibold text-slate-900">{{ $booking->id_age !== null ? $booking->id_age : '—' }}</dd></div>
-                                <div class="flex items-center justify-between gap-2"><dt class="text-slate-500">Expires</dt><dd class="font-semibold {{ $booking->isIdExpired() ? 'text-red-700' : 'text-slate-900' }}">{{ $booking->id_expiry_date?->format('M j, Y') ?? '—' }}</dd></div>
-                                <div class="flex items-center justify-between gap-2"><dt class="text-slate-500">Scan</dt><dd class="font-semibold text-slate-900">{{ ucfirst(str_replace('_', ' ', $booking->id_scan_status ?? 'unknown')) }}</dd></div>
-                                @if($booking->id_name)
-                                    <div class="col-span-2 flex items-center justify-between gap-2"><dt class="text-slate-500">Name on ID</dt><dd class="font-semibold text-slate-900">{{ $booking->id_name }}</dd></div>
-                                @endif
-                                @if($booking->id_number)
-                                    <div class="col-span-2 flex items-center justify-between gap-2"><dt class="text-slate-500">Document number</dt><dd class="font-semibold text-slate-900">{{ $booking->id_number }}</dd></div>
-                                @endif
-                            </dl>
-                        </div>
-                    @endif
-
                     @if($booking->isIdFullyApproved())
                         <div class="mt-5 rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-sm text-emerald-800 font-semibold">All ID photos approved{{ $booking->approved_at ? ' on '.$booking->localTimestamp($booking->approved_at)->format('M j, Y g:i A') : '' }}</div>
                     @endif
