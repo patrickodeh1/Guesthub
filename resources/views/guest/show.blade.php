@@ -157,7 +157,7 @@
                     </div>
                     <h1 class="guest-status-title">Your unit isn't quite ready yet</h1>
                     <p class="mt-3 text-sm leading-6 text-slate-600">
-                        We're putting the finishing touches on your unit. There's nothing you need to do — this page refreshes on its own, and as soon as it's ready you'll be approved to check in and your arrival details will appear here.
+                        We're putting the finishing touches on your unit. There's nothing you need to do — as soon as it's ready you'll be approved to check in and your arrival details will appear here.
                     </p>
                     <div class="guest-stay-grid mt-6">
                         <div class="guest-stay-tile">

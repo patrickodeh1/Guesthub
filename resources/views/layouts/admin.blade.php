@@ -64,11 +64,6 @@
             <span class="grid h-5 w-5 shrink-0 place-items-center"><x-icon name="calendar" class="h-4 w-4" /></span>
             <span class="font-medium">Guests</span>
         </a>
-        <a href="{{ route('admin.notices.index') }}" class="flex items-center gap-2.5 rounded-sm px-3 py-2.5 transition focus:outline-none focus:ring-2 focus:ring-white/30 {{ request()->routeIs('admin.notices.*') ? 'bg-white/10 text-white' : 'text-slate-200 hover:bg-white/10 hover:text-white' }}">
-            <span class="grid h-5 w-5 shrink-0 place-items-center"><x-icon name="bell" class="h-4 w-4" /></span>
-            <span class="font-medium">Guest Notices</span>
-        </a>
-
         {{-- Properties: expandable --}}
         <div>
             <div class="flex items-center rounded-sm {{ $propertiesActive ? 'bg-white/10 text-white' : 'text-slate-200' }}">
@@ -102,7 +97,7 @@
         </div>
 
         @php
-            $settingsActive = request()->routeIs('admin.settings.*') || request()->routeIs('admin.payments.*');
+            $settingsActive = request()->routeIs('admin.settings.*') || request()->routeIs('admin.payments.*') || request()->routeIs('admin.notices.*');
         @endphp
         <p class="mt-4 mb-1 px-3 text-xs font-bold uppercase tracking-widest text-slate-400">Settings</p>
         <div>
@@ -120,6 +115,7 @@
                 <a href="{{ route('admin.settings.legal.edit') }}" class="block rounded-sm px-2 py-1.5 text-xs leading-snug transition {{ request()->routeIs('admin.settings.legal.*') ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white' }}">Legal</a>
                 <a href="{{ route('admin.settings.notifications.edit') }}" class="block rounded-sm px-2 py-1.5 text-xs leading-snug transition {{ request()->routeIs('admin.settings.notifications.*') ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white' }}">Notifications</a>
                 <a href="{{ route('admin.payments.index') }}" class="block rounded-sm px-2 py-1.5 text-xs leading-snug transition {{ request()->routeIs('admin.payments.*') ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white' }}">Payments</a>
+                <a href="{{ route('admin.notices.index') }}" class="block rounded-sm px-2 py-1.5 text-xs leading-snug transition {{ request()->routeIs('admin.notices.*') ? 'bg-white/10 text-white' : 'text-slate-300 hover:bg-white/10 hover:text-white' }}">Guest Notices</a>
             </div>
         </div>
 
