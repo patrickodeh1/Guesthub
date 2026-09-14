@@ -404,7 +404,7 @@
     .guest-card-field .StripeElement iframe {
         display: block !important;
         width: 100% !important;
-        height: 24px !important;
+        height: 32px !important;
         border: 0 !important;
     }
 

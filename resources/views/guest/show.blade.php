@@ -2279,6 +2279,7 @@
                                         clientSecret = data.client_secret;
                                         stripe = Stripe(data.publishable_key);
                                         elements = stripe.elements({ clientSecret: clientSecret });
+
                                         var stripeElementStyle = {
                                             base: {
                                                 color: "#0f172a",
