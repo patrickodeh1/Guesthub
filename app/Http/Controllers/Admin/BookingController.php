@@ -402,6 +402,7 @@ class BookingController extends Controller
         $this->guardNotCancelled($booking);
 
         $oldEarlyCheckinTier = $booking->early_checkin_tier;
+        $oldLateCheckoutType = $booking->late_checkout_type;
         $oldLateCheckoutCharge = $booking->effectiveLateCheckoutCharge();
         $oldIncidentalsCharge = (float) ($booking->effectiveIncidentalsCharge() ?? 0);
 
@@ -440,6 +441,13 @@ class BookingController extends Controller
         // it is an admin-initiated action.
         if ($booking->early_checkin_tier && $booking->early_checkin_tier !== $oldEarlyCheckinTier) {
             \App\Services\GuestAlertService::send('early_checkin_granted', $booking);
+        }
+
+        // Same idea for late checkout: only fire when it's newly marked
+        // authorized (not on every ledger re-save), same guard shape as
+        // early_checkin_tier above.
+        if ($booking->late_checkout_type === 'authorized' && $oldLateCheckoutType !== 'authorized') {
+            \App\Services\GuestAlertService::send('late_checkout_granted', $booking);
         }
 
         // Same idea for late checkout / incidentals, but only once the guest
@@ -764,10 +772,11 @@ class BookingController extends Controller
      */
     /**
      * Approve or deny a guest's requested non-standard check-in/check-out
-     * time (task 0). Manual only — no automatic guest notification is sent;
-     * approving does not itself set a charge, admin still fills in the
-     * task 26 billing fields (early_checkin_tier / late_checkout_type etc.)
-     * as needed.
+     * time (task 0). Approving does not itself set a charge, admin still
+     * fills in the task 26 billing fields (early_checkin_tier /
+     * late_checkout_type etc.) as needed. The guest is notified of the
+     * decision either way, via the checkin_time_approved/denied or
+     * checkout_time_approved/denied alert events.
      */
     public function updateTimePreferenceStatus(Request $request, Booking $booking, string $type)
     {
@@ -783,6 +792,18 @@ class BookingController extends Controller
 
         $booking->update([
             $statusField => $data['decision'],
+        ]);
+
+        $booking->refresh();
+
+        $requestedTime = $type === 'checkin'
+            ? $booking->checkinTimePreferenceFormatted()
+            : $booking->checkoutTimePreferenceFormatted();
+
+        $event = $type.'_time_'.$data['decision'];
+
+        \App\Services\GuestAlertService::send($event, $booking, [
+            'requested_time' => $requestedTime,
         ]);
 
         $label = $type === 'checkin' ? 'check-in' : 'check-out';

@@ -14,6 +14,7 @@ class GuestAlertMail extends Mailable
         public string $eventLabel,
         public string $message,
         public ?string $subjectLine = null,
+        public ?string $propertyName = null,
     ) {}
 
     public function build()
@@ -25,6 +26,7 @@ class GuestAlertMail extends Mailable
             ->with([
                 'eventLabel' => $this->eventLabel,
                 'message' => $this->message,
+                'propertyName' => $this->propertyName,
             ]);
     }
 }

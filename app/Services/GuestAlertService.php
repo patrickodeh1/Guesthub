@@ -33,32 +33,32 @@ class GuestAlertService
     public const EVENTS = [
         'registration_received' => [
             'label' => 'Registration completed',
-            'default_guest_message' => "Hi {guest_first_name}, thanks for registering for {property_name}! We're reviewing your details now and will let you know as soon as the next step is ready.",
+            'default_guest_message' => "Hi {guest_first_name}, thanks for registering for {property_name}. We're reviewing your details now and will let you know as soon as the next step is ready.",
             'default_staff_message' => 'New registration submitted for {property_name} by {guest_name}. Review it in the admin panel.',
         ],
         'background_check_complete' => [
             'label' => 'Background check complete',
-            'default_guest_message' => "Hi {guest_first_name}, good news! Your {step_name} for {property_name} is complete. Your incidentals hold is now ready — open your check-in link to see the amount and complete payment.",
+            'default_guest_message' => "Hi {guest_first_name}, your {step_name} for {property_name} is complete. Your incidentals hold is now ready. Visit your check-in link to see the amount and complete payment.",
             'default_staff_message' => "{guest_name}'s {step_name} for {property_name} came back complete.",
         ],
         'fully_approved' => [
             'label' => 'Fully approved',
-            'default_guest_message' => "Hi {guest_first_name}, you're fully approved for {property_name}! Check-in: {check_in_time} on {check_in_date}. Check-out: {check_out_time} on {check_out_date}. Parking: {parking_status}.",
+            'default_guest_message' => "Hi {guest_first_name}, you're fully approved for {property_name}. Check-in: {check_in_time} on {check_in_date}. Check-out: {check_out_time} on {check_out_date}. Parking: {parking_status}.",
             'default_staff_message' => '{guest_name} was just marked fully approved for {property_name}. Check-in {check_in_date} at {check_in_time}, check-out {check_out_date} at {check_out_time}. Parking: {parking_status}.',
         ],
         'time_to_check_in' => [
             'label' => 'Time to check in',
-            'default_guest_message' => "Hi {guest_first_name}, today's the day! Check-in at {property_name} opens at {check_in_time}.",
+            'default_guest_message' => "Hi {guest_first_name}, today's the day. Check-in at {property_name} opens at {check_in_time}.",
             'default_staff_message' => '{guest_name} is due to check in today at {property_name}, opening at {check_in_time}. Make sure the unit is ready.',
         ],
         'checkin_ready' => [
             'label' => 'Unit ready to check in',
-            'default_guest_message' => "Hi {guest_first_name}, good news — your unit at {property_name} is ready! Open your check-in link to complete check-in and unlock your guide.",
+            'default_guest_message' => "Hi {guest_first_name}, your unit at {property_name} is ready. Visit your check-in link to complete check-in and unlock your guide.",
             'default_staff_message' => "{guest_name}'s unit at {property_name} is ready and they have been approved to check in.",
         ],
         'checkin_completed' => [
             'label' => 'Check-in completed',
-            'default_guest_message' => 'Hi {guest_first_name}, your check-in at {property_name} is complete. Enjoy your stay!',
+            'default_guest_message' => 'Hi {guest_first_name}, your check-in at {property_name} is complete. Enjoy your stay.',
             'default_staff_message' => 'Check-in has been completed and {guest_name} is successfully checked into {property_name}.',
         ],
         'checkout_reminder' => [
@@ -68,12 +68,12 @@ class GuestAlertService
         ],
         'checkout_completed' => [
             'label' => 'Check-out completed',
-            'default_guest_message' => 'Hi {guest_first_name}, thanks for staying at {property_name}. You are now checked out. Safe travels!',
+            'default_guest_message' => 'Hi {guest_first_name}, thanks for staying at {property_name}. You are now checked out. Safe travels.',
             'default_staff_message' => '{guest_name} has just checked out of {property_name}. The unit is ready for turnover.',
         ],
         'deposit_paid' => [
             'label' => 'Deposit paid',
-            'default_guest_message' => 'Hi {guest_first_name}, your incidentals deposit for {property_name} has been received. Thanks!',
+            'default_guest_message' => 'Hi {guest_first_name}, your incidentals deposit for {property_name} has been received. Thanks.',
             'default_staff_message' => '{guest_name} paid their incidentals deposit online for {property_name}.',
         ],
         'early_checkin_granted' => [
@@ -81,9 +81,34 @@ class GuestAlertService
             'default_guest_message' => 'Hi {guest_first_name}, your early check-in request for {property_name} has been approved. Please visit your check-in link to complete payment.',
             'default_staff_message' => 'Early check-in was granted for {guest_name} at {property_name}.',
         ],
+        'late_checkout_granted' => [
+            'label' => 'Late checkout granted',
+            'default_guest_message' => 'Hi {guest_first_name}, your late checkout request for {property_name} has been approved.',
+            'default_staff_message' => 'Late checkout was granted for {guest_name} at {property_name}.',
+        ],
+        'checkin_time_approved' => [
+            'label' => 'Requested check-in time approved',
+            'default_guest_message' => 'Hi {guest_first_name}, your requested check-in time of {requested_time} for {property_name} has been approved.',
+            'default_staff_message' => "{guest_name}'s requested check-in time of {requested_time} for {property_name} was approved.",
+        ],
+        'checkin_time_denied' => [
+            'label' => 'Requested check-in time denied',
+            'default_guest_message' => 'Hi {guest_first_name}, we are not able to accommodate your requested check-in time of {requested_time} for {property_name}. Standard check-in remains {check_in_time}.',
+            'default_staff_message' => "{guest_name}'s requested check-in time of {requested_time} for {property_name} was denied.",
+        ],
+        'checkout_time_approved' => [
+            'label' => 'Requested check-out time approved',
+            'default_guest_message' => 'Hi {guest_first_name}, your requested check-out time of {requested_time} for {property_name} has been approved.',
+            'default_staff_message' => "{guest_name}'s requested check-out time of {requested_time} for {property_name} was approved.",
+        ],
+        'checkout_time_denied' => [
+            'label' => 'Requested check-out time denied',
+            'default_guest_message' => 'Hi {guest_first_name}, we are not able to accommodate your requested check-out time of {requested_time} for {property_name}. Standard check-out remains {check_out_time}.',
+            'default_staff_message' => "{guest_name}'s requested check-out time of {requested_time} for {property_name} was denied.",
+        ],
         'post_checkout_balance_due' => [
             'label' => 'Post-checkout charge recorded',
-            'default_guest_message' => 'Thanks for your stay at {property_name}, {guest_first_name}! We hope you had a great time.',
+            'default_guest_message' => 'Thanks for your stay at {property_name}, {guest_first_name}. We hope you had a great time.',
             'default_staff_message' => 'A post-checkout charge (late checkout / incidentals) was recorded for {guest_name} at {property_name} -- refund handled offline.',
         ],
         'pms_booking_received' => [
@@ -325,7 +350,7 @@ class GuestAlertService
         if ($row['guest_email']) {
             if ($booking->email) {
                 try {
-                    Mail::to($booking->email)->send(new GuestAlertMail($label, $guestMessage, $subject));
+                    Mail::to($booking->email)->send(new GuestAlertMail($label, $guestMessage, $subject, $booking->property?->name));
                     Log::info("Guest alert email sent (guest, {$event}) to {$booking->email}.");
                 } catch (\Throwable $e) {
                     Log::error("Guest alert email failed (guest, {$event}): ".$e->getMessage());
