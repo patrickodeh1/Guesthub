@@ -1220,7 +1220,7 @@ class GuestController extends Controller
             return $booking->isPastCheckoutTime() ? 'checkout_locked' : 'checkout_available';
         }
 
-        if ($booking->isCheckoutDayBeforeSixPM()) {
+        if ($booking->isCheckoutDayBeforeNoon()) {
             return 'checkout_notice';
         }
 

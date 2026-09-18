@@ -1136,7 +1136,7 @@ class Booking extends Model
         return $now->toDateString() > $this->check_out_date->toDateString();
     }
 
-    public function isCheckoutDayBeforeSixPM(?CarbonInterface $now = null): bool
+    public function isCheckoutDayBeforeNoon(?CarbonInterface $now = null): bool
     {
         $timezone = $this->property?->timezone ?? 'America/New_York';
         $now = ($now ?? now())->setTimezone($timezone);
@@ -1145,7 +1145,7 @@ class Booking extends Model
             return false;
         }
 
-        return $now->hour >= 18;
+        return $now->hour >= 12;
     }
 
     /**
