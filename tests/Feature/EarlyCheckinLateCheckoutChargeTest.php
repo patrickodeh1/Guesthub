@@ -17,6 +17,23 @@ class EarlyCheckinLateCheckoutChargeTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_only_early_checkin_and_late_checkout_need_approval(): void
+    {
+        $property = Property::factory()->create([
+            'checkin_time' => '16:00',
+            'checkout_time' => '10:00',
+        ]);
+        $booking = Booking::factory()->create(['property_id' => $property->id]);
+
+        $this->assertTrue($booking->requiresCheckinTimeApproval('15:00'));
+        $this->assertFalse($booking->requiresCheckinTimeApproval('17:00'));
+        $this->assertFalse($booking->requiresCheckinTimeApproval('16:00'));
+
+        $this->assertTrue($booking->requiresCheckoutTimeApproval('11:00'));
+        $this->assertFalse($booking->requiresCheckoutTimeApproval('09:00'));
+        $this->assertFalse($booking->requiresCheckoutTimeApproval('10:00'));
+    }
+
     // ─── Early check-in billing ─────────────────────────────────────────────
 
     public function test_early_checkin_charge_is_null_when_no_tier_granted(): void

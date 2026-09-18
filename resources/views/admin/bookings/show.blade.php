@@ -53,6 +53,11 @@
                 @endif
             </div>
             <div class="flex flex-wrap items-center gap-3">
+                @if($booking->phone)
+                    <a href="tel:{{ \App\Support\PhoneFormatter::toTelUri($booking->phone) }}" class="inline-flex h-10 w-10 items-center justify-center rounded-full border border-emerald-200 bg-emerald-50 text-emerald-600 hover:bg-emerald-100 hover:text-emerald-700" title="Call guest" aria-label="Call guest">
+                        <x-icon name="contact-guest-services" class="h-5 w-5" />
+                    </a>
+                @endif
                 <span class="badge badge-{{ $booking->effectiveStatus() }} px-3 py-1 text-sm">{{ $booking->statusLabel() }}</span>
                 @unless($booking->isCancelled())
                 <button type="button" title="Edit Guest Details" aria-label="Edit Guest Details" aria-expanded="false" onclick="toggleGuestDetailsEdit(this)" class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-800">
@@ -96,7 +101,23 @@
                     <label class="field-label">Reservation ID (Airbnb/VRBO) <span class="text-red-600">*</span><input name="reservation_id" value="{{ old('reservation_id', $booking->reservation_id) }}" required class="input">@error('reservation_id')<span class="mt-1 block text-xs text-red-700">{{ $message }}</span>@enderror</label>
                     <label class="field-label">Booking platform<input name="booking_platform" list="booking-platform-options" value="{{ old('booking_platform', $booking->booking_platform) }}" placeholder="Airbnb, Vrbo, Booking.com…" class="input"><datalist id="booking-platform-options"><option value="Airbnb"></option><option value="Vrbo"></option><option value="Booking.com"></option><option value="Expedia"></option><option value="Direct"></option></datalist><span class="field-help">Shown to the guest on the payment screen ("Pay on …"). Auto-filled for channel-manager bookings.</span></label>
                     <label class="field-label">Guest name <span class="text-red-600">*</span><input name="guest_name" value="{{ old('guest_name', $booking->guest_name) }}" required class="input">@error('guest_name')<span class="mt-1 block text-xs text-red-700">{{ $message }}</span>@enderror</label>
-                    <label class="field-label">Phone<input id="guest-detail-phone-input" name="phone" value="{{ old('phone', $booking->phone) }}" placeholder="(555) 555-0199" maxlength="14" class="input"></label>
+                    <div class="field-label">
+                        <span>Phone</span>
+                        <div class="mt-1 flex gap-2">
+                            <div class="relative w-28 shrink-0">
+                                <button type="button" id="guest-phone-country-button" class="input flex items-center justify-between gap-1.5 px-2.5 text-left">
+                                    <span id="guest-phone-country-label" class="flex items-center gap-1.5 text-sm font-medium"><span id="guest-phone-country-flag">🇺🇸</span><span id="guest-phone-country-dial">+1</span></span>
+                                    <span aria-hidden="true" class="text-xs text-slate-400">▾</span>
+                                </button>
+                                <div id="guest-phone-country-menu" class="absolute left-0 top-full z-20 mt-1 hidden w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                                    <div class="border-b border-slate-100 p-2"><input type="text" id="guest-phone-country-search" placeholder="Search country or code" class="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm" autocomplete="off"></div>
+                                    <div id="guest-phone-country-list" class="max-h-56 overflow-y-auto"></div>
+                                </div>
+                            </div>
+                            <input type="hidden" id="guest-phone-country-code" name="phone_country_code" value="+1">
+                            <input id="guest-detail-phone-input" name="phone" value="{{ old('phone', \App\Support\PhoneFormatter::format($booking->phone)) }}" placeholder="(555) 555-0199" maxlength="18" class="input min-w-0 flex-1">
+                        </div>
+                    </div>
                     <label class="field-label">Email<input name="email" value="{{ old('email', $booking->email) }}" placeholder="guest@example.com" class="input">@error('email')<span class="mt-1 block text-xs text-red-700">{{ $message }}</span>@enderror</label>
                     <label class="field-label">Check-in <span class="text-red-600">*</span><input type="date" name="check_in_date" value="{{ old('check_in_date', optional($booking->check_in_date)->format('Y-m-d')) }}" required class="input">@error('check_in_date')<span class="mt-1 block text-xs text-red-700">{{ $message }}</span>@enderror</label>
                     <label class="field-label">Check-out <span class="text-red-600">*</span><input type="date" name="check_out_date" value="{{ old('check_out_date', optional($booking->check_out_date)->format('Y-m-d')) }}" required class="input">@error('check_out_date')<span class="mt-1 block text-xs text-red-700">{{ $message }}</span>@enderror</label>
@@ -1073,4 +1094,5 @@
         });
     })();
     </script>
+    <script src="{{ asset('js/guest-phone-country.js') }}"></script>
 </x-admin-layout>

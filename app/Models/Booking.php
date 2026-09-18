@@ -960,7 +960,7 @@ class Booking extends Model
             return false;
         }
 
-        if ($this->vehicle_make_model && $this->license_plate_photo_path) {
+        if ($this->license_plate_photo_path) {
             return false;
         }
 
@@ -999,6 +999,41 @@ class Booking extends Model
     public function standardCheckoutTimeFormatted(): string
     {
         return $this->safeFormatTime($this->standardCheckoutTime());
+    }
+
+    public function requiresCheckinTimeApproval(?string $requestedTime = null): bool
+    {
+        return $this->isTimeBefore($requestedTime, $this->standardCheckinTime());
+    }
+
+    public function requiresCheckoutTimeApproval(?string $requestedTime = null): bool
+    {
+        return $this->isTimeAfter($requestedTime, $this->standardCheckoutTime());
+    }
+
+    private function isTimeBefore(?string $requestedTime, string $standardTime): bool
+    {
+        if (! filled($requestedTime)) {
+            return false;
+        }
+
+        return $this->timeMinutes($requestedTime) < $this->timeMinutes($standardTime);
+    }
+
+    private function isTimeAfter(?string $requestedTime, string $standardTime): bool
+    {
+        if (! filled($requestedTime)) {
+            return false;
+        }
+
+        return $this->timeMinutes($requestedTime) > $this->timeMinutes($standardTime);
+    }
+
+    private function timeMinutes(string $value): int
+    {
+        $time = $this->safeParseTime($value);
+
+        return ($time->hour * 60) + $time->minute;
     }
 
     /**

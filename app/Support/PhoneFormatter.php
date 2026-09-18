@@ -4,6 +4,45 @@ namespace App\Support;
 
 class PhoneFormatter
 {
+    public static function normalizeForStorage(?string $raw, string $countryCode = '+1'): ?string
+    {
+        if (! $raw) {
+            return null;
+        }
+
+        $countryDigits = preg_replace('/\D+/', '', $countryCode);
+        $digits = preg_replace('/\D+/', '', $raw);
+
+        if (! $digits) {
+            return null;
+        }
+
+        if ($countryDigits && str_starts_with($digits, $countryDigits) && strlen($digits) > strlen($countryDigits) + 10) {
+            $digits = substr($digits, strlen($countryDigits));
+        }
+
+        if ($countryDigits === '1' && strlen($digits) === 11 && str_starts_with($digits, '1')) {
+            $digits = substr($digits, 1);
+        }
+
+        return '+'.$countryDigits.$digits;
+    }
+
+    public static function toTelUri(?string $raw): ?string
+    {
+        if (! $raw) {
+            return null;
+        }
+
+        $digits = preg_replace('/\D+/', '', $raw);
+
+        if (strlen($digits) === 10) {
+            $digits = '1'.$digits;
+        }
+
+        return $digits ? '+'.$digits : null;
+    }
+
     /**
      * Format a stored phone number for display: "(000) 123-4567".
      * Handles values like "+1 5551234567", "5551234567", "+15551234567".

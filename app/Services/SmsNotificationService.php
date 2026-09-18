@@ -1,6 +1,7 @@
 <?php
 namespace App\Services;
 use App\Models\Booking;
+use App\Support\PhoneFormatter;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -17,6 +18,8 @@ class SmsNotificationService
      */
     protected static function sendTo(?string $to, string $message, string $context = 'guest', bool $requireConsent = true): void
     {
+        $to = PhoneFormatter::toTelUri($to);
+
         if ($requireConsent && ($context === 'guest' || $context === 'guest_alert')) {
             $phone = preg_replace('/\D+/', '', (string) $to);
             if (! $phone || ! \App\Services\SmsConsentService::canSendTo($phone)) {

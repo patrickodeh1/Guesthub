@@ -7,6 +7,7 @@ use App\Models\Booking;
 use App\Models\Property;
 use App\Models\Setting;
 use App\Services\ActivityLogService;
+use App\Support\PhoneFormatter;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Storage;
@@ -252,6 +253,7 @@ class BookingController extends Controller
     public function store(Request $request)
     {
         $data               = $this->validated($request);
+        $data['phone'] = PhoneFormatter::normalizeForStorage($data['phone'] ?? null, $request->input('phone_country_code', '+1'));
         $this->enforcePreCheckinCap($data);
         $data['booking_id'] = ($data['booking_id'] ?? null) ?: 'BK-'.strtoupper(Str::random(8));
         $data['token']      = Str::random(40);
@@ -356,6 +358,7 @@ class BookingController extends Controller
 
         $oldStatus = $booking->status;
         $data = $this->validated($request, $booking);
+        $data['phone'] = PhoneFormatter::normalizeForStorage($data['phone'] ?? null, $request->input('phone_country_code', '+1'));
         $this->enforcePreCheckinCap(array_merge($booking->only(['incidentals_charge', 'parking_needed', 'early_checkin_tier', 'early_checkin_charge_override', 'early_checkin_billing_mode']), $data));
         $data['photo_id_received'] = $request->boolean('photo_id_received');
         if (($data['status'] ?? null) === 'pre_checkin_complete') {
@@ -1016,6 +1019,7 @@ class BookingController extends Controller
             'booking_platform' => ['nullable', 'string', 'max:100'],
             'guest_name'     => ['required', 'string', 'max:255'],
             'phone'          => ['nullable', 'string', 'max:255'],
+            'phone_country_code' => ['nullable', 'string', 'max:10'],
             'email'          => ['nullable', 'email', 'max:255'],
             'check_in_date'  => ['required', 'date'],
             'check_out_date' => ['required', 'date', 'after_or_equal:check_in_date'],

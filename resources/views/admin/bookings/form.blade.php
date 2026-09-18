@@ -17,7 +17,23 @@
                 <label class="field-label">Booking platform<input name="booking_platform" list="booking-platform-options" value="{{ old('booking_platform', $booking->booking_platform) }}" placeholder="Airbnb, Vrbo, Booking.com…" class="input"><datalist id="booking-platform-options"><option value="Airbnb"></option><option value="Vrbo"></option><option value="Booking.com"></option><option value="Expedia"></option><option value="Direct"></option></datalist><span class="field-help">Shown to the guest on the payment screen ("Pay on …"). Filled automatically for channel-manager bookings.</span></label>
                 <label class="field-label">Guest name <span class="text-red-600">*</span><input name="guest_name" value="{{ old('guest_name', $booking->guest_name) }}" required placeholder="Jordan Taylor" class="input"></label>
                 @if($booking->exists)
-                <label class="field-label">Phone<input id="guest-phone-input" name="phone" value="{{ old('phone', $booking->phone) }}" placeholder="(555) 555-0199" maxlength="14" class="input"></label>
+                <div class="field-label">
+                    <span>Phone</span>
+                    <div class="mt-1 flex gap-2">
+                        <div class="relative w-28 shrink-0">
+                            <button type="button" id="guest-phone-country-button" class="input flex items-center justify-between gap-1.5 px-2.5 text-left">
+                                <span id="guest-phone-country-label" class="flex items-center gap-1.5 text-sm font-medium"><span id="guest-phone-country-flag">🇺🇸</span><span id="guest-phone-country-dial">+1</span></span>
+                                <span aria-hidden="true" class="text-xs text-slate-400">▾</span>
+                            </button>
+                            <div id="guest-phone-country-menu" class="absolute left-0 top-full z-20 mt-1 hidden w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-lg">
+                                <div class="border-b border-slate-100 p-2"><input type="text" id="guest-phone-country-search" placeholder="Search country or code" class="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-sm" autocomplete="off"></div>
+                                <div id="guest-phone-country-list" class="max-h-56 overflow-y-auto"></div>
+                            </div>
+                        </div>
+                        <input type="hidden" id="guest-phone-country-code" name="phone_country_code" value="+1">
+                        <input id="guest-phone-input" name="phone" value="{{ old('phone', \App\Support\PhoneFormatter::format($booking->phone)) }}" placeholder="(555) 555-0199" maxlength="18" class="input min-w-0 flex-1">
+                    </div>
+                </div>
                 <label class="field-label">Email<input name="email" value="{{ old('email', $booking->email) }}" placeholder="guest@example.com" class="input"></label>
                 @endif
                 <label class="field-label">Check-in <span class="text-red-600">*</span><input type="date" name="check_in_date" value="{{ old('check_in_date', optional($booking->check_in_date)->format('Y-m-d')) }}" required class="input"></label>
@@ -118,4 +134,5 @@
             });
         })();
     </script>
+    <script src="{{ asset('js/guest-phone-country.js') }}"></script>
 </x-admin-layout>

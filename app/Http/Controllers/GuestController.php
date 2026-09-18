@@ -13,6 +13,7 @@ use App\Services\SeamService;
 use App\Services\SmsConsentService;
 use App\Services\SmsNotificationService;
 use App\Services\RentalAgreementService;
+use App\Support\PhoneFormatter;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
 
@@ -67,7 +68,6 @@ class GuestController extends Controller
             'state'         => $state,
             'categories'    => $this->availableCategories($booking),
             'locks'         => $this->resolveLocks($booking),
-            'welcomeMessage' => $booking->welcome_message ?: \App\Models\Setting::getValue('default_intro', 'We are glad to have you. Please complete the following details prior to check-in.'),
             'gpsRadius'     => (int) Setting::getValue('gps_radius_meters', 150),
             'gpsVerifyMessage' => Setting::getValue('gps_verify_message', "It's Go Time!"),
             'backgroundCheckStepName' => Setting::getValue('background_check_step_name', 'Background Check'),
@@ -106,7 +106,7 @@ class GuestController extends Controller
         ]);
 
         $emailMatch = strtolower(trim($data['email'])) === strtolower(trim($booking->email));
-        $phoneMatch = preg_replace('/\\D/', '', $data['phone']) === preg_replace('/\\D/', '', $booking->phone);
+        $phoneMatch = PhoneFormatter::normalizeForStorage($data['phone']) === PhoneFormatter::normalizeForStorage($booking->phone);
 
         if (! $emailMatch || ! $phoneMatch) {
             ActivityLogService::security('guest_login_failed', "Failed RID login attempt for reservation: {$rid}.", [
@@ -179,7 +179,7 @@ class GuestController extends Controller
 
         $updates = [
             'guest_name' => $data['guest_name'],
-            'phone' => trim((($data['phone_country_code'] ?? '+1') . ' ' . $data['phone'])),
+            'phone' => PhoneFormatter::normalizeForStorage($data['phone'], $data['phone_country_code'] ?? '+1'),
             'email' => $data['email'],
             'parking_needed' => array_key_exists('parking_needed', $data) && $data['parking_needed'] !== null
                 ? filter_var($data['parking_needed'], FILTER_VALIDATE_BOOLEAN)
@@ -189,19 +189,17 @@ class GuestController extends Controller
             'guest_authenticated_at' => now(),
         ];
 
-        // Task 0: a non-standard time request needs admin approval before it
-        // takes effect (a charge may apply — see task 26 billing fields). A
-        // request matching the property's standard time needs no review. If
-        // the guest resubmits the same value as before, don't clobber an
-        // existing admin decision (approved/denied) back to pending.
+        // Only early check-in and late checkout require approval. A later
+        // check-in or earlier checkout is within the property's normal
+        // operating window and can be accepted without admin review.
         if ($newCheckinPreference !== $booking->checkin_time_preference) {
-            $updates['checkin_time_status'] = $newCheckinPreference && $newCheckinPreference !== $booking->standardCheckinTime()
+            $updates['checkin_time_status'] = $booking->requiresCheckinTimeApproval($newCheckinPreference)
                 ? 'pending'
                 : null;
         }
 
         if ($newCheckoutPreference !== $booking->checkout_time_preference) {
-            $updates['checkout_time_status'] = $newCheckoutPreference && $newCheckoutPreference !== $booking->standardCheckoutTime()
+            $updates['checkout_time_status'] = $booking->requiresCheckoutTimeApproval($newCheckoutPreference)
                 ? 'pending'
                 : null;
         }
@@ -279,7 +277,7 @@ class GuestController extends Controller
             'email' => ['required', 'email'],
         ]);
         $emailMatch = strtolower(trim($data['email'])) === strtolower(trim($booking->email));
-        $phoneMatch = preg_replace('/\\D/', '', $data['phone']) === preg_replace('/\\D/', '', $booking->phone);
+        $phoneMatch = PhoneFormatter::normalizeForStorage($data['phone']) === PhoneFormatter::normalizeForStorage($booking->phone);
         if (! $emailMatch || ! $phoneMatch) {
             ActivityLogService::security('guest_login_failed', "Failed guest login attempt for booking: {$bookingId}.", [
                 'actor_type' => 'guest',
@@ -681,14 +679,11 @@ class GuestController extends Controller
             ]);
         }
 
-        $data = $request->validate([
-            'vehicle_make_model' => ['required', 'string', 'max:255'],
+        $request->validate([
             'license_plate_photo' => ['required', 'file', 'mimes:jpg,jpeg,png,webp,gif', 'max:20480'],
         ]);
 
-        $updates = [
-            'vehicle_make_model' => $data['vehicle_make_model'],
-        ];
+        $updates = [];
 
         $storedPath = $upload->store('license-plates');
         if ($storedPath === false) {
@@ -872,6 +867,7 @@ class GuestController extends Controller
 
         return response()->json([
             'id_approved' => (bool) ($booking->photo_id_received && $booking->isApproved()),
+            'id_rejected' => $booking->hasPendingIdRejection(),
             'background_check_complete' => $booking->isBackgroundCheckComplete(),
             'deposit_verified' => $booking->isDepositVerified(),
             'checkin_approved' => $booking->isCheckinApproved(),

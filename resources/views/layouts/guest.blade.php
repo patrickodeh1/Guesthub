@@ -56,7 +56,7 @@
 @endphp
 @if($quickContactPhone)
     <a href="tel:{{ $quickContactPhone }}" class="guest-contact-fab" aria-label="Contact Guest Services">
-        <span class="guest-contact-fab-icon text-white"><x-icon name="contact-guest-services" class="h-12 w-12 text-white" /></span>
+        <span class="guest-contact-fab-icon"><x-icon name="contact-guest-services" class="h-12 w-12" /></span>
         <span class="guest-contact-fab-label">Call Guest Services</span>
     </a>
 @endif

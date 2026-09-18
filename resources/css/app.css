@@ -504,7 +504,8 @@
         flex-direction: column;
     }
     .wizard-scroll {
-        padding: 0 clamp(20px, 4vw, 40px) 16px;
+        overflow: visible;
+        padding: 0 clamp(14px, 3vw, 28px) 8px;
     }
     .wizard-scroll img {
         border-radius: 14px;
@@ -515,7 +516,7 @@
         display: flex;
         justify-content: center;
         gap: 4px;
-        padding: 6px 0 10px;
+        padding: 4px 0 8px;
         background: #fff;
     }
     .wizard-dot {
@@ -533,11 +534,10 @@
         flex: 0 0 auto;
         display: flex;
         gap: 12px;
-        padding: 12px clamp(18px, 3vw, 34px) 18px;
+        padding: 8px clamp(14px, 3vw, 28px) 14px;
         border-top: 1px solid #e6eaf0;
         background: #fff;
-        position: sticky;
-        bottom: 0;
+        position: static;
     }
     .wizard-nav button {
         border-radius: 12px;
@@ -554,10 +554,8 @@
     }
     @media (max-width: 640px) {
         .wizard-body {
-            max-height: min(72vh, 560px);
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-            touch-action: pan-y;
+            max-height: none;
+            overflow: visible;
         }
     }
     @media (min-width: 900px) {
@@ -707,9 +705,10 @@
         height: 76px;
         padding: 0 17px;
         border-radius: 999px;
-        background: #a3e635;
-        color: #17320a;
-        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.25);
+        border: 1px solid #a7f3d0;
+        background: #ecfdf5;
+        color: #059669;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.15);
         text-decoration: none;
         overflow: hidden;
         max-width: 76px;
@@ -718,8 +717,8 @@
     }
     .guest-contact-fab:hover,
     .guest-contact-fab:focus {
-        background: #bef264;
-        color: #17320a;
+        background: #d1fae5;
+        color: #047857;
         max-width: 280px;
     }
     .guest-contact-fab-icon {
@@ -731,7 +730,7 @@
         height: 52px;
     }
     .guest-contact-fab-icon svg {
-        transform: scaleX(-1);
+        transform: none;
     }
     .guest-contact-fab-label {
         display: block;
@@ -1058,11 +1057,12 @@
         margin-left: 8px;
     }
     .wizard-text-card {
-        background: transparent;
-        border: none;
-        border-radius: 0;
-        padding: 0;
-        box-shadow: none;
+        margin-top: 10px;
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        padding: 14px 16px;
+        box-shadow: 0 5px 16px rgb(15 23 42 / .06);
     }
     .wizard-image-card {
         position: relative;
@@ -1082,6 +1082,31 @@
         background: #fff;
         margin-left: auto;
         margin-right: auto;
+    }
+    .wizard-text-card .prose-welcome {
+        font-size: 0.875rem;
+        line-height: 1.45;
+    }
+    .wizard-text-card .lock-card,
+    .wizard-text-card .guest-lock-card {
+        margin-top: 12px !important;
+    }
+    @media (max-width: 640px) {
+        .guest-portal-card--wizard .guest-status-bar {
+            padding-top: 12px;
+            padding-bottom: 12px;
+        }
+        .guest-portal-card--wizard .guest-status-title {
+            font-size: 1.25rem;
+            line-height: 1.2;
+        }
+        .guest-portal-card--wizard > .px-6 {
+            padding-top: 10px;
+            padding-bottom: 8px;
+        }
+        .wizard-text-card {
+            padding: 12px 14px;
+        }
     }
     .step-indicator {
         display: flex;

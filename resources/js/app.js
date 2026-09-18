@@ -812,10 +812,27 @@ document.addEventListener('DOMContentLoaded', () => {
     if (idPollTarget) {
         const idStatusUrl = idPollTarget.dataset.pollIdStatus;
         const watchFields = (idPollTarget.dataset.pollFields || 'id_approved,background_check_complete,deposit_verified').split(',');
+        const idStateKey = idPollTarget.dataset.idStateKey;
+        const idRejectionKey = idPollTarget.dataset.idRejectionKey;
         const idPollInterval = setInterval(async () => {
             try {
                 const res = await fetch(idStatusUrl, { headers: { Accept: 'application/json' } });
                 const data = await res.json();
+                if (data.id_rejected) {
+                    let alreadyReloaded = false;
+                    try {
+                        alreadyReloaded = idRejectionKey && sessionStorage.getItem(idRejectionKey) === '1';
+                        if (idRejectionKey) sessionStorage.setItem(idRejectionKey, '1');
+                        if (idStateKey) sessionStorage.removeItem(idStateKey);
+                    } catch (_) {}
+                    if (!alreadyReloaded) {
+                        clearInterval(idPollInterval);
+                        location.reload();
+                        return;
+                    }
+                } else if (idRejectionKey) {
+                    try { sessionStorage.removeItem(idRejectionKey); } catch (_) {}
+                }
                 if (watchFields.every((field) => data[field])) {
                     clearInterval(idPollInterval);
                     location.reload();

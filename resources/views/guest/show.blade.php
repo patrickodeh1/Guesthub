@@ -5,17 +5,21 @@
     $checkoutSteps = isset($checkoutSteps) ? $checkoutSteps : [];
     $parkingSteps = isset($parkingSteps) ? $parkingSteps : [];
     $heroImg = $property->heroImageUrl();
-    $welcomeMessageClean = $welcomeMessage ?? '';
     $siteLogo = \App\Models\Setting::getValue('site_logo');
     $categoryColor = ['#eef2ff', '#3b65ce'];
     $guideCats = $categories;
-    // Which pre-check-in wizard step to render server-side so a reload doesn't
-    // flash the welcome screen (step 0) before JS restores the real step.
-    $idwStartStep = (
-        $booking->photo_id_received
-        || $booking->needsIdApproval()
-        || (filled($booking->email) && filled($booking->phone) && ! is_null($booking->parking_needed))
-    ) ? 2 : 0;
+    $idwNeedsContractSignature = filled(\App\Models\Setting::getValue('legal_rental_contract_content', ''))
+        && ! $booking->contract_accepted_at;
+    $idwDetailsComplete = filled($booking->email)
+        && filled($booking->phone)
+        && ! is_null($booking->parking_needed)
+        && filled($booking->checkin_time_preference)
+        && filled($booking->checkout_time_preference)
+        && filled($booking->terms_accepted_at)
+        && ! $idwNeedsContractSignature;
+    // Which pre-check-in step to render server-side so a reload doesn't flash
+    // the first form step before JS restores the real step.
+    $idwStartStep = $idwDetailsComplete ? 2 : 1;
     // If the ID isn't fully approved yet, never let the wizard sit on the final
     // "get the August app" step (3) — the guest must be shown the ID step so a
     // required re-upload is obvious.
@@ -209,8 +213,8 @@
                         Not checked in
                     </span>
                 </div>
-                {{-- Step indicator: big circled current step, dash-separated others. Hidden on welcome (step 0). --}}
-                <div class="px-6 pt-5 step-indicator hidden" id="step-indicator-wrapper">
+                {{-- Step indicator: big circled current step, dash-separated others. --}}
+                <div class="px-6 pt-5 step-indicator" id="step-indicator-wrapper">
                     <span class="step-num" data-num="1" id="step-num-1">1</span>
                     <span class="step-dash">-</span>
                     <span class="step-num" data-num="2" id="step-num-2">2</span>
@@ -224,62 +228,32 @@
             </div>
 
             <div class="guest-portal-card mt-4">
+                <div data-poll-id-status="{{ route('guest.id-status', [$booking->booking_id, $booking->token]) }}" data-poll-fields="id_rejected" data-id-state-key="idw_form_state_{{ $booking->booking_id }}" data-id-rejection-key="idw_id_rejection_seen_{{ $booking->booking_id }}"></div>
                 <form id="guest-booking-form" method="post" data-skip-loading enctype="multipart/form-data" action="{{ route('guest.identity', [$booking->booking_id, $booking->token]) }}" class="guest-booking-card">
                     @csrf
 
-                    {{-- ══════════════════ STEP 1 — Welcome + Booking details (read-only) ══════════════════ --}}
-                    <div class="idw-step{{ $idwStartStep === 0 ? '' : ' hidden' }}" data-step="0">
-                        <div class="px-0 pb-2">
-                            <h2 class="text-xl font-extrabold text-slate-950">{{ explode(' ', trim($booking->guest_name))[0] }}, we can't wait to see you!</h2>
-                        </div>
-                        <div class="guest-stay-grid mt-5">
-                            <div class="guest-stay-tile">
-                                <div class="guest-stay-tile-icon">
-                                    <x-icon name="calendar" class="h-5 w-5" />
+                    {{-- ══════════════════ STEP 1 — Stay details, contact, and consent ══════════════════ --}}
+                    <div class="idw-step{{ $idwStartStep === 1 ? '' : ' hidden' }}" data-step="1">
+                        <div class="mb-6">
+                            <h2 class="text-xl font-extrabold text-slate-950">Your stay details</h2>
+                            <div class="guest-stay-grid mt-4">
+                                <div class="guest-stay-tile">
+                                    <div class="guest-stay-tile-icon">
+                                        <x-icon name="calendar" class="h-5 w-5" />
+                                    </div>
+                                    <p class="guest-stay-tile-label">Check-In</p>
+                                    <p class="guest-stay-tile-date">{{ $booking->check_in_date->format('M d, Y') }}</p>
                                 </div>
-                                <p class="guest-stay-tile-label">Check-In</p>
-                                <p class="guest-stay-tile-date">{{ $booking->check_in_date->format('M d, Y') }}</p>
-                            </div>
-                            <div class="guest-stay-tile">
-                                <div class="guest-stay-tile-icon">
-                                    <x-icon name="calendar" class="h-5 w-5" />
+                                <div class="guest-stay-tile">
+                                    <div class="guest-stay-tile-icon">
+                                        <x-icon name="calendar" class="h-5 w-5" />
+                                    </div>
+                                    <p class="guest-stay-tile-label">Check-Out</p>
+                                    <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }}</p>
                                 </div>
-                                <p class="guest-stay-tile-label">Check-Out</p>
-                                <p class="guest-stay-tile-date">{{ $booking->check_out_date->format('M d, Y') }}</p>
                             </div>
                         </div>
-                        @php
-                            $isRegistrationComplete = filled($booking->guest_name)
-                                && filled($booking->email)
-                                && filled($booking->phone)
-                                && ! is_null($booking->parking_needed)
-                                && $booking->photo_id_received;
-                        @endphp
-                        @if($isRegistrationComplete)
-                            <button type="button" class="guest-primary-btn guest-primary-btn-lg is-go mt-6 w-full" onclick="document.getElementById('welcome-modal').classList.remove('hidden')">
-                                Begin Check In
-                                <x-icon name="arrow-right" class="h-5 w-5 ml-1 inline-block align-middle" />
-                            </button>
-                        @else
-                            <button type="button" class="guest-primary-btn guest-primary-btn-lg mt-6 w-full" onclick="document.getElementById('welcome-modal').classList.remove('hidden')">
-                                Begin Pre-Checkin
-                                <x-icon name="arrow-right" class="h-5 w-5 ml-1 inline-block align-middle" />
-                            </button>
-                        @endif
 
-                        {{-- Welcome message modal --}}
-                        <div id="welcome-modal" class="hidden fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 p-4">
-                            <div class="bg-white rounded-2xl max-w-md w-full max-h-[80vh] overflow-y-auto p-6">
-                                <div class="text-sm leading-6 text-slate-600">{!! $welcomeMessageClean !!}</div>
-                                <button type="button" class="guest-primary-btn guest-primary-btn-lg mt-6 w-full" data-next="1" onclick="document.getElementById('welcome-modal').classList.add('hidden')">
-                                    I Agree
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-
-                    {{-- ══════════════════ STEP 2 — Phone, Email, Parking, Check-in time ══════════════════ --}}
-                    <div class="idw-step hidden" data-step="1">
                         {{-- Name --}}
                         <div class="mt-5" id="name-display-block">
                             <p class="text-sm font-bold">Name</p>
@@ -320,6 +294,7 @@
                                 <input type="hidden" id="guest-phone-country-code" name="phone_country_code" value="+1">
                                 <input name="phone" type="tel" value="{{ old('phone', $booking->phone) }}" placeholder="(555) 000-0000" autocomplete="tel" class="guest-input flex-1 min-w-0">
                             </div>
+                            <p class="mt-2 text-xs leading-5 text-slate-500">We will not share your mobile information with third parties for marketing purposes.</p>
                         </div>
                         @else
                         <div class="mt-5">
@@ -343,6 +318,7 @@
                                 <input type="hidden" id="guest-phone-country-code" name="phone_country_code" value="+1">
                                 <input name="phone" type="tel" value="{{ old('phone') }}" placeholder="(555) 000-0000" autocomplete="tel" required class="guest-input flex-1 min-w-0">
                             </div>
+                            <p class="mt-2 text-xs leading-5 text-slate-500">We will not share your mobile information with third parties for marketing purposes.</p>
                         </div>
                         @endif
 
@@ -428,7 +404,7 @@
                             $termsUrl = route('legal.terms');
                             $privacyUrl = route('legal.privacy');
                             $rentalContractUrl = route('legal.rental-contract');
-                            $needsContractSignature = filled(\App\Models\Setting::getValue('legal_rental_contract_content', '')) && ! $booking->contract_accepted_at;
+                            $needsContractSignature = $idwNeedsContractSignature;
                         @endphp
 
                         @if(! $booking->terms_accepted_at || $needsContractSignature)
@@ -461,8 +437,7 @@
                         </div>
 
                         <div class="mt-6 grid grid-cols-2 gap-3">
-                            <button type="button" class="guest-outline-btn w-full" data-prev="0">Back</button>
-                            <button type="button" id="step1-next-btn" class="guest-primary-btn w-full">Agree &amp; Continue</button>
+                            <button type="button" id="step1-next-btn" class="guest-primary-btn w-full col-span-2">Agree &amp; Continue</button>
                         </div>
                     </div>
 
@@ -585,7 +560,17 @@
                         // Never leave the guest on the final "get the August app"
                         // step while their ID still needs uploading/re-uploading.
                         var needsId = {{ $idwNeedsId ? 'true' : 'false' }};
-                        if (idRejected || (needsId && step === "3")) {
+                        var detailsComplete = {{ $idwDetailsComplete ? 'true' : 'false' }};
+                        // Step 0 belonged to the removed welcome screen. Reset
+                        // any session state created by that older flow to the
+                        // first form step.
+                        if (step === "0") {
+                            step = "1";
+                        }
+                        if (!detailsComplete && step !== "1") {
+                            step = "1";
+                        }
+                        if (needsId && step === "3") {
                             step = "2";
                         }
 
@@ -593,7 +578,7 @@
                             s.classList.toggle("hidden", s.getAttribute("data-step") !== step);
                         });
                         var indicator = document.getElementById("step-indicator-wrapper");
-                        if (indicator) indicator.classList.toggle("hidden", step === "0");
+                        if (indicator) indicator.classList.remove("hidden");
                         document.querySelectorAll(".step-num").forEach(function (el) {
                             el.classList.toggle("is-current", el.getAttribute("data-num") === step);
                         });
@@ -652,7 +637,7 @@
                         });
                         var indicatorWrapper = document.getElementById("step-indicator-wrapper");
                         if (indicatorWrapper) {
-                            indicatorWrapper.classList.toggle("hidden", String(n) === "0");
+                            indicatorWrapper.classList.remove("hidden");
                         }
                         idwSaveState({ step: String(n) });
                     }
@@ -670,7 +655,10 @@
                     window.idwSaveState = idwSaveState;
 
                     function idwClearState() {
-                        try { sessionStorage.removeItem(IDW_STORAGE_KEY); } catch (_) {}
+                        try {
+                            sessionStorage.removeItem(IDW_STORAGE_KEY);
+                            sessionStorage.removeItem("idw_id_rejection_seen_{{ $booking->booking_id }}");
+                        } catch (_) {}
                     }
                     window.idwClearState = idwClearState;
 
@@ -678,10 +666,16 @@
                         var saved;
                         try { saved = JSON.parse(sessionStorage.getItem(IDW_STORAGE_KEY) || "null"); } catch (_) { saved = null; }
                         if (!saved) {
-                            @if($booking->needsIdApproval() || $booking->guest_authenticated_at)
+                            @if($idwDetailsComplete && ($booking->needsIdApproval() || $booking->guest_authenticated_at))
                                 goToStep(2);
                             @endif
                             return false;
+                        }
+                        if (String(saved.step) === "0") {
+                            saved.step = "1";
+                        }
+                        if (!{{ $idwDetailsComplete ? 'true' : 'false' }} && String(saved.step) !== "1") {
+                            saved.step = "1";
                         }
 
                         var fieldNames = ["guest_name", "phone", "email", "checkin_time_preference", "checkout_time_preference"];
@@ -1846,7 +1840,7 @@
             </div>
         @elseif($state === 'vehicle_info')
             <div class="guest-portal-card">
-                <div data-poll-id-status="{{ route('guest.id-status', [$booking->booking_id, $booking->token]) }}" data-poll-fields="vehicle_info_bypassed"></div>
+                <div data-poll-id-status="{{ route('guest.id-status', [$booking->booking_id, $booking->token]) }}" data-poll-fields="vehicle_info_bypassed" data-id-state-key="idw_form_state_{{ $booking->booking_id }}" data-id-rejection-key="idw_id_rejection_seen_{{ $booking->booking_id }}"></div>
                 <div class="guest-status-bar">
                     <div>
                         @if($siteLogo)
@@ -1864,20 +1858,11 @@
                         <x-icon name="car" class="h-8 w-8" />
                     </div>
                     <h2 class="mt-4 text-xl font-extrabold text-slate-950">Vehicle Information</h2>
-                    <p class="mt-2 text-sm text-slate-600">We just need a few details about your vehicle before check-in.</p>
+                    <p class="mt-2 text-sm text-slate-600">Please upload a clear photo of your vehicle's license plate before check-in.</p>
                 </div>
                 <div class="px-6 pb-6">
                     <form method="post" enctype="multipart/form-data" action="{{ route('guest.vehicle-info', [$booking->booking_id, $booking->token]) }}" class="space-y-4">
                         @csrf
-                        <div>
-                            <label for="vehicle_make_model" class="guest-stay-tile-label block mb-1">Vehicle Make & Model</label>
-                            <input type="text" name="vehicle_make_model" id="vehicle_make_model"
-                                   value="{{ old('vehicle_make_model', $booking->vehicle_make_model) }}"
-                                   class="guest-input w-full" placeholder="e.g. Toyota Camry" required>
-                            @error('vehicle_make_model')
-                                <p class="text-sm text-red-600 mt-1">{{ $message }}</p>
-                            @enderror
-                        </div>
                         <div>
                             <label for="license_plate_photo" class="guest-stay-tile-label block mb-1">License Plate Photo</label>
                             <input type="file" name="license_plate_photo" id="license_plate_photo"
@@ -1962,18 +1947,17 @@
                     </div>
                 @elseif($booking->canViewAddress())
                     <div class="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-sm">
-                        <p class="font-semibold text-slate-800 mb-2">Property Address</p>
-                        <p class="text-slate-600">{{ $property->shortAddress() }}</p>
-                        @if($property->latitude && $property->longitude)
-                            <div class="-mx-4 mt-3 overflow-hidden border-y border-slate-200 md:mx-0 md:rounded-lg md:border">
-                                <iframe title="Map"
-                                    src="https://www.google.com/maps?q={{ $property->latitude }},{{ $property->longitude }}&output=embed"
-                                    class="h-64 w-full border-0 md:h-96"></iframe>
-                            </div>
-                        @endif
-                        @if($property->map_directions_url)
-                            <a href="{{ $property->map_directions_url }}" target="_blank" class="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600">
-                                <x-icon name="map" class="h-3.5 w-3.5" /> Get Directions
+                        <p class="font-semibold text-slate-800">Property Address</p>
+                        <p class="mt-1 text-slate-600">{{ $property->shortAddress() }}</p>
+                        @php
+                            $navigationUrl = $property->latitude && $property->longitude
+                                ? 'https://www.google.com/maps/dir/?api=1&destination='.urlencode($property->latitude.','.$property->longitude)
+                                : $property->map_directions_url;
+                        @endphp
+                        @if($navigationUrl)
+                            <a href="{{ $navigationUrl }}" target="_blank" rel="noopener" class="guest-outline-btn mt-3 inline-flex w-full items-center justify-center gap-2">
+                                <img src="{{ asset('img/google-maps-icon.png') }}" alt="" class="h-6 w-6">
+                                Navigate with Google Maps
                             </a>
                         @endif
                     </div>
@@ -1993,40 +1977,11 @@
             </div>
 
             @if($arrivalAgreed && $booking->canViewAddress())
-            <div class="guest-portal-card mt-4">
-                <div class="p-6 md:p-8 text-center text-xl text-slate-950">{!! $gpsVerifyMessage !!}</div>
-            </div>
-
-            <div class="guest-portal-card mt-4">
-                <div class="p-6 md:p-8">
-                    <div class="flex items-start justify-between gap-4">
-                        <div>
-                            <p class="text-base font-bold text-slate-950">Navigate To:</p>
-                            <p class="mt-2 text-sm leading-6 text-slate-600">
-                                {{ $property->shortAddress() }}
-                            </p>
-                        </div>
-                        @if($property->latitude && $property->longitude)
-                            <a href="https://www.google.com/maps/dir/?api=1&destination={{ $property->latitude }},{{ $property->longitude }}" target="_blank" class="shrink-0 flex flex-col items-center gap-1 text-xs font-semibold text-blue-600">
-                                <img src="{{ asset('img/google-maps-icon.png') }}" alt="Google Maps" class="h-9 w-9">
-                                Directions
-                            </a>
-                        @elseif($property->map_directions_url)
-                            <a href="{{ $property->map_directions_url }}" target="_blank" class="shrink-0 flex flex-col items-center gap-1 text-xs font-semibold text-blue-600">
-                                <img src="{{ asset('img/google-maps-icon.png') }}" alt="Google Maps" class="h-9 w-9">
-                                Directions
-                            </a>
-                        @endif
-                    </div>
-                </div>
-            </div>
-
-            <div class="guest-portal-card mt-4">
-                <div class="p-6 md:p-8 text-center">
-                    <div id="gps-ajax-message" class="hidden"></div>
-                    <button id="gps-ajax-verify-btn" type="button" data-url="{{ route('guest.gps', [$booking->booking_id, $booking->token]) }}" data-csrf="{{ csrf_token() }}" class="guest-primary-btn is-go w-full">I Have Arrived</button>
-                    <p class="mt-3 text-xs leading-5 text-slate-500">Please make sure your location is allowed. We will verify on the next page.</p>
-                </div>
+            <div class="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-center">
+                <p class="text-base font-bold text-slate-950">{!! $gpsVerifyMessage !!}</p>
+                <div id="gps-ajax-message" class="hidden"></div>
+                <button id="gps-ajax-verify-btn" type="button" data-url="{{ route('guest.gps', [$booking->booking_id, $booking->token]) }}" data-csrf="{{ csrf_token() }}" class="guest-primary-btn is-go mt-4 w-full">I Have Arrived</button>
+                <p class="mt-3 text-xs leading-5 text-slate-500">Please make sure your location is allowed. We will verify on the next page.</p>
             </div>
             @endif
 
