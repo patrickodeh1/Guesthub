@@ -61,11 +61,28 @@ class DashboardController extends Controller
             ->sortBy(fn (Booking $booking) => $this->dashboardSortKey($booking, $today))
             ->values();
 
+        $todayIds = $todayGuests->pluck('id')->all();
+
+        // Priority items that need admin action regardless of whether the
+        // guest's stay is happening today — a pending early-check-in
+        // approval or a manual_review ID scan is just as urgent 3 days out
+        // as it is on arrival day, and previously wasn't visible here at
+        // all until the guest's actual check-in/out date.
+        $needsAttentionGuests = Booking::with('property')
+            ->notArchived()
+            ->whereNull('checked_out_at')
+            ->whereNotIn('id', $todayIds)
+            ->get()
+            ->filter(fn (Booking $booking) => $booking->isPriorityGuest())
+            ->sortBy(fn (Booking $booking) => $booking->check_in_date?->toDateString())
+            ->values();
+
         return view('admin.dashboard', [
-            'todayGuests'    => $todayGuests,
-            'upcomingGuests' => $upcomingGuests,
-            'today'          => $today,
-            'propertyLocks'  => $this->lockStatuses(),
+            'todayGuests'          => $todayGuests,
+            'upcomingGuests'       => $upcomingGuests,
+            'needsAttentionGuests' => $needsAttentionGuests,
+            'today'                => $today,
+            'propertyLocks'        => $this->lockStatuses(),
         ]);
     }
 

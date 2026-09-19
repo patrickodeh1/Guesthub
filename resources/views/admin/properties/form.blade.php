@@ -100,6 +100,10 @@
             <p class="section-copy">Publishing, GPS, and quick settings for this property.</p>
 
             <label class="mt-5 flex items-center justify-between rounded-xl border border-slate-200 p-4 text-sm font-semibold"><span>Active property</span><input type="checkbox" name="active" value="1" @checked(old('active', $property->active ?? true)) class="rounded border-slate-300"></label>
+            <label class="mt-3 flex items-center justify-between rounded-xl border border-slate-200 p-4 text-sm font-semibold">
+                <span>Require license plate photo<br><span class="mt-0.5 block text-xs font-normal text-slate-500">Only asked of guests who say they need parking. Uncheck for properties with no parking to track.</span></span>
+                <input type="checkbox" name="requires_vehicle_photo" value="1" @checked(old('requires_vehicle_photo', $property->requires_vehicle_photo ?? true)) class="rounded border-slate-300 shrink-0">
+            </label>
             <x-media-image-field
                 name="header_image"
                 label="Header image"

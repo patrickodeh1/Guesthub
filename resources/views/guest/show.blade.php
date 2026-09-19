@@ -409,7 +409,7 @@
 
                         @if(! $booking->terms_accepted_at)
                         <div class="mt-6 rounded-xl border border-slate-200 p-4">
-                            <p class="mb-2 text-sm font-semibold text-slate-900">Terms of Service, Privacy Policy &amp; Rental Contract</p>
+                            <p class="mb-2 text-sm font-semibold text-slate-900">Terms of Service &amp; Privacy Policy </p>
                             <label class="mt-3 flex items-start gap-2 text-sm text-slate-700">
                                 <input type="checkbox" name="terms_accepted" id="terms-accepted-checkbox" value="1" required class="mt-0.5 rounded border-slate-300">
                                 <span>I agree to the <a href="{{ $termsUrl }}" class="font-medium underline" target="_blank" rel="noopener">Terms of Service</a> and <a href="{{ $privacyUrl }}" class="font-medium underline" target="_blank" rel="noopener">Privacy Policy</a>.</span>

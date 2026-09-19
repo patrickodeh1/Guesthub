@@ -302,6 +302,7 @@ class PropertyController extends Controller
             'header_image' => ['nullable', 'image', 'max:10240'],
             'existing_header_image' => ['nullable', 'string'],
             'active' => ['nullable', 'boolean'],
+            'requires_vehicle_photo' => ['nullable', 'boolean'],
             'timezone' => ['nullable', 'string', 'max:100'],
             'checkout_time' => ['nullable', 'date_format:H:i'],
             'checkin_time' => ['nullable', 'date_format:H:i'],
@@ -330,6 +331,7 @@ class PropertyController extends Controller
 
         $data['slug'] = $data['slug'] ?: Str::slug($data['name']);
         $data['active'] = $request->boolean('active');
+        $data['requires_vehicle_photo'] = $request->boolean('requires_vehicle_photo');
 
         if ($request->hasFile('header_image')) {
             $data['header_image'] = $request->file('header_image')->store('properties', 'public');

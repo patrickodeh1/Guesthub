@@ -779,7 +779,31 @@ class Booking extends Model
             || $this->status === 'awaiting_deposit'
             || ($this->isApproved() && ! $this->isBackgroundCheckComplete())
             || ($this->isBackgroundCheckComplete() && ! $this->isDepositVerified())
-            || ($this->isCheckinDay() && in_array($this->status, ['guest_approved', 'currently_hosting'], true) && ! $this->gps_verified);
+            || ($this->isCheckinDay() && in_array($this->status, ['guest_approved', 'currently_hosting'], true) && ! $this->gps_verified)
+            || $this->checkin_time_status === 'pending'
+            || $this->checkout_time_status === 'pending'
+            || $this->id_scan_status === 'manual_review';
+    }
+
+    /**
+     * Short label explaining why a booking showed up in the dashboard's
+     * "Needs Attention" list, checked in the same priority order as
+     * isPriorityGuest() so the most urgent reason is always shown first.
+     */
+    public function priorityReason(): ?string
+    {
+        return match (true) {
+            $this->needsIdApproval() => 'ID needs approval',
+            $this->id_scan_status === 'manual_review' => 'ID scan needs manual review',
+            $this->status === 'pre_checkin_complete' && ! $this->isApproved() => 'Awaiting approval',
+            $this->status === 'awaiting_deposit' => 'Awaiting deposit',
+            $this->isApproved() && ! $this->isBackgroundCheckComplete() => 'Background check pending',
+            $this->isBackgroundCheckComplete() && ! $this->isDepositVerified() => 'Deposit not verified',
+            $this->checkin_time_status === 'pending' => 'Early check-in request pending',
+            $this->checkout_time_status === 'pending' => 'Late checkout request pending',
+            $this->isCheckinDay() && in_array($this->status, ['guest_approved', 'currently_hosting'], true) && ! $this->gps_verified => 'Not yet marked arrived',
+            default => null,
+        };
     }
 
     public function isCheckinDay(?CarbonInterface $date = null): bool
@@ -982,6 +1006,10 @@ class Booking extends Model
     public function needsVehicleInfoPrompt(): bool
     {
         if (! $this->parking_needed) {
+            return false;
+        }
+
+        if (! ($this->property?->requires_vehicle_photo ?? true)) {
             return false;
         }
 

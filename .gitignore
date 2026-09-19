@@ -30,3 +30,4 @@ bootstrap/cache/*
 
 
 .aider*
+find-changes-since.sh

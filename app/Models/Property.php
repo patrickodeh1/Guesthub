@@ -41,6 +41,7 @@ class Property extends Model
         'name', 'unit_number', 'slug', 'address', 'city', 'state', 'zip', 'latitude', 'longitude', 'events_radius_miles', 'timezone', 'checkout_time', 'checkin_time',
         'map_embed_url', 'map_directions_url', 'contact_phone', 'contact_email',
         'welcome_intro', 'checkin_instructions', 'lockbox_code', 'parking_instructions',
+        'requires_vehicle_photo',
         'checkout_instructions', 'header_image', 'active',
         'parking_rate_sunday', 'parking_rate_monday', 'parking_rate_tuesday',
         'parking_rate_wednesday', 'parking_rate_thursday', 'parking_rate_friday',
@@ -59,7 +60,7 @@ class Property extends Model
     protected function casts(): array
     {
         return [
-            'active' => 'boolean', 'latitude' => 'decimal:7', 'longitude' => 'decimal:7',
+            'active' => 'boolean', 'requires_vehicle_photo' => 'boolean', 'latitude' => 'decimal:7', 'longitude' => 'decimal:7',
             'parking_rate_sunday' => 'decimal:2', 'parking_rate_monday' => 'decimal:2',
             'parking_rate_tuesday' => 'decimal:2', 'parking_rate_wednesday' => 'decimal:2',
             'parking_rate_thursday' => 'decimal:2', 'parking_rate_friday' => 'decimal:2',
