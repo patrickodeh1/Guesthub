@@ -412,7 +412,7 @@
                             <p class="mb-2 text-sm font-semibold text-slate-900">Terms of Service, Privacy Policy &amp; Rental Contract</p>
                             <label class="mt-3 flex items-start gap-2 text-sm text-slate-700">
                                 <input type="checkbox" name="terms_accepted" id="terms-accepted-checkbox" value="1" required class="mt-0.5 rounded border-slate-300">
-                                <span>I agree to the <a href="{{ $termsUrl }}" class="font-medium underline" target="_blank" rel="noopener">Terms of Service</a>, <a href="{{ $privacyUrl }}" class="font-medium underline" target="_blank" rel="noopener">Privacy Policy</a>, and the <a href="{{ $rentalContractUrl }}" class="font-medium underline" target="_blank" rel="noopener">Rental Contract</a>.</span>
+                                <span>I agree to the <a href="{{ $termsUrl }}" class="font-medium underline" target="_blank" rel="noopener">Terms of Service</a> and <a href="{{ $privacyUrl }}" class="font-medium underline" target="_blank" rel="noopener">Privacy Policy</a>.</span>
                             </label>
                             @if($needsContractSignature)
                             <p class="mt-3 text-xs text-slate-500">You'll sign the rental agreement in the next step, right after your ID is verified.</p>
@@ -1765,14 +1765,27 @@
                                         alert("Upload failed (server error). Please try again.");
                                     });
                                 }
-                                return r.json().catch(function() { return {}; }).then(function(body) {
+                                var parseFailed = false;
+                                return r.json().catch(function() { parseFailed = true; return {}; }).then(function(body) {
                                     restore();
+
+                                    // The server response wasn't valid JSON (most likely an
+                                    // expired session/token redirect swallowed by fetch as a
+                                    // followed 200). Treating this the same as "scan passed"
+                                    // let guests silently fall through to signing/Step 3 with
+                                    // no real verification having happened. Surface it instead.
+                                    if (parseFailed) {
+                                        alert("Something went wrong verifying your ID. Please refresh the page and try again.");
+                                        return;
+                                    }
+
                                     var idScan = body.id_scan || null;
 
                                     // Expired ID or a name that clearly doesn't match: reject
                                     // instantly, let the guest re-take/re-upload the photo.
                                     if (idScan && !idScan.passed) {
                                         idwClearState();
+                                        resetIdCapture();
                                         alert(idScan.blocking_reason || "We couldn't verify your ID. Please upload a clear photo of a valid, unexpired ID.");
                                         return;
                                     }
