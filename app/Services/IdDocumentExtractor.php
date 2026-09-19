@@ -28,10 +28,11 @@ use Illuminate\Support\Facades\Storage;
  */
 class IdDocumentExtractor
 {
-    public function __construct(
-        private readonly ?string $apiKey = null,
-    ) {
-        $this->apiKey ??= config('services.google_vision.key');
+    private readonly ?string $apiKey;
+
+    public function __construct(?string $apiKey = null)
+    {
+        $this->apiKey = $apiKey ?? config('services.google_vision.key');
     }
 
     /**

@@ -29,10 +29,22 @@ class SmsNotificationService
         }
 
         $apiKey = config('services.telnyx.api_key');
-        $from = config('services.telnyx.from_number');
+        $from = PhoneFormatter::toTelUri(config('services.telnyx.from_number'));
 
         if (! $apiKey || ! $from || ! $to) {
             Log::warning("SMS notification skipped ({$context}): Telnyx not fully configured or recipient missing.");
+            return;
+        }
+
+        // Telnyx requires the 'from' number in strict E.164 format (e.g.
+        // "+15555550199"). A number that's present but malformed (missing
+        // the leading '+', wrong digit count, non-numeric characters) isn't
+        // caught by the blank check above and instead reaches the API,
+        // which rejects the whole request with error 10004 "Invalid source
+        // number" — regardless of how well-formed the recipient number is.
+        // Catch that here with a clear, actionable log message instead.
+        if (! preg_match('/^\+[1-9]\d{9,14}$/', $from)) {
+            Log::error("SMS notification skipped ({$context}): TELNYX_FROM_NUMBER (\"{$from}\") is not a valid E.164 number. It must be in the form +1XXXXXXXXXX (with the leading '+', country code, and no spaces/dashes).");
             return;
         }
 
