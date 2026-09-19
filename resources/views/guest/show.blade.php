@@ -407,7 +407,7 @@
                             $needsContractSignature = $idwNeedsContractSignature;
                         @endphp
 
-                        @if(! $booking->terms_accepted_at || $needsContractSignature)
+                        @if(! $booking->terms_accepted_at)
                         <div class="mt-6 rounded-xl border border-slate-200 p-4">
                             <p class="mb-2 text-sm font-semibold text-slate-900">Terms of Service, Privacy Policy &amp; Rental Contract</p>
                             <label class="mt-3 flex items-start gap-2 text-sm text-slate-700">
@@ -415,14 +415,7 @@
                                 <span>I agree to the <a href="{{ $termsUrl }}" class="font-medium underline" target="_blank" rel="noopener">Terms of Service</a>, <a href="{{ $privacyUrl }}" class="font-medium underline" target="_blank" rel="noopener">Privacy Policy</a>, and the <a href="{{ $rentalContractUrl }}" class="font-medium underline" target="_blank" rel="noopener">Rental Contract</a>.</span>
                             </label>
                             @if($needsContractSignature)
-                            <div class="mt-4 border-t border-slate-100 pt-4">
-                                <label class="field-label" for="contract-signed-name">Sign the rental agreement — type your full legal name exactly as it appears on your government ID <span class="text-red-600">*</span></label>
-                                <input id="contract-signed-name" name="contract_signed_name" type="text"
-                                       value="{{ old('contract_signed_name') }}"
-                                       class="guest-input mt-2" autocomplete="off" spellcheck="false"
-                                       placeholder="Full legal name" data-legal-name="{{ $booking->guest_name }}">
-                                <span id="contract-name-error" class="guest-field-error" style="display:none">This must match your name exactly as it appears on your government ID.</span>
-                            </div>
+                            <p class="mt-3 text-xs text-slate-500">You'll sign the rental agreement in the next step, right after your ID is verified.</p>
                             @endif
                         </div>
                         @endif
@@ -522,11 +515,24 @@
                         </div>
                         @endif
 
-                        <div class="mt-6 grid grid-cols-2 gap-3">
+                        <div class="mt-6 grid grid-cols-2 gap-3" id="id-capture-actions">
                             <button type="button" class="guest-outline-btn w-full" data-prev="1">Back</button>
                             <button type="button" class="guest-primary-btn w-full" id="id-capture-next-btn">Next</button>
                         </div>
                         <p class="mt-3 text-center text-xs leading-5 text-slate-500">Your information is used only for secure check-in verification.</p>
+
+                        {{-- Revealed by JS only once the ID has been uploaded and scanned
+                             (verified) — signing before that point is no longer possible,
+                             since we can't check the typed name against the ID until then. --}}
+                        @if($idwNeedsContractSignature)
+                        <div id="agreement-sign-panel" class="mt-6 rounded-xl border border-slate-200 p-4 hidden">
+                            <p class="mb-2 text-sm font-semibold text-slate-900">Your ID is verified. Sign your rental agreement to continue.</p>
+                            <label class="field-label" for="agreement-sign-name">Type your full legal name exactly as it appears on your government ID <span class="text-red-600">*</span></label>
+                            <input id="agreement-sign-name" type="text" class="guest-input mt-2" autocomplete="off" spellcheck="false" placeholder="Full legal name">
+                            <span id="agreement-sign-error" class="guest-field-error" style="display:none">This must match your name exactly as it appears on your government ID.</span>
+                            <button type="button" class="guest-primary-btn w-full mt-4" id="agreement-sign-btn">Sign &amp; Continue</button>
+                        </div>
+                        @endif
                     </div>
 
                     {{-- ══════════════════ STEP 3 — Smart lock / August Home ══════════════════ --}}
@@ -1759,15 +1765,39 @@
                                         alert("Upload failed (server error). Please try again.");
                                     });
                                 }
-                                restore();
-                                idwClearState();
-                                goToStep(3);
+                                return r.json().catch(function() { return {}; }).then(function(body) {
+                                    restore();
+                                    var idScan = body.id_scan || null;
 
-                                var prompt = document.getElementById("completion-prompt");
-                                if (prompt) {
-                                    prompt.classList.remove("hidden");
-                                    localStorage.setItem(document.getElementById("guest-tour-data")?.dataset.tourKey || "guest_tour_seen", "1");
-                                }
+                                    // Expired ID or a name that clearly doesn't match: reject
+                                    // instantly, let the guest re-take/re-upload the photo.
+                                    if (idScan && !idScan.passed) {
+                                        idwClearState();
+                                        alert(idScan.blocking_reason || "We couldn't verify your ID. Please upload a clear photo of a valid, unexpired ID.");
+                                        return;
+                                    }
+
+                                    var signPanel = document.getElementById("agreement-sign-panel");
+                                    if (signPanel && !signPanel.dataset.signed) {
+                                        idwClearState();
+                                        var signNameInput = document.getElementById("agreement-sign-name");
+                                        if (signNameInput) signNameInput.dataset.legalName = (idScan && idScan.name) || "{{ $booking->guest_name }}";
+                                        var idCaptureActions = document.getElementById("id-capture-actions");
+                                        if (idCaptureActions) idCaptureActions.classList.add("hidden");
+                                        signPanel.classList.remove("hidden");
+                                        signPanel.scrollIntoView({ behavior: "smooth", block: "center" });
+                                        return;
+                                    }
+
+                                    idwClearState();
+                                    goToStep(3);
+
+                                    var prompt = document.getElementById("completion-prompt");
+                                    if (prompt) {
+                                        prompt.classList.remove("hidden");
+                                        localStorage.setItem(document.getElementById("guest-tour-data")?.dataset.tourKey || "guest_tour_seen", "1");
+                                    }
+                                });
                             })
                             .catch(function(e) {
                                 restore();
@@ -1776,6 +1806,73 @@
                             });
                     });
                 });
+
+                // ── Rental agreement signature (Step 2, after ID scan passes) ──
+                var agreementSignBtn = document.getElementById("agreement-sign-btn");
+                if (agreementSignBtn) {
+                    agreementSignBtn.addEventListener("click", function() {
+                        var btn = this;
+                        var nameInput = document.getElementById("agreement-sign-name");
+                        var errorEl = document.getElementById("agreement-sign-error");
+                        var normalizeName = function (v) { return (v || "").replace(/\s+/g, " ").trim().toLowerCase(); };
+
+                        if (errorEl) errorEl.style.display = "none";
+                        if (nameInput) nameInput.classList.remove("border-red-400");
+
+                        if (!nameInput || normalizeName(nameInput.value) !== normalizeName(nameInput.dataset.legalName)) {
+                            if (errorEl) errorEl.style.display = "block";
+                            if (nameInput) { nameInput.classList.add("border-red-400"); nameInput.focus(); }
+                            return;
+                        }
+
+                        var deviceId = "";
+                        try {
+                            deviceId = window.localStorage.getItem("gh_device_id") || "";
+                        } catch (e) {}
+
+                        var fd = new FormData();
+                        fd.append("_token", document.querySelector('meta[name="csrf-token"]') ? document.querySelector('meta[name="csrf-token"]').content : "");
+                        fd.append("contract_signed_name", nameInput.value);
+                        fd.append("contract_signed_device_id", deviceId);
+
+                        withButtonBusy(btn, "Signing…", function(restore) {
+                            fetch("{{ route('guest.sign-rental-agreement', [$booking->booking_id, $booking->token]) }}", {
+                                method: "POST",
+                                body: fd,
+                                headers: { "Accept": "application/json" }
+                            })
+                                .then(function(r) {
+                                    if (r.status === 422) {
+                                        return r.json().then(function(body) {
+                                            restore();
+                                            if (errorEl) errorEl.style.display = "block";
+                                            nameInput.classList.add("border-red-400");
+                                            var messages = body.errors ? Object.values(body.errors).flat().join("\n") : "Please check your name and try again.";
+                                            alert(messages);
+                                        });
+                                    }
+                                    if (!r.ok) {
+                                        restore();
+                                        alert("Something went wrong. Please try again.");
+                                        return;
+                                    }
+                                    restore();
+                                    var signPanel = document.getElementById("agreement-sign-panel");
+                                    if (signPanel) signPanel.dataset.signed = "1";
+                                    goToStep(3);
+                                    var prompt = document.getElementById("completion-prompt");
+                                    if (prompt) {
+                                        prompt.classList.remove("hidden");
+                                        localStorage.setItem(document.getElementById("guest-tour-data")?.dataset.tourKey || "guest_tour_seen", "1");
+                                    }
+                                })
+                                .catch(function() {
+                                    restore();
+                                    alert("Network error. Please try again.");
+                                });
+                        });
+                    });
+                }
 
                 // ── Step 3 "Continue": no network call — data already saved, just reload to reflect pending-approval state ──
                 document.getElementById("smart-lock-continue-btn").addEventListener("click", function() {

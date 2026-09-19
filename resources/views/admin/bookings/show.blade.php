@@ -362,6 +362,32 @@
                         <h2 class="section-title">Photo ID</h2>
                         <span class="badge badge-active">{{ $booking->id_type === 'passport' ? 'Passport' : 'State-issued ID' }}</span>
                     </div>
+                    @if($booking->id_scan_status)
+                        @php
+                            $idwScanBadge = match($booking->id_scan_status) {
+                                'matched' => ['bg-emerald-50 border-emerald-200 text-emerald-800', 'Name matched'],
+                                'expired' => ['bg-red-50 border-red-200 text-red-800', 'ID expired'],
+                                'name_mismatch' => ['bg-red-50 border-red-200 text-red-800', 'Name mismatch'],
+                                'manual_review' => ['bg-amber-50 border-amber-200 text-amber-800', 'Needs manual review'],
+                                default => ['bg-slate-50 border-slate-200 text-slate-600', ucfirst(str_replace('_', ' ', $booking->id_scan_status))],
+                            };
+                        @endphp
+                        <div class="mt-3 rounded-lg border p-3 text-sm {{ $idwScanBadge[0] }}">
+                            <p class="font-semibold">ID scan: {{ $idwScanBadge[1] }}</p>
+                            <dl class="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                                <dt class="font-medium opacity-75">Name on ID</dt>
+                                <dd>{{ $booking->id_name ?: '— not read —' }}</dd>
+                                <dt class="font-medium opacity-75">Typed name</dt>
+                                <dd>{{ $booking->guest_name }}</dd>
+                                <dt class="font-medium opacity-75">Date of birth</dt>
+                                <dd>{{ $booking->id_date_of_birth?->format('M j, Y') ?? '— not read —' }}{{ $booking->id_age ? ' ('.$booking->id_age.' yrs)' : '' }}</dd>
+                                <dt class="font-medium opacity-75">Expiry date</dt>
+                                <dd>{{ $booking->id_expiry_date?->format('M j, Y') ?? '— not read —' }}</dd>
+                                <dt class="font-medium opacity-75">Scanned</dt>
+                                <dd>{{ $booking->id_scanned_at ? $booking->localTimestamp($booking->id_scanned_at)->format('M j, Y g:i A') : '—' }}</dd>
+                            </dl>
+                        </div>
+                    @endif
                     @if($booking->photo_id_path || $booking->photo_id_back_path)
                         <div class="mt-4">
                             <div class="flex gap-4 overflow-x-auto border-b border-slate-200 text-sm font-semibold text-slate-500">

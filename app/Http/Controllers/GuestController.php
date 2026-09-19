@@ -13,6 +13,7 @@ use App\Services\SeamService;
 use App\Services\SmsConsentService;
 use App\Services\SmsNotificationService;
 use App\Services\RentalAgreementService;
+use App\Services\IdDocumentExtractor;
 use App\Support\PhoneFormatter;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
@@ -143,21 +144,15 @@ class GuestController extends Controller
             ? filter_var($request->input('parking_needed'), FILTER_VALIDATE_BOOLEAN)
             : $booking->parking_needed;
 
-        // Terms/Privacy acceptance, SMS consent, AND rental contract acceptance
-        // are all collected at Step 1 (login), not here in Step 2 (submitIdentity).
+        // Terms/Privacy acceptance and SMS consent are collected at Step 1
+        // (login). Rental contract signing is NOT — it requires the ID to
+        // already be uploaded and scanned so the typed name can be checked
+        // against it, so it's handled later by signRentalAgreement(), once
+        // ID capture (Step 2) has run.
         $requiresTermsAcceptance = ! $booking->terms_accepted_at;
-
-        // The rental agreement is signed at Step 1 too: the guest must type
-        // their legal name exactly as it appears on their government ID. We
-        // compare it (case/whitespace-insensitively) to the name on file and
-        // capture the signature evidence for the PDF.
-        $needsContractSignature = filled(Setting::getValue('legal_rental_contract_content', '')) && ! $booking->contract_accepted_at;
-        $acceptingContract = $request->boolean('contract_accepted') && $needsContractSignature;
 
         $data = $request->validate([
             'guest_name' => ['required', 'string', 'max:255'],
-            'contract_signed_name' => [$acceptingContract ? 'required' : 'nullable', 'string', 'max:255'],
-            'contract_signed_device_id' => ['nullable', 'string', 'max:64'],
             'phone' => ['required', 'string', 'max:50'],
             'phone_country_code' => ['nullable', 'string', 'max:10'],
             'email' => ['required', 'email', 'max:255'],
@@ -215,21 +210,6 @@ class GuestController extends Controller
         if ($requiresTermsAcceptance) {
             $updates['terms_accepted_at'] = now();
             $updates['terms_accepted_version'] = \App\Models\Setting::getValue('terms_version', '1');
-        }
-
-        if ($acceptingContract) {
-            if ($this->normalizePersonName($data['contract_signed_name']) !== $this->normalizePersonName($booking->guest_name)) {
-                throw ValidationException::withMessages([
-                    'contract_signed_name' => 'This must match your name exactly as it appears on your government ID.',
-                ]);
-            }
-
-            $updates['contract_accepted_at'] = now();
-            $updates['contract_version'] = Setting::getValue('legal_rental_contract_version', '1');
-            $updates['contract_signed_name'] = $data['contract_signed_name'];
-            $updates['contract_signed_ip'] = $request->ip();
-            $updates['contract_signed_user_agent'] = mb_substr((string) $request->userAgent(), 0, 1000);
-            $updates['contract_signed_device_id'] = $data['contract_signed_device_id'] ?? null;
         }
 
         $booking->update($updates);
@@ -636,6 +616,16 @@ class GuestController extends Controller
 
         $booking->update($updates);
 
+        // Scan the front of the ID (the side names/DOB/expiry are always
+        // printed on, for both passports and licenses) and record whether
+        // it matches what the guest typed, is expired, or needs manual
+        // review. This gates the rental agreement signature — see
+        // signRentalAgreement() — the guest can no longer sign before the
+        // ID they uploaded has actually been checked.
+        if (isset($updates['photo_id_path'])) {
+            $this->scanUploadedId($booking, $updates['photo_id_path']);
+        }
+
         $frontUploaded = $request->hasFile('photo_id') && $booking->photo_id_path;
         $backUploaded = $request->hasFile('photo_id_back') && $booking->photo_id_back_path;
 
@@ -655,12 +645,138 @@ class GuestController extends Controller
             'metadata'    => ['email' => $booking->email, 'booking_ref' => $booking->booking_id],
         ]);
 
+        $booking->refresh();
+
         if ($request->expectsJson()) {
-            return response()->json(['ok' => true]);
+            return response()->json([
+                'ok' => true,
+                'id_scan' => [
+                    'status' => $booking->id_scan_status,
+                    'passed' => $booking->idScanPassed(),
+                    'blocking_reason' => $booking->idScanBlockingReason(),
+                    'name' => $booking->id_name,
+                ],
+            ]);
         }
 
         return back()
             ->with('success', 'All complete. Your arrival information has been received securely.');
+    }
+
+    /**
+     * Runs OCR on the just-uploaded front ID photo and records the
+     * extracted name/DOB/expiry plus a scan status:
+     *   - expired          → id_expiry_date is in the past. Instant reject.
+     *   - name_mismatch     → extracted name clearly doesn't match the
+     *                        guest's typed name. Instant reject.
+     *   - matched          → extracted name matches, ID not expired.
+     *   - manual_review    → OCR couldn't confidently read a needed field
+     *                        (bad photo, unfamiliar layout, etc.) — never
+     *                        auto-rejected on our own low confidence, an
+     *                        admin resolves it instead.
+     */
+    private function scanUploadedId(Booking $booking, string $storagePath): void
+    {
+        $result = app(IdDocumentExtractor::class)->extract($storagePath);
+
+        $status = 'manual_review';
+
+        if ($result->isExpired()) {
+            $status = 'expired';
+        } elseif ($result->hasUsableName()) {
+            $status = $this->normalizePersonName($result->name) === $this->normalizePersonName($booking->guest_name)
+                ? 'matched'
+                : 'name_mismatch';
+        }
+
+        $booking->update([
+            'id_name' => $result->name,
+            'id_date_of_birth' => $result->dateOfBirth,
+            'id_age' => $result->age(),
+            'id_expiry_date' => $result->expiryDate,
+            'id_scan_status' => $status,
+            'id_scanned_at' => now(),
+        ]);
+
+        ActivityLogService::guest('id_scanned', "ID scan for {$booking->guest_name} completed with status: {$status}.", 'photo_id', [
+            'booking_id'  => $booking->id,
+            'property_id' => $booking->property_id,
+            'actor_name'  => $booking->guest_name,
+            'severity'    => in_array($status, ['expired', 'name_mismatch'], true) ? 'warning' : 'info',
+            'metadata'    => ['id_scan_status' => $status, 'extracted_name' => $result->name],
+        ]);
+    }
+
+    /**
+     * Signs the rental agreement. Split out from login() (Step 1) because
+     * the typed name can only be checked against the government ID once
+     * the ID has actually been uploaded and scanned (Step 2) — signing is
+     * blocked entirely until id_scan_status is 'matched' or
+     * 'manual_review' (an admin will resolve 'manual_review' cases; the
+     * guest isn't blocked by our own OCR limitations, only by a genuine
+     * expired ID or name mismatch).
+     */
+    public function signRentalAgreement(Request $request, string $bookingId, string $token)
+    {
+        $booking = $this->booking($bookingId, $token);
+
+        if ($booking->isCancelled()) {
+            abort(403, 'This booking has been cancelled.');
+        }
+
+        if ($booking->contract_accepted_at) {
+            return $request->expectsJson() ? response()->json(['ok' => true]) : back();
+        }
+
+        if (! $booking->photo_id_received || blank($booking->id_scan_status)) {
+            throw ValidationException::withMessages([
+                'contract_signed_name' => 'Please upload your government ID before signing the rental agreement.',
+            ]);
+        }
+
+        if (! $booking->idScanPassed()) {
+            throw ValidationException::withMessages([
+                'contract_signed_name' => $booking->idScanBlockingReason() ?? 'We were unable to verify your ID. Please contact us for help.',
+            ]);
+        }
+
+        $data = $request->validate([
+            'contract_signed_name' => ['required', 'string', 'max:255'],
+            'contract_signed_device_id' => ['nullable', 'string', 'max:64'],
+        ]);
+
+        // Prefer the name actually read off the ID as the source of truth
+        // once we have one (manual_review cases may lack a usable
+        // extracted name, so fall back to the typed guest_name then).
+        $referenceName = $booking->id_name ?: $booking->guest_name;
+
+        if ($this->normalizePersonName($data['contract_signed_name']) !== $this->normalizePersonName($referenceName)) {
+            throw ValidationException::withMessages([
+                'contract_signed_name' => 'This must match your name exactly as it appears on your government ID.',
+            ]);
+        }
+
+        $booking->update([
+            'contract_accepted_at' => now(),
+            'contract_version' => Setting::getValue('legal_rental_contract_version', '1'),
+            'contract_signed_name' => $data['contract_signed_name'],
+            'contract_signed_ip' => $request->ip(),
+            'contract_signed_user_agent' => mb_substr((string) $request->userAgent(), 0, 1000),
+            'contract_signed_device_id' => $data['contract_signed_device_id'] ?? null,
+        ]);
+
+        ActivityLogService::guest('rental_agreement_signed', "Guest {$booking->guest_name} signed the rental agreement.", 'guest_portal', [
+            'booking_id'  => $booking->id,
+            'property_id' => $booking->property_id,
+            'actor_name'  => $booking->guest_name,
+            'severity'    => 'success',
+        ]);
+
+        if ($request->expectsJson()) {
+            return response()->json(['ok' => true]);
+        }
+
+        return back()->with('success', 'Rental agreement signed.');
     }
 
     public function submitVehicleInfo(Request $request, string $bookingId, string $token)

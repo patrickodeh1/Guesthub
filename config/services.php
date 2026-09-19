@@ -48,6 +48,15 @@ return [
         'key' => env('GOOGLE_MAPS_API_KEY'),
     ],
 
+    // Used by IdDocumentExtractor to OCR guest ID photos (name/DOB/expiry).
+    // A plain API key is enough for the Vision REST API — no service
+    // account JSON needed. First 1,000 DOCUMENT_TEXT_DETECTION calls/month
+    // are free; a GCP billing account with a card on file is still required
+    // to turn the API on, even to use the free allowance.
+    'google_vision' => [
+        'key' => env('GOOGLE_VISION_API_KEY'),
+    ],
+
     'channex' => [
         'api_key' => env('CHANNEX_API_KEY'),
         'base_url' => env('CHANNEX_BASE_URL', 'https://staging.channex.io/api/v1'),

@@ -31,6 +31,7 @@ class Booking extends Model
         'parking_charge', 'parking_charge_override', 'incidentals_charge', 'checkin_reminder_sent_at', 'checkout_reminder_sent_at',
         'early_checkin_charge_override', 'early_checkin_billing_mode', 'late_checkout_charge_override', 'ledger_published_at',
         'vehicle_make_model', 'license_plate_photo_path', 'vehicle_info_bypassed_at',
+        'id_date_of_birth', 'id_age', 'id_expiry_date', 'id_number', 'id_name', 'id_scan_status', 'id_scanned_at',
     ];
 
     protected function casts(): array
@@ -78,6 +79,10 @@ class Booking extends Model
             'ledger_published_at' => 'datetime',
             'checkin_reminder_sent_at' => 'datetime',
             'checkout_reminder_sent_at' => 'datetime',
+            'id_date_of_birth' => 'date',
+            'id_age' => 'integer',
+            'id_expiry_date' => 'date',
+            'id_scanned_at' => 'datetime',
             'vehicle_info_bypassed_at' => 'datetime',
                     ];
     }
@@ -368,6 +373,30 @@ class Booking extends Model
     public function needsIdApproval(): bool
     {
         return filled($this->photo_id_path) && ! $this->isApproved();
+    }
+
+    /**
+     * True once the uploaded ID has been scanned (task: OCR name/DOB/expiry
+     * verification) AND the result is one the guest is allowed to proceed
+     * on: the extracted name matched what they typed, or the scan couldn't
+     * confidently read a field and was routed to manual admin review
+     * (never automatically blocked on our own low confidence). Expired
+     * documents and clear name mismatches are excluded — those must be
+     * resolved (re-upload or admin override) before the rental agreement
+     * can be signed.
+     */
+    public function idScanPassed(): bool
+    {
+        return in_array($this->id_scan_status, ['matched', 'manual_review'], true);
+    }
+
+    public function idScanBlockingReason(): ?string
+    {
+        return match ($this->id_scan_status) {
+            'expired' => 'Your ID appears to be expired. Please upload a currently valid government ID to continue.',
+            'name_mismatch' => 'The name on your ID doesn\'t match the name you entered. Please double-check your name or re-upload a clearer photo of your ID.',
+            default => null,
+        };
     }
 
     public function isFrontIdApproved(): bool
