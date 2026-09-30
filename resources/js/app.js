@@ -826,10 +826,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (idStateKey) sessionStorage.removeItem(idStateKey);
                     } catch (_) {}
                     if (!alreadyReloaded) {
-                        clearInterval(idPollInterval);
                         location.reload();
-                        return;
                     }
+                    clearInterval(idPollInterval);
+                    return;
                 } else if (idRejectionKey) {
                     try { sessionStorage.removeItem(idRejectionKey); } catch (_) {}
                 }
